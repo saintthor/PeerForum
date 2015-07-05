@@ -9,7 +9,11 @@ class NoAvailableNodeErr( Exception ): pass
     
 class NoAvailableUserErr( Exception ): pass
     
+class RemoteClockErr( Exception ): pass
     
+class PubKeyTypeNotSupportedErr( Exception ): pass
+    
+class MsgKeyLackErr( Exception ): pass
     
     
     
