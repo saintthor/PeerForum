@@ -8,9 +8,11 @@ Created on Sun Jun 21 22:04:20 2015
 import logging
 
 from threading import Thread
+from Queue import Queue
 
 from sqlitedb import SqliteDB
 from exception import *
+from const import TechInfo, PFPVersion
 
 class Communication( Thread ):
     "communicate with remote node"
@@ -32,7 +34,28 @@ class Communication( Thread ):
     def Sign( self ):
         ""
         pass
+
+
+class NeighborNode( object ):
+    ""
+    @classmethod
+    def New( cls, pubK ):
+        ""
+        return cls()
     
+    def __init__( self ):
+        ""
+        self.MsgQ = Queue()
+    
+    def Reply( self, msgObj ):
+        "reply the message directlly"
+        #print 'NeighborNode.Reply'
+        return msgObj.Reply()
+    
+    def Append( self ):
+        "get the additional messages to the neighbor"
+        return ()
+
 
 class SelfNode( object ):
     "peerforum self node"
@@ -52,13 +75,18 @@ class SelfNode( object ):
             raise NoAvailableNodeErr
             
         self.Name, self.PubKey, self.PriKey, self.SvPrtcl, self.Desc, self.Addr, self.Level = NodeData
-        
-        self.Run()
     
-    def Run( self ):
+    def GetInfo( self ):
         ""
-        print 'Node.Run'
-    
+        return {
+            "Address": self.Addr,
+            "NodeName": self.Name,
+            "NodeTypeVer": TechInfo,
+            "PFPVer": PFPVersion,
+            "BaseProtocol": self.SvPrtcl,
+            "Description": self.Desc,
+                }
+                
     def Show( self ):
         "show in local client"
         return [self.Name, self.PubKey, self.Level]
