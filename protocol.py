@@ -38,10 +38,10 @@ class PFPMessage( object ):
         self.ChkMsgBody( loads( BodyStr ))
         return BodyStr
     
-    def VerifyBody( self, verifyFunc, bodyStr, msgD ):
-        ""
-        if not verifyFunc( bodyStr, decodestring( msgD['sign'] )):
-            raise VerifyFailedErr
+#    def VerifyBody( self, verifyFunc, bodyStr, msgD ):
+#        ""
+#        if not verifyFunc( bodyStr, decodestring( msgD['sign'] )):
+#            raise VerifyFailedErr
     
     def ChkMsgBody( self, bodyD ):
         ""
@@ -121,11 +121,10 @@ class QryPubKeyMsg( PFPMessage ):
     def GetBody( self, msgD ):
         "do not verify or decrypt."
         self.ChkMsgBody( msgD )
-        return ''
     
-    def VerifyBody( self, *args ):
-        ""
-        pass
+#    def VerifyBody( self, *args ):
+#        ""
+#        pass
     
 class NodeAnswerMsg( PFPMessage ):
     ""

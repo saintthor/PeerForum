@@ -7,6 +7,7 @@ Created on Mon Jun 22 15:33:58 2015
 import logging
 import traceback
 from json import loads, dumps
+from base64 import decodestring
 #import re
 import rsa1 as rsa
 
@@ -56,9 +57,14 @@ class PeerForum( object ):
         print 'PeerForum.Reply', msgStr
         ComingMsg = PFPMessage( ord( msgStr[0] ))
         MsgBody = loads( msgStr[1:] )
-        BodyStr = ComingMsg.GetBody( MsgBody )
-        Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( loads( BodyStr ) if BodyStr else MsgBody ))
-        ComingMsg.VerifyBody( Neighbor.Verify, BodyStr, MsgBody )
+        
+        VerifyStr = ComingMsg.GetBody( MsgBody )
+        if VerifyStr:
+            Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( loads( BodyStr )))
+            Neighbor.Verify( VerifyStr, decodestring( MsgBody['sign'] ))
+        else:
+            Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( MsgBody ))
+            
         Messages = Neighbor.Reply( ComingMsg ) + Neighbor.Append()
         print 'Messages = ', Messages
         
