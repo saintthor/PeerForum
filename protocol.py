@@ -15,6 +15,7 @@ class PFPMessage( object ):
     ""
     ReplyCode = 0
     MsgMap = {}
+    MustHas = { 'Time', 'PubKey' }
     LocalNode = None
     
     @classmethod
@@ -33,9 +34,13 @@ class PFPMessage( object ):
     
     def GetBody( self, msgD ):
         "this is a received message from remote. decrypt and verify."
-        BodyStr = self.LocalNode.Decrypt( msgD['msg'], msgD['key'] )
+        BodyStr = self.LocalNode.Decrypt( decodestring( msgD['msg'] ), decodestring( msgD['key'] ))
         self.ChkMsgBody( loads( BodyStr ))
-        if not self.RemoteNode.Verify( BodyStr, msgD['sign'] ):
+        return BodyStr
+    
+    def VerifyBody( self, verifyFunc, bodyStr, msgD ):
+        ""
+        if not verifyFunc( bodyStr, decodestring( msgD['sign'] )):
             raise VerifyFailedErr
     
     def ChkMsgBody( self, bodyD ):
@@ -116,6 +121,11 @@ class QryPubKeyMsg( PFPMessage ):
     def GetBody( self, msgD ):
         "do not verify or decrypt."
         self.ChkMsgBody( msgD )
+        return ''
+    
+    def VerifyBody( self, *args ):
+        ""
+        pass
     
 class NodeAnswerMsg( PFPMessage ):
     ""

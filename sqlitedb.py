@@ -60,7 +60,8 @@ def CreateNodeORUpdate( d ):
     #print 'CreateNodeORUpdate', d
     with SqliteDB() as cursor:
         if 'PubKey' in d:
-            d['PubKey'] = d['PubKey'].save_pkcs1()
+            if not isinstance( d['PubKey'], basestring ):
+                d['PubKey'] = d['PubKey'].save_pkcs1()
             cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'status'
             exist = cursor.execute( 'select %s from node where PubKey = "%s";' % ( ','.join( cols ), d['PubKey'] )).fetchone()
             if exist:
