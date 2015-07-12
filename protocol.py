@@ -31,7 +31,7 @@ class PFPMessage( object ):
         ""
         self.code = code
     
-    def Receive( self, msgD ):
+    def GetBody( self, msgD ):
         "this is a received message from remote. decrypt and verify."
         BodyStr = self.LocalNode.Decrypt( msgD['msg'], msgD['key'] )
         self.ChkMsgBody( loads( BodyStr ))
@@ -113,7 +113,7 @@ class QryPubKeyMsg( PFPMessage ):
         "do not encrypt for this message."
         return dumps( self.body )    
 
-    def Receive( self, msgD ):
+    def GetBody( self, msgD ):
         "do not verify or decrypt."
         self.ChkMsgBody( msgD )
     

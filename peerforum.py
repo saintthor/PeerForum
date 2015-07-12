@@ -54,11 +54,11 @@ class PeerForum( object ):
     def Reply( cls, msgStr ):
         ""
         print 'PeerForum.Reply', msgStr
-        Message = PFPMessage( ord( msgStr[0] ))
+        ComingMsg = PFPMessage( ord( msgStr[0] ))
         MsgBody = loads( msgStr[1:] )
-        Message.Receive( MsgBody )
-        Neighber = cls.LiveNeighborD.setdefault( Message.PubKey, NeighborNode.New( MsgBody ))
-        Messages = Neighber.Reply( Message ) + Neighber.Append()
+        ComingMsg.GetBody( MsgBody )
+        Neighber = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( MsgBody ))
+        Messages = Neighber.Reply( ComingMsg ) + Neighber.Append()
         print 'Messages = ', Messages
         
         return Messages
