@@ -10,7 +10,7 @@ LOG_FILE = './peerforum.log'
 TechInfo = 'python peer 0.1'
 PFPVersion = "PFP V0.1"
 MaxTimeDiff = 15000
-
+SignHashFunc = 'MD5'
 
 
 

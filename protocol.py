@@ -1,15 +1,12 @@
 #! /usr/bin/env python
 #coding=utf-8
 
-import hashlib
-import json
-import re
 import rsa1 as rsa
 
 from time import time
 from json import loads, dumps
+from base64 import encodestring, decodestring
 
-from sqlitedb import SqliteDB
 from exception import *
 from const import MaxTimeDiff
 
@@ -35,35 +32,57 @@ class PFPMessage( object ):
         self.code = code
     
     def Receive( self, msgD ):
-        "this is a received message from remote."
-        if not msgD.viewkeys() > self.MustHas:
+        "this is a received message from remote. decrypt and verify."
+        BodyStr = self.LocalNode.Decrypt( msgD['msg'], msgD['key'] )
+        self.ChkMsgBody( loads( BodyStr ))
+        if not self.RemoteNode.Verify( BodyStr, msgD['sign'] ):
+            raise VerifyFailedErr
+    
+    def ChkMsgBody( self, bodyD ):
+        ""
+        if not bodyD.viewkeys() > self.MustHas:
             raise MsgKeyLackErr
             
-        for k, v in msgD.items():
+        for k, v in bodyD.items():
             try:
                 val = getattr( self, '_Check_%s' % k )( v )
                 if val is not None:
-                    msgD[k] = val
+                    bodyD[k] = val
             except AttributeError:
                 pass
         
-        for k, v in msgD.items():
+        for k, v in bodyD.items():
             setattr( self, k, v )
         
-    def Reply( self ):
+        
+    def Reply( self, rmtNode ):
         ""
-        print 'PFPMessage.Reply'
+        #print 'PFPMessage.Reply'
         if self.ReplyCode == 0:
             return ()
         RplMsg = PFPMessage( self.ReplyCode )
+        RplMsg.SetRemoteNode( rmtNode )
         return RplMsg.Issue(),
     
     def Issue( self ):
         ""
         self.body['Time'] = int( time() * 1000 )
-        self.body['PubKey'] = self.LocalNode.PubKey
+        self.body['PubKey'] = self.LocalNode.PubKeyStr
         self.body['Addr'] = self.LocalNode.Addr
-        return chr( self.code ) + dumps( self.body )
+        return chr( self.code ) + self.EncryptBody()
+    
+    def EncryptBody( self ):
+        ""
+        print 'EncryptBody', self.body
+        BodyStr = dumps( self.body )
+        CryptMsgD = self.RemoteNode.Encrypt( BodyStr )
+        CryptMsgD['sign'] = self.LocalNode.Sign( BodyStr )
+        #print type( CryptMsgD['msg'] ), CryptMsgD['msg']
+        return dumps( CryptMsgD )
+    
+    def SetRemoteNode( self, rmtNode ):
+        "send target"
+        self.RemoteNode = rmtNode
         
     @staticmethod
     def _Check_Time( v ):
@@ -89,7 +108,15 @@ class QryPubKeyMsg( PFPMessage ):
     code = 0x10
     MustHas = { 'Time', 'PubKey' }
     ReplyCode = 0x11
+    
+    def EncryptBody( self ):
+        "do not encrypt for this message."
+        return dumps( self.body )    
 
+    def Receive( self, msgD ):
+        "do not verify or decrypt."
+        self.ChkMsgBody( msgD )
+    
 class NodeAnswerMsg( PFPMessage ):
     ""
     code = 0x11
@@ -137,3 +164,62 @@ class GetTimeLineMsg( PFPMessage ):
 
 
 
+class Task( object ):
+    ""
+    MsgSteps = []
+    
+    def __init__( self, rmtNode ):
+        ""
+        self.RemoteNode = rmtNode
+    
+    def run( self ):
+        ""
+        for go, come in self.MsgSteps:
+            if come is None:
+                yield go
+                break
+            reply = yield go
+            while reply != come:
+                reply = yield None
+        
+class QryPubKeyTask( Task ):
+    ""
+    MsgSteps = (
+        ( QryPubKeyMsg, NodeAnswerMsg ),
+        ( NodeAnswerMsg, None ),
+            )
+                
+class GetNodeTask( Task ):
+    ""
+    MsgSteps = (
+        ( GetNodeMsg, NodeAnswerMsg ),
+            )
+            
+class ChangeAddrTask( Task ):
+    ""
+    MsgSteps = (
+        ( ChangeAddrMsg, None ),
+            )
+            
+class SearchAddrTask( Task ):
+    ""
+    MsgSteps = (
+        ( SearchAddrMsg, ChangeAddrMsg ),
+            )
+            
+class SyncAtclTask( Task ):
+    ""
+    MsgSteps = (
+        ( ChkTreeMsg, GetTreeMsg ),
+        ( AtclDataMsg, None ),
+            )
+            
+class TimeLineAtclTask( Task ):
+    ""
+    MsgSteps = (
+        ( GetTimeLineMsg, AtclDataMsg ),
+            )
+            
+            
+            
+    

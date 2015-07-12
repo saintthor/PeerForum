@@ -54,15 +54,12 @@ class PeerForum( object ):
     def Reply( cls, msgStr ):
         ""
         print 'PeerForum.Reply', msgStr
-        try:
-            Message = PFPMessage( ord( msgStr[0] ))
-            Message.Receive( loads( msgStr[1:] ))
-            Neighber = cls.LiveNeighborD.setdefault( Message.PubKey, NeighborNode.New( Message ))
-            Messages = Neighber.Reply( Message ) + Neighber.Append()
-            print 'Messages = ', Messages
-        except Exception, e:
-            print traceback.format_exc()
-            Messages = [( 0x16, { 'error': str( e ) } )]
+        Message = PFPMessage( ord( msgStr[0] ))
+        MsgBody = loads( msgStr[1:] )
+        Message.Receive( MsgBody )
+        Neighber = cls.LiveNeighborD.setdefault( Message.PubKey, NeighborNode.New( MsgBody ))
+        Messages = Neighber.Reply( Message ) + Neighber.Append()
+        print 'Messages = ', Messages
         
         return Messages
 

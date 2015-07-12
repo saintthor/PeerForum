@@ -9,10 +9,14 @@ import logging
 
 from threading import Thread
 from Queue import Queue
+from random import choice
+import rsa1 as rsa
+from base64 import encodestring, decodestring
 
-from sqlitedb import SqliteDB
+from sqlitedb import SqliteDB, CreateNodeORUpdate
 from exception import *
-from const import TechInfo, PFPVersion
+from const import TechInfo, PFPVersion, SignHashFunc
+from crypto import CBCEncrypt, CBCDecrypt
 
 class Communication( Thread ):
     "communicate with remote node"
@@ -39,18 +43,46 @@ class Communication( Thread ):
 class NeighborNode( object ):
     ""
     @classmethod
-    def New( cls, pubK ):
+    def New( cls, msgBody ):
         ""
-        return cls()
+        transD = {
+            'NodeName': 'name',
+            'Description': 'discription',
+            'Address': 'address',
+            'NodeTypeVer': 'TechInfo',
+            'BaseProtocol': 'ServerProtocol',            
+                }
+        return cls( **{ transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', ) } )
     
-    def __init__( self ):
+    def __init__( self, **kwds ):
         ""
         self.MsgQ = Queue()
+        self.tasks = []
+        CreateNodeORUpdate( kwds )
+        for k, v in kwds.items():
+            setattr( self, k, v )
+        self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKey )
     
+    def Encrypt( self, s ):
+        ""
+        if not hasattr( self, 'PubKey' ):
+            raise NodePubKeyInvalidErr
+        k = ''.join( [choice( "1234567890)(*&^%$#@!`~qazxswedcvfrtgbnhyujm,kiolp;.[]{}:?><\"\\'/PLOKMIJNUHBYGVTFCRDXESZWAQ" )
+                        for i in range( 32 )] )
+        #print k, self.PubKey
+        return {
+            "msg": encodestring( CBCEncrypt( s, k )),
+            "key": encodestring( rsa.encrypt( k, self.PubKey )),
+                }
+    
+    def Verify( self, message, sign ):
+        ""
+        return rsa.verify( message, sign, self.PubKey )
+        
     def Reply( self, msgObj ):
         "reply the message directlly"
         #print 'NeighborNode.Reply'
-        return msgObj.Reply()
+        return msgObj.Reply( self )
     
     def Append( self ):
         "get the additional messages to the neighbor"
@@ -74,8 +106,19 @@ class SelfNode( object ):
         if NodeData is None:
             raise NoAvailableNodeErr
             
-        self.Name, self.PubKey, self.PriKey, self.SvPrtcl, self.Desc, self.Addr, self.Level = NodeData
+        self.Name, self.PubKeyStr, PriKeyStr, self.SvPrtcl, self.Desc, self.Addr, self.Level = NodeData
+        self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
+        self.PriKey = rsa.PrivateKey.load_pkcs1( PriKeyStr )
     
+    def Decrypt( self, secMsg, secK ):
+        ""
+        key = rsa.decrypt( secK, self.PriKey )
+        return CBCDecrypt( secMsg, key )
+    
+    def Sign( self, msg ):
+        ""
+        return encodestring( rsa.sign( msg, self.PriKey, SignHashFunc ))
+        
     def GetInfo( self ):
         ""
         return {
