@@ -60,7 +60,7 @@ class PeerForum( object ):
         
         VerifyStr = ComingMsg.GetBody( MsgBody )
         if VerifyStr:
-            Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( loads( BodyStr )))
+            Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( loads( VerifyStr )))
             Neighbor.Verify( VerifyStr, decodestring( MsgBody['sign'] ))
         else:
             Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( MsgBody ))
