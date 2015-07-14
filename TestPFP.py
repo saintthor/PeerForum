@@ -7,13 +7,10 @@ Created on Mon Jul  6 23:14:24 2015
 
 import urllib2
 from urllib import urlencode
-from json import dumps, loads
-from time import time, sleep
+from json import loads
+from time import sleep
 import rsa1 as rsa
-from random import choice
-from base64 import encodestring, decodestring
-from crypto import CBCEncrypt, CBCDecrypt
-from peerforum import PeerForum
+from base64 import decodestring
 
 from node import SelfNode, NeighborNode
 from protocol import PFPMessage, QryPubKeyTask
@@ -40,7 +37,7 @@ class TestNeighborNode( NeighborNode ):
             setattr( self, k, v )
         if hasattr( self, 'PubKey' ):
             self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKey )
-        self.Addr = 'http://127.0.0.1:8000/node'
+        self.Addr = 'http://127.0.0.1:8001/node'
         
 def test():
     ""

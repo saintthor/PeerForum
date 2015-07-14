@@ -89,13 +89,13 @@ def FileExist( fpath ):
         
     return os.path.isfile( fpath )
         
-def InitDB():
+def InitDB( path = DB_FILE ):
     "init db if the db file is not exist."
-    if FileExist( DB_FILE ):
+    if FileExist( path ):
         #print '================\nThe db file %s already exists. \nIf you want to use another db file path, set the DB_FILE in const.py.\n============' % DB_FILE
         return
         
-    with SqliteDB() as c:
+    with SqliteDB( path ) as c:
         #飘论坛的用户
         c.execute( "create table user (NickName varchar(32), PubKey varchar(1024) unique, status int(2));" )
         #自己的马甲
