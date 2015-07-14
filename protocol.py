@@ -23,8 +23,10 @@ class PFPMessage( object ):
         ""
         cls.MsgMap.update( { c.code: c for c in cls.__subclasses__() } )
     
-    def __new__( cls, code ):
+    def __new__( cls, code = 0 ):
         ""
+        if cls != PFPMessage:
+            return object.__new__( cls )
         SubClass = cls.MsgMap[code]
         return object.__new__( SubClass )
     
@@ -73,7 +75,7 @@ class PFPMessage( object ):
         ""
         self.body['Time'] = int( time() * 1000 )
         self.body['PubKey'] = self.LocalNode.PubKeyStr
-        self.body['Addr'] = self.LocalNode.Addr
+        self.body['Address'] = self.LocalNode.Addr
         return chr( self.code ) + self.EncryptBody()
     
     def EncryptBody( self ):
@@ -114,6 +116,11 @@ class QryPubKeyMsg( PFPMessage ):
     MustHas = { 'Time', 'PubKey' }
     ReplyCode = 0x11
     
+    def __init__( self, code = 0 ):
+        ""
+        self.code = code or self.code
+        self.body = {}
+
     def EncryptBody( self ):
         "do not encrypt for this message."
         return dumps( self.body )    
@@ -130,9 +137,9 @@ class NodeAnswerMsg( PFPMessage ):
     ""
     code = 0x11
     Keys = { 'Address', 'NodeName', 'NodeTypeVer', 'PFPVer', 'BaseProtocol', 'Description' }
-    def __init__( self, code ):
+    def __init__( self, code = 0 ):
         ""
-        self.code = code
+        self.code = code or self.code
         self.body = self.LocalNode.GetInfo()
 
 class GetNodeMsg( PFPMessage ):
@@ -181,14 +188,14 @@ class Task( object ):
         ""
         self.RemoteNode = rmtNode
     
-    def run( self ):
+    def StepGen( self ):
         ""
         for go, come in self.MsgSteps:
             if come is None:
                 yield go
                 break
             reply = yield go
-            while reply != come:
+            while not isinstance( reply, come ):
                 reply = yield None
         
 class QryPubKeyTask( Task ):

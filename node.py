@@ -12,6 +12,8 @@ from Queue import Queue
 from random import choice
 import rsa1 as rsa
 from base64 import encodestring, decodestring
+import urllib2
+from urllib import urlencode
 
 from sqlitedb import SqliteDB, CreateNodeORUpdate
 from exception import *
@@ -61,7 +63,8 @@ class NeighborNode( object ):
         CreateNodeORUpdate( kwds )
         for k, v in kwds.items():
             setattr( self, k, v )
-        self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKey )
+        if hasattr( self, 'PubKey' ):
+            self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKey )
     
     def Encrypt( self, s ):
         ""
@@ -78,6 +81,15 @@ class NeighborNode( object ):
     def Verify( self, message, sign ):
         ""
         return rsa.verify( message, sign, self.PubKey )
+    
+    def Send( self, msgObj ):
+        "send to remote node"
+        data = urlencode( { 'pfp': msgObj.Issue() } )
+        req = urllib2.Request( url, data )
+        response = urllib2.urlopen( req )
+        
+        reply = response.read()
+        
         
     def Reply( self, msgObj ):
         "reply the message directlly"

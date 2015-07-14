@@ -54,7 +54,7 @@ class PeerForum( object ):
     @classmethod
     def Reply( cls, msgStr ):
         ""
-        print 'PeerForum.Reply', msgStr
+        print 'PeerForum.Reply', ord( msgStr[0] ), msgStr
         ComingMsg = PFPMessage( ord( msgStr[0] ))
         MsgBody = loads( msgStr[1:] )
         
