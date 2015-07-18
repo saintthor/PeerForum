@@ -15,12 +15,13 @@ from protocol import PFPMessage
 
 class TestPeerForum( PeerForum ):
     ""
-    pass
+    LocalNode = None
+    LiveNeighborD = {}
 
 if __name__ == '__main__':
     InitDB( './test.db' )
     PFPMessage.Init()
-    PeerForum.ChkEnv()
+    TestPeerForum.ChkEnv()
     debug( True )
     run( host = '0.0.0.0', port = 8001, reloader = True )
     

@@ -7,7 +7,6 @@ Created on Sun Jun 14 17:20:40 2015
 
 import os
 import sqlite3
-from rsa1 import PrivateKey, PublicKey
 
 from const import DB_FILE
 
@@ -55,6 +54,7 @@ def _InsertStr( d ):
     vStrs = [statement( v ) for v in vs]
     return u'( %s ) values ( %s )' % ( u','.join( ks ), u','.join( vStrs ))
 
+
 def CreateNodeORUpdate( d ):
     "if neighbor node exist then update else create."
     #print 'CreateNodeORUpdate', d
@@ -62,7 +62,7 @@ def CreateNodeORUpdate( d ):
         if 'PubKey' in d:
             if not isinstance( d['PubKey'], basestring ):
                 d['PubKey'] = d['PubKey'].save_pkcs1()
-            cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'status'
+            cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
             exist = cursor.execute( 'select %s from node where PubKey = "%s";' % ( ','.join( cols ), d['PubKey'] )).fetchone()
             if exist:
                 PubKey = d.pop( 'PubKey' )
@@ -75,6 +75,29 @@ def CreateNodeORUpdate( d ):
         print sql
         cursor.execute( sql )
 
+def CreateSelfNode( **kwds ):
+    ""
+    with SqliteDB() as cursor:
+        sql = u'''insert into selfnode %s''' % _InsertStr( kwds )
+        cursor.execute( sql )
+
+def GetAllNode( *cols ):
+    ""
+    with SqliteDB() as cursor:
+        sql = u'''select %s from node where level > 0 and ServiceProtocol = "HTTP"''' % ','.join( cols )
+        return cursor.execute( sql ).fetchall()
+
+def GetNodeById( nodeId ):
+    ""
+    d = {}
+    with SqliteDB() as cursor:
+        cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
+        node = cursor.execute( 'select %s from node where id = %s;' % ( ','.join( cols ), nodeId )).fetchone()
+        if node:
+            for i, col in enumerate( cols ):
+                d.setdefault( col, node[i] )
+    return d
+    
 def test():
     d = { 'a': 'zzz', 'b': 23.33, 'c': u'股市停牌潮' }
     print _InsertStr( d )
@@ -97,14 +120,14 @@ def InitDB( path = DB_FILE ):
         
     with SqliteDB( path ) as c:
         #飘论坛的用户
-        c.execute( "create table user (NickName varchar(32), PubKey varchar(1024) unique, status int(2));" )
+        c.execute( "create table user (NickName varchar(32), PubKey varchar(1024) unique, status int(2) default 0);" )
         #自己的马甲
         c.execute( """create table self (NickName varchar(32), PubKey varchar(1024) unique,
                     PriKey varchar(4096), status int(2) default 0);""" )
         #邻节点
-        c.execute( """create table node (name varchar(32), PubKey varchar(1024) unique,
-                    discription varchar(2048), address varchar(64), TechInfo varchar(64),
-                    PFPVer varchar(16), ServerProtocol varchar(16), status int(2) default 0);""" )
+        c.execute( """create table node (id integer primary key not null, name varchar(32), 
+                    PubKey varchar(1024) unique, discription varchar(2048), address varchar(64), TechInfo varchar(64),
+                    PFPVer varchar(16), ServerProtocol varchar(16), level int(2) default 10);""" )
         #自身节点
         c.execute( """create table selfnode (name varchar(32), PubKey varchar(1024) unique,
                     discription varchar(2048), PriKey varchar(4096), address varchar(64),

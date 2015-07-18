@@ -18,7 +18,7 @@ import user
 
 from node import NeighborNode, SelfNode
 from protocol import PFPMessage
-from const import LOG_FILE
+from const import LOG_FILE, CommunicateCycle
 from sqlitedb import SqliteDB, InitDB
 from exception import *
 
@@ -26,7 +26,6 @@ from exception import *
 class PeerForum( object ):
     "physical node"
     LocalNode = None
-    LiveNeighborD = {}
     
     @classmethod
     def ChkEnv( cls ):
@@ -36,7 +35,7 @@ class PeerForum( object ):
                 cls.LocalNode = PFPMessage.LocalNode = SelfNode()
                 break
             except NoAvailableNodeErr:
-                cls.NewSelfNode()
+                SelfNode.New()
         else:
             return { 'error': 'no availabel self node.' }
         return { 'CurNode': cls.LocalNode.Show() }
@@ -52,18 +51,71 @@ class PeerForum( object ):
         return {}
     
     @classmethod
-    def Reply( cls, msgStr ):
+    def Dida( cls, counter = [0] ):
         ""
-        print 'PeerForum.Reply', ord( msgStr[0] ), msgStr
+        counter[0] = n = counter[0] + 1
+        if n % CommunicateCycle == 0:
+            cls.Communicate()
+        return {}
+    
+    @classmethod
+    def Communicate( cls ):
+        ""
+        Remote = NeighborNode.Pick()
+        task = QryPubKeyTask( Remote )
+        Steps = task.StepGen()
+        ComingMsg = None
+        
+        while True:
+            try:
+                MsgCls = Steps.send( ComingMsg )
+                if MsgCls is None:
+                    sleep( 1 )
+                    continue
+            except StopIteration:
+                print 'test over.'
+                break
+            
+            print 'MsgCls is ', MsgCls
+            Message = MsgCls()
+            Message.SetRemoteNode( Remote )
+            data = urlencode( { 'pfp': Message.Issue() } )
+            print '============ send data ============\n', data
+            req = urllib2.Request( Remote.Addr, data )
+            response = urllib2.urlopen( req )
+            reply = response.read()
+            print '============ get reply ============\n', reply
+            ComingMsg = None
+            Msgs = []
+            for msgStr in reply.split( '\n' ):
+                if not msgStr:
+                    continue
+                ComingMsg = PFPMessage( ord( msgStr[0] ))
+                MsgBody = loads( msgStr[1:] )
+                
+                VerifyStr = ComingMsg.GetBody( MsgBody )
+                if VerifyStr:
+                    body = loads( VerifyStr )
+                    Remote.PubKey = rsa.PublicKey.load_pkcs1( body['PubKey'] )
+                    Remote.Verify( VerifyStr, decodestring( MsgBody['sign'] ))
+                
+                Msgs.extend( Remote.Reply( ComingMsg ) + Remote.Append())
+    
+    @classmethod
+    def Reply( cls, msgStr ):
+        "reply other nodes."
+        #print 'PeerForum.Reply', ord( msgStr[0] ), msgStr
         ComingMsg = PFPMessage( ord( msgStr[0] ))
         MsgBody = loads( msgStr[1:] )
         
         VerifyStr = ComingMsg.GetBody( MsgBody )
         if VerifyStr:
-            Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( loads( VerifyStr )))
+            #Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( loads( VerifyStr )))
+            Neighbor = NeighborNode.Get( ComingMsg.PubKey, loads( VerifyStr ))
             Neighbor.Verify( VerifyStr, decodestring( MsgBody['sign'] ))
         else:
-            Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( MsgBody ))
+            #Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( MsgBody ))
+            Neighbor = NeighborNode.Get( ComingMsg.PubKey, MsgBody )
             
         Messages = Neighbor.Reply( ComingMsg ) + Neighbor.Append()
         print 'Messages = ', Messages
@@ -110,6 +162,7 @@ if __name__ == '__main__':
     SqliteDB.SetMod()
     logging.basicConfig( filename = LOG_FILE, level = logging.DEBUG )
     PFPMessage.Init()
+    NeighborNode.Init()
     PeerForum.ChkEnv()
     debug( True )
-    run( host = '0.0.0.0', port = 8000, reloader = True )
+    run( host = '0.0.0.0', port = 8000, reloader = True )   #set reloader to False to avoid initializing twice.

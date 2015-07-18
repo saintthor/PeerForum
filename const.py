@@ -11,7 +11,8 @@ TechInfo = 'python peer 0.1'
 PFPVersion = "PFP V0.1"
 MaxTimeDiff = 15000
 SignHashFunc = 'MD5'
-
+TaskLiveSec = 120
+CommunicateCycle = 1
 
 
 

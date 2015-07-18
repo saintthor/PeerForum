@@ -8,7 +8,7 @@ from json import loads, dumps
 from base64 import encodestring, decodestring
 
 from exception import *
-from const import MaxTimeDiff
+from const import MaxTimeDiff, TaskLiveSec
 
 
 class PFPMessage( object ):
@@ -187,6 +187,8 @@ class Task( object ):
     def __init__( self, rmtNode ):
         ""
         self.RemoteNode = rmtNode
+        self.StartAt = time()
+        rmtNode.SetTask( self )
     
     def StepGen( self ):
         ""
@@ -197,6 +199,14 @@ class Task( object ):
             reply = yield go
             while not isinstance( reply, come ):
                 reply = yield None
+    
+    def TimeOver( self ):
+        ""
+        return time() - self.StartAt > TaskLiveSec
+        
+    def __hash__( self ):
+        "no same type task in one node."
+        return hash( self.__class__ )
         
 class QryPubKeyTask( Task ):
     ""

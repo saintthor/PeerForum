@@ -8,42 +8,48 @@ Created on Sun Jun 21 22:04:20 2015
 import logging
 
 from threading import Thread
-from Queue import Queue
-from random import choice
+#from Queue import Queue
+from random import choice, randint
 import rsa1 as rsa
+from md5 import md5
 from base64 import encodestring, decodestring
 import urllib2
 from urllib import urlencode
 
-from sqlitedb import SqliteDB, CreateNodeORUpdate
+from sqlitedb import SqliteDB, CreateNodeORUpdate, CreateSelfNode, GetAllNode, GetNodeById
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc
 from crypto import CBCEncrypt, CBCDecrypt
 
-class Communication( Thread ):
-    "communicate with remote node"
-    
-    def __init__( self, RmtAddr, RmtPubK, SelfAddr, SelfPriK ):
-        Thread.__init__( self )
-        self.RemoteAddr = RmtAddr
-        self.RemotePubK = RmtPubK
-        self.LocalAddr = SelfAddr
-        self.LocalPriK = SelfPriK
-    
-    def run( self ):
-        pass
-    
-    def CallRemote( self, msg ):
-        ""
-        pass
-    
-    def Sign( self ):
-        ""
-        pass
-
 
 class NeighborNode( object ):
     ""
+    LiveD = {}
+    AllNodes = []
+    
+    
+    @classmethod
+    def Init( cls ):
+        ""
+        cls.AllNodes = GetAllNode( 'id', 'level' )
+    
+    @classmethod
+    def Pick( cls ):
+        "pick one neighbor by chance of level to start communication"
+        Nodes = cls.AllNodes
+        if Nodes:
+            SumLevel = sum( [n[1] for n in Nodes] )
+            point = randint( 0, SumLevel - 1 )
+            for node in Nodes:
+                point -= node[1]
+                if point < 0:
+                    return cls( **GetNodeById( node[0] ))
+    
+    @classmethod
+    def Get( cls, pubK, msgBody ):
+        ""
+        return cls.LiveD.setdefault( md5( pubK ).digest(), cls.New( msgBody ))
+        
     @classmethod
     def New( cls, msgBody ):
         ""
@@ -54,13 +60,14 @@ class NeighborNode( object ):
             'NodeTypeVer': 'TechInfo',
             'BaseProtocol': 'ServerProtocol',            
                 }
-        return cls( **{ transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', ) } )
+        condi = { transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', ) }
+        CreateNodeORUpdate( condi )
+        return cls( **condi )
     
     def __init__( self, **kwds ):
         ""
-        self.MsgQ = Queue()
-        self.tasks = []
-        CreateNodeORUpdate( kwds )
+        #self.MsgQ = Queue()
+        self.tasks = set( [] )
         for k, v in kwds.items():
             setattr( self, k, v )
         if hasattr( self, 'PubKey' ):
@@ -82,14 +89,21 @@ class NeighborNode( object ):
         ""
         return rsa.verify( message, sign, self.PubKey )
     
-    def Send( self, msgObj ):
-        "send to remote node"
-        data = urlencode( { 'pfp': msgObj.Issue() } )
-        req = urllib2.Request( url, data )
-        response = urllib2.urlopen( req )
-        
-        reply = response.read()
-        
+#    def Send( self, msgObj ):
+#        "send to remote node"
+#        data = urlencode( { 'pfp': msgObj.Issue() } )
+#        req = urllib2.Request( url, data )
+#        response = urllib2.urlopen( req )
+#        
+#        reply = response.read()
+    
+    def SetTask( self, task ):
+        ""
+        self.tasks.add( task )
+    
+    def ChkTask( self ):
+        ""
+        self.tasks.discard( { task for task in self.tasks if task.TimeOver() })
         
     def Reply( self, msgObj ):
         "reply the message directlly"
@@ -103,6 +117,12 @@ class NeighborNode( object ):
 
 class SelfNode( object ):
     "peerforum self node"
+    @classmethod
+    def New( cls ):
+        "create a new self node."
+        PubKey, PriKey = rsa.newkeys( 2048 )
+        CreateSelfNode( PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
+        
     def __init__( self, condi = '' ):
         ""
         with SqliteDB() as cursor:

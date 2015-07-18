@@ -32,12 +32,12 @@ class TestNeighborNode( NeighborNode ):
     ""
     def __init__( self, **kw ):
         ""
-        self.tasks = []
+        self.tasks = set( [] )
         for k, v in kw.items():
             setattr( self, k, v )
         if hasattr( self, 'PubKey' ):
             self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKey )
-        self.Addr = 'http://127.0.0.1:8001/node'
+        self.Addr = 'http://127.0.0.1:8000/node'
         
 def test():
     ""
@@ -88,6 +88,12 @@ def test():
 
 if __name__ == '__main__':
     test()
+
+
+
+
+
+
 
 #url = 'http://127.0.0.1:8000/node'
 #
