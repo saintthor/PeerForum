@@ -9,7 +9,7 @@ from base64 import encodestring, decodestring
 
 from exception import *
 from const import MaxTimeDiff, TaskLiveSec
-
+from node import NeighborNode
 
 class PFPMessage( object ):
     ""
@@ -22,6 +22,7 @@ class PFPMessage( object ):
     def Init( cls ):
         ""
         cls.MsgMap.update( { c.code: c for c in cls.__subclasses__() } )
+    
     
     def __new__( cls, code = 0 ):
         ""
@@ -61,7 +62,33 @@ class PFPMessage( object ):
         for k, v in bodyD.items():
             setattr( self, k, v )
         
+    def Receive( self, msgBody, Neighbor = None ):
+        ""        
+        VerifyStr = self.GetBody( msgBody )
+        if VerifyStr:                                   #not QryPubKeyMsg
+            print 'PFPMessage.Receive 1: ', VerifyStr
+            if Neighbor is None:
+                Neighbor = NeighborNode.Get( self.PubKey, loads( VerifyStr ))
+                Neighbor.Verify( VerifyStr, decodestring( msgBody['sign'] ))
+            else:
+                Neighbor.InitPubKey( self.PubKey )      #confirm node has pubkey before verifying
+                Neighbor.Verify( VerifyStr, decodestring( msgBody['sign'] ))
+                self.RcvData( Neighbor, loads( VerifyStr ) )
+        else:
+            print 'PFPMessage.Receive 2: ', msgBody
+            if Neighbor is None:
+                Neighbor = NeighborNode.Get( self.PubKey, msgBody )
+            else:
+                self.RcvData( Neighbor, msgBody )
+            
+        Neighbor.Buffer( self.Reply( Neighbor ))
         
+        return Neighbor
+        
+    def RcvData( self, remote, rcvBody ):
+        ""
+        pass
+
     def Reply( self, rmtNode ):
         ""
         #print 'PFPMessage.Reply'
@@ -76,11 +103,14 @@ class PFPMessage( object ):
         self.body['Time'] = int( time() * 1000 )
         self.body['PubKey'] = self.LocalNode.PubKeyStr
         self.body['Address'] = self.LocalNode.Addr
+        for k, v in self.body.items():
+            if v is None:
+                self.body[k] = ''
         return chr( self.code ) + self.EncryptBody()
     
     def EncryptBody( self ):
         ""
-        print 'EncryptBody', self.body
+        #print 'EncryptBody', self.body
         BodyStr = dumps( self.body )
         CryptMsgD = self.RemoteNode.Encrypt( BodyStr )
         CryptMsgD['sign'] = self.LocalNode.Sign( BodyStr )
@@ -129,9 +159,6 @@ class QryPubKeyMsg( PFPMessage ):
         "do not verify or decrypt."
         self.ChkMsgBody( msgD )
     
-#    def VerifyBody( self, *args ):
-#        ""
-#        pass
     
 class NodeAnswerMsg( PFPMessage ):
     ""
@@ -141,6 +168,10 @@ class NodeAnswerMsg( PFPMessage ):
         ""
         self.code = code or self.code
         self.body = self.LocalNode.GetInfo()
+    
+    def RcvData( self, remote, rcvBody ):
+        ""
+        pass
 
 class GetNodeMsg( PFPMessage ):
     ""
@@ -188,8 +219,36 @@ class Task( object ):
         ""
         self.RemoteNode = rmtNode
         self.StartAt = time()
-        rmtNode.SetTask( self )
-    
+        
+    def Start( self ):
+        ""
+        print 'Task.Start'
+        Steps = self.StepGen()
+        ComingMsgBuff = [None]
+        
+        while True:
+            try:
+                MsgClses = filter( None, [Steps.send( msg ) for msg in ComingMsgBuff] )
+                ComingMsgBuff = [None]
+                if not MsgClses:
+                    sleep( 1 )
+                    continue
+            except StopIteration:
+                print 'task over.'
+                break
+            
+            Msgs = [MsgCls() for MsgCls in MsgClses]
+            [msg.SetRemoteNode( self.RemoteNode ) for msg in Msgs]
+                
+            reply = self.RemoteNode.Send( '\n'.join( [msg.Issue() for msg in Msgs] ))
+            print '============ get reply ============\n', reply
+            
+            for msgStr in filter( None, reply.split( '\n' )):
+                ComingMsg = PFPMessage( ord( msgStr[0] ))
+                ComingMsg.Receive( loads( msgStr[1:] ), self.RemoteNode )
+                ComingMsgBuff.append( ComingMsg )
+
+
     def StepGen( self ):
         ""
         for go, come in self.MsgSteps:

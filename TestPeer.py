@@ -8,10 +8,10 @@ Created on Tue Jul 14 21:49:20 2015
 from peerforum import PeerForum
 from bottle import route, run, post, debug, request, static_file
 
-from sqlitedb import SqliteDB, InitDB
+from sqlitedb import ChangePath, InitDB
 from protocol import PFPMessage
 
-
+ChangePath( './test.db' )
 
 class TestPeerForum( PeerForum ):
     ""
@@ -19,9 +19,10 @@ class TestPeerForum( PeerForum ):
     LiveNeighborD = {}
 
 if __name__ == '__main__':
-    InitDB( './test.db' )
+    InitDB()
     PFPMessage.Init()
     TestPeerForum.ChkEnv()
+    print 'TestPeerForum.LocalNode.PubKey: ', TestPeerForum.LocalNode.PubKey
     debug( True )
     run( host = '0.0.0.0', port = 8001, reloader = True )
     

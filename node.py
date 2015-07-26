@@ -8,7 +8,7 @@ Created on Sun Jun 21 22:04:20 2015
 import logging
 
 from threading import Thread
-#from Queue import Queue
+from Queue import Queue, Empty
 from random import choice, randint
 import rsa1 as rsa
 from md5 import md5
@@ -16,7 +16,7 @@ from base64 import encodestring, decodestring
 import urllib2
 from urllib import urlencode
 
-from sqlitedb import SqliteDB, CreateNodeORUpdate, CreateSelfNode, GetAllNode, GetNodeById
+from sqlitedb import SqliteDB, CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc
 from crypto import CBCEncrypt, CBCDecrypt
@@ -26,6 +26,16 @@ class NeighborNode( object ):
     ""
     LiveD = {}
     AllNodes = []
+    transD = {
+        'id': 'id',
+        'PubKey': 'PubKey',
+        'PFPVer': 'PFPVer',
+        'NodeName': 'name',
+        'Description': 'discription',
+        'Address': 'address',
+        'NodeTypeVer': 'TechInfo',
+        'BaseProtocol': 'ServerProtocol',            
+            }
     
     
     @classmethod
@@ -48,30 +58,49 @@ class NeighborNode( object ):
     @classmethod
     def Get( cls, pubK, msgBody ):
         ""
-        return cls.LiveD.setdefault( md5( pubK ).digest(), cls.New( msgBody ))
+        return cls.LiveD.setdefault( pubK, cls._New( msgBody ))
         
     @classmethod
-    def New( cls, msgBody ):
+    def _New( cls, msgBody ):
         ""
-        transD = {
-            'NodeName': 'name',
-            'Description': 'discription',
-            'Address': 'address',
-            'NodeTypeVer': 'TechInfo',
-            'BaseProtocol': 'ServerProtocol',            
-                }
-        condi = { transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', ) }
-        CreateNodeORUpdate( condi )
+        condi = { cls.transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', ) }
+        #CreateNodeORUpdate( condi )
+        GetNodeByPubKeyOrNew( condi )
         return cls( **condi )
     
     def __init__( self, **kwds ):
         ""
-        #self.MsgQ = Queue()
+        self.SendBuffer = []
         self.tasks = set( [] )
+        self.id = self.PubKey = None
         for k, v in kwds.items():
             setattr( self, k, v )
-        if hasattr( self, 'PubKey' ):
+        #if hasattr( self, 'PubKey' ):
+        if kwds.get( 'PubKey' ):
             self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKey )
+    
+    def Update( self, param ):
+        ""
+        for k, v in param.items():
+            setattr( self, k, v )
+        self.Save()
+        
+    def InitPubKey( self, pubK ):
+        "init pubkey if it is avoid."
+        if not isinstance( self.PubKey, rsa.PublicKey ):
+            self.PubKey = pubK
+            self.Save()
+            return True
+    
+    def Save( self ):
+        ""
+        if self.id is not None:
+            where = { 'id': self.id }
+        else:
+            where = {}
+        #print where, self.id
+        param = { k: getattr( self, k ) for k in self.transD.values() if hasattr( self, k ) and k != 'id' }
+        UpdateNodeOrNew( param, where )
     
     def Encrypt( self, s ):
         ""
@@ -79,7 +108,7 @@ class NeighborNode( object ):
             raise NodePubKeyInvalidErr
         k = ''.join( [choice( "1234567890)(*&^%$#@!`~qazxswedcvfrtgbnhyujm,kiolp;.[]{}:?><\"\\'/PLOKMIJNUHBYGVTFCRDXESZWAQ" )
                         for i in range( 32 )] )
-        #print k, self.PubKey
+        print 'NeighborNode.Encrypt', k, self.PubKey
         return {
             "msg": encodestring( CBCEncrypt( s, k )),
             "key": encodestring( rsa.encrypt( k, self.PubKey )),
@@ -87,33 +116,36 @@ class NeighborNode( object ):
     
     def Verify( self, message, sign ):
         ""
-        return rsa.verify( message, sign, self.PubKey )
+        return rsa.verify( message, sign, self.PubKey )                
+                
+    def Send( self, msgLines ):
+        "send to remote node"
+        addiLines = self.SendBuffer
+        self.SendBuffer = []
+        data = urlencode( { 'pfp': msgLines + '\n' + '\n'.join( addiLines ) } )
+        print self.address
+        req = urllib2.Request( self.address, data )
+        response = urllib2.urlopen( req )
+        
+        return response.read()
     
-#    def Send( self, msgObj ):
-#        "send to remote node"
-#        data = urlencode( { 'pfp': msgObj.Issue() } )
-#        req = urllib2.Request( url, data )
-#        response = urllib2.urlopen( req )
-#        
-#        reply = response.read()
-    
-    def SetTask( self, task ):
-        ""
-        self.tasks.add( task )
+#    def SetTask( self, task ):
+#        ""
+#        self.tasks.add( task )
     
     def ChkTask( self ):
         ""
         self.tasks.discard( { task for task in self.tasks if task.TimeOver() })
         
-    def Reply( self, msgObj ):
-        "reply the message directlly"
-        #print 'NeighborNode.Reply'
-        return msgObj.Reply( self )
+    def Buffer( self, msgStrs ):
+        "buffer the message. wait to send."
+        self.SendBuffer.extend( msgStrs )
     
-    def Append( self ):
+    def AllToSend( self ):
         "get the additional messages to the neighbor"
-        return ()
-
+        Msgs = self.SendBuffer
+        self.SendBuffer = []
+        return Msgs
 
 class SelfNode( object ):
     "peerforum self node"
@@ -144,6 +176,7 @@ class SelfNode( object ):
     
     def Decrypt( self, secMsg, secK ):
         ""
+        print 'SelfNode.Decrypt', self.PubKey, self.PriKey
         key = rsa.decrypt( secK, self.PriKey )
         return CBCDecrypt( secMsg, key )
     

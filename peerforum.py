@@ -17,7 +17,7 @@ from bottle import route, run, post, debug, request, static_file
 import user
 
 from node import NeighborNode, SelfNode
-from protocol import PFPMessage
+from protocol import PFPMessage, QryPubKeyTask
 from const import LOG_FILE, CommunicateCycle
 from sqlitedb import SqliteDB, InitDB
 from exception import *
@@ -51,8 +51,16 @@ class PeerForum( object ):
         return {}
     
     @classmethod
+    def QryRemotePubKey( cls, addr, bp = 'HTTP', **kwds ):
+        ""
+        Remote = NeighborNode( address = addr, ServerProtocol = bp )
+        task = QryPubKeyTask( Remote )
+        task.Start()
+    
+    @classmethod
     def Dida( cls, counter = [0] ):
         ""
+        print 'PeerForum.Dida'
         counter[0] = n = counter[0] + 1
         if n % CommunicateCycle == 0:
             cls.Communicate()
@@ -61,66 +69,41 @@ class PeerForum( object ):
     @classmethod
     def Communicate( cls ):
         ""
-        Remote = NeighborNode.Pick()
-        task = QryPubKeyTask( Remote )
-        Steps = task.StepGen()
-        ComingMsg = None
-        
-        while True:
-            try:
-                MsgCls = Steps.send( ComingMsg )
-                if MsgCls is None:
-                    sleep( 1 )
-                    continue
-            except StopIteration:
-                print 'test over.'
-                break
-            
-            print 'MsgCls is ', MsgCls
-            Message = MsgCls()
-            Message.SetRemoteNode( Remote )
-            data = urlencode( { 'pfp': Message.Issue() } )
-            print '============ send data ============\n', data
-            req = urllib2.Request( Remote.Addr, data )
-            response = urllib2.urlopen( req )
-            reply = response.read()
-            print '============ get reply ============\n', reply
-            ComingMsg = None
-            Msgs = []
-            for msgStr in reply.split( '\n' ):
-                if not msgStr:
-                    continue
-                ComingMsg = PFPMessage( ord( msgStr[0] ))
-                MsgBody = loads( msgStr[1:] )
-                
-                VerifyStr = ComingMsg.GetBody( MsgBody )
-                if VerifyStr:
-                    body = loads( VerifyStr )
-                    Remote.PubKey = rsa.PublicKey.load_pkcs1( body['PubKey'] )
-                    Remote.Verify( VerifyStr, decodestring( MsgBody['sign'] ))
-                
-                Msgs.extend( Remote.Reply( ComingMsg ) + Remote.Append())
+        print 'PeerForum.Communicate'
+#        Remote = NeighborNode.Pick()
+#        print 'Pick NeighborNode', Remote
+#        if Remote is None:
+#            return
+#        task = QryPubKeyTask( Remote )
+#        task.Start()
     
     @classmethod
-    def Reply( cls, msgStr ):
+    def Reply( cls, msgLines ):
         "reply other nodes."
-        #print 'PeerForum.Reply', ord( msgStr[0] ), msgStr
-        ComingMsg = PFPMessage( ord( msgStr[0] ))
-        MsgBody = loads( msgStr[1:] )
-        
-        VerifyStr = ComingMsg.GetBody( MsgBody )
-        if VerifyStr:
-            #Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( loads( VerifyStr )))
-            Neighbor = NeighborNode.Get( ComingMsg.PubKey, loads( VerifyStr ))
-            Neighbor.Verify( VerifyStr, decodestring( MsgBody['sign'] ))
-        else:
-            #Neighbor = cls.LiveNeighborD.setdefault( ComingMsg.PubKey, NeighborNode.New( MsgBody ))
-            Neighbor = NeighborNode.Get( ComingMsg.PubKey, MsgBody )
+        for MsgStr in filter( None, msgLines ):
+            ComingMsg = PFPMessage( ord( MsgStr[0] ))
+            Neighbor = ComingMsg.Receive( loads( MsgStr[1:] ))      #create neighbor obj from MsgStr
             
-        Messages = Neighbor.Reply( ComingMsg ) + Neighbor.Append()
-        print 'Messages = ', Messages
-        
-        return Messages
+        return Neighbor.AllToSend()
+
+#    @classmethod
+#    def Reply0( cls, msgStr ):
+#        "reply other nodes."
+#        #print 'PeerForum.Reply', ord( msgStr[0] ), msgStr
+#        ComingMsg = PFPMessage( ord( msgStr[0] ))
+#        MsgBody = loads( msgStr[1:] )
+#        
+#        VerifyStr = ComingMsg.GetBody( MsgBody )
+#        if VerifyStr:
+#            Neighbor = NeighborNode.Get( ComingMsg.PubKey, loads( VerifyStr ))
+#            Neighbor.Verify( VerifyStr, decodestring( MsgBody['sign'] ))
+#        else:
+#            Neighbor = NeighborNode.Get( ComingMsg.PubKey, MsgBody )
+#            
+#        Messages = Neighbor.Reply( ComingMsg ) + Neighbor.Append()
+#        print 'Messages = ', Messages
+#        
+#        return Messages
 
     #===================== http apis with bottle ===================================
     @staticmethod
@@ -130,7 +113,8 @@ class PeerForum( object ):
         if request.method == 'GET':
             return 'not permitted.'
         
-        AllMsgs = reduce( list.__add__, [PeerForum.Reply( msg ) for msg in request.POST['pfp'].split( '\n' ) if msg] )
+        #AllMsgs = reduce( list.__add__, [PeerForum.Reply( msg ) for msg in request.POST['pfp'].split( '\n' ) if msg] )
+        AllMsgs = PeerForum.Reply( request.POST['pfp'].split( '\n' ))
         return '\n'.join( AllMsgs )
         
     @staticmethod
@@ -164,5 +148,6 @@ if __name__ == '__main__':
     PFPMessage.Init()
     NeighborNode.Init()
     PeerForum.ChkEnv()
+    PeerForum.QryRemotePubKey( 'http://127.0.0.1:8001/node' ) #test
     debug( True )
-    run( host = '0.0.0.0', port = 8000, reloader = True )   #set reloader to False to avoid initializing twice.
+    run( host = '0.0.0.0', port = 8000, reloader = False )   #set reloader to False to avoid initializing twice.
