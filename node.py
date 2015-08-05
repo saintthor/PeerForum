@@ -16,9 +16,10 @@ from base64 import encodestring, decodestring
 import urllib2
 from urllib import urlencode
 
-from sqlitedb import SqliteDB, CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew
+from sqlitedb import SqliteDB, CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
+                    GetNodesExcept
 from exception import *
-from const import TechInfo, PFPVersion, SignHashFunc
+from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
 from crypto import CBCEncrypt, CBCDecrypt
 
 
@@ -56,17 +57,36 @@ class NeighborNode( object ):
                     return cls( **GetNodeById( node[0] ))
     
     @classmethod
-    def Get( cls, pubK, msgBody ):
+    def GetSomeInfo( cls ):
         ""
+        return []
+    
+    @classmethod
+    def Get( cls, pubK, msgBody = None ):
+        ""
+        print 'Neighbor.Get', pubK, msgBody, pubK in cls.LiveD
+        if msgBody is None:
+            return cls.LiveD.get( pubK )
         return cls.LiveD.setdefault( pubK, cls._New( msgBody ))
+        
+    @classmethod
+    def AllTargets( cls ):
+        ""
+        for pubK, addr in GetAllNode( 'PubKey', 'address' ):
+            yield cls( PubKey = pubK, address = addr )
         
     @classmethod
     def _New( cls, msgBody ):
         ""
+        print 'Neighbor._New'
         condi = { cls.transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', ) }
-        #CreateNodeORUpdate( condi )
         GetNodeByPubKeyOrNew( condi )
         return cls( **condi )
+    
+    @classmethod
+    def Bulk( cls, *nodeData ):
+        ""
+        return []
     
     def __init__( self, **kwds ):
         ""
@@ -81,9 +101,20 @@ class NeighborNode( object ):
     
     def Update( self, param ):
         ""
+        print 'Neighbor.Update', param
         for k, v in param.items():
-            setattr( self, k, v )
+            if k in ( 'PFPVer', 'NodeName', 'Description', 'Address', 'NodeTypeVer', 'BaseProtocol' ):
+                setattr( self, self.transD.get( k, k ), v )
         self.Save()
+    
+    def GetNodesForRemote( self ):
+        ""
+        nids = [an[0] for an in self.AllNodes]
+        l = len( nids )
+        for i in range( len( nids ) - GetNodeNum - 1 ):
+            nids.pop( randint( 0, l - i ))
+            
+        return self.Bulk( GetNodesExcept( nids, self.PubKey ))
         
     def InitPubKey( self, pubK ):
         "init pubkey if it is avoid."
@@ -139,7 +170,9 @@ class NeighborNode( object ):
         
     def Buffer( self, msgStrs ):
         "buffer the message. wait to send."
+        print '\nNeighborNode.Buffer', id( self ),
         self.SendBuffer.extend( msgStrs )
+        print len( self.SendBuffer )
     
     def AllToSend( self ):
         "get the additional messages to the neighbor"
@@ -176,7 +209,7 @@ class SelfNode( object ):
     
     def Decrypt( self, secMsg, secK ):
         ""
-        print 'SelfNode.Decrypt', self.PubKey, self.PriKey
+        #print 'SelfNode.Decrypt', self.PubKey
         key = rsa.decrypt( secK, self.PriKey )
         return CBCDecrypt( secMsg, key )
     

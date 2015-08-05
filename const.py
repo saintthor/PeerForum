@@ -13,6 +13,6 @@ MaxTimeDiff = 15000
 SignHashFunc = 'MD5'
 TaskLiveSec = 120
 CommunicateCycle = 1
-
-
-
+GetNodeStep = 3
+GetNodeMaxStep = 5
+GetNodeNum = 30

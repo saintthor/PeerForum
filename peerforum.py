@@ -17,7 +17,8 @@ from bottle import route, run, post, debug, request, static_file
 import user
 
 from node import NeighborNode, SelfNode
-from protocol import PFPMessage, QryPubKeyTask
+from protocol import PFPMessage, QryPubKeyMsg, NodeInfoMsg, GetNodeMsg, NodeAnswerMsg, SearchAddrMsg, \
+                    NoticeMsg, ChkTreeMsg, GetTreeMsg, AtclDataMsg, GetTimeLineMsg
 from const import LOG_FILE, CommunicateCycle
 from sqlitedb import SqliteDB, InitDB
 from exception import *
@@ -51,11 +52,29 @@ class PeerForum( object ):
         return {}
     
     @classmethod
-    def QryRemotePubKey( cls, addr, bp = 'HTTP', **kwds ):
-        ""
+    def SendToAddr( cls, msgType, addr, bp = 'HTTP', **kwds ):
+        "no neighbor data for addr. for QryPubKeyMsg"
         Remote = NeighborNode( address = addr, ServerProtocol = bp )
-        task = QryPubKeyTask( Remote )
-        task.Start()
+        cls.SendMessage( Remote, msgType, msgType, **kwds )
+        
+    @classmethod
+    def SendMessage( cls, Remote, *msgTypes, **kwds ):
+        "send to certain remote node."
+        Msgs = [PFPMessage( msgType ) for msgType in msgTypes]
+        [Msg.SetRemoteNode( Remote ) for Msg in Msgs]
+        ReplyStr = Remote.Send( u'\n'.join( [Msg.Issue() for Msg in Msgs] ))
+        print '\nReplyStr =', ReplyStr
+        cls.Reply( ReplyStr.split( '\n' ))
+        
+#        task = QryPubKeyTask( Remote )
+#        task.Start()
+    
+    @classmethod
+    def SendToAll( cls, *msgTypes, **kwds ):
+        ""
+        print 'SendToAll'
+        for Remote in NeighborNode.AllTargets():       #may in thread
+            cls.SendMessage( Remote, *msgTypes, **kwds )
     
     @classmethod
     def Dida( cls, counter = [0] ):
@@ -80,7 +99,9 @@ class PeerForum( object ):
     @classmethod
     def Reply( cls, msgLines ):
         "reply other nodes."
+        print 'Reply'
         for MsgStr in filter( None, msgLines ):
+            print MsgStr
             ComingMsg = PFPMessage( ord( MsgStr[0] ))
             Neighbor = ComingMsg.Receive( loads( MsgStr[1:] ))      #create neighbor obj from MsgStr
             
@@ -140,7 +161,7 @@ class PeerForum( object ):
             return 'not permitted.'
         return static_file( '/inc/%s' % fname, root='.' )
     
-
+    
 if __name__ == '__main__':
     InitDB()
     SqliteDB.SetMod()
@@ -148,6 +169,6 @@ if __name__ == '__main__':
     PFPMessage.Init()
     NeighborNode.Init()
     PeerForum.ChkEnv()
-    PeerForum.QryRemotePubKey( 'http://127.0.0.1:8001/node' ) #test
+    PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8001/node' ) #test
     debug( True )
     run( host = '0.0.0.0', port = 8000, reloader = False )   #set reloader to False to avoid initializing twice.

@@ -147,17 +147,30 @@ def GetAllNode( *cols ):
 
 def GetNodeById( nodeId ):
     ""
-    d = {}
+#    d = {}
     with SqliteDB() as cursor:
         cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         node = cursor.execute( 'select %s from node where id = %s;' % ( ','.join( cols ), nodeId )).fetchone()
-        if node:
-            for i, col in enumerate( cols ):
-                d.setdefault( col, node[i] )
-    return d
+        return dict( zip( cols, node ))
+#        if node:
+#            for i, col in enumerate( cols ):
+#                d.setdefault( col, node[i] )
+#    return d
+
+def GetNodesExcept( ids, excpK ):
+    ""
+    IdsStr = ','.join( [str( Id ) for Id in ids] )
+    exKStr = excpK.save_pkcs1()
+    with SqliteDB() as cursor:
+        cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol'
+        print 'select %s from node where id in (%s);' % ( ','.join( cols ), IdsStr )
+        nodes = cursor.execute( 'select %s from node where id in (%s) and PubKey != "%s";'
+                                % ( ','.join( cols ), IdsStr, exKStr )).fetchall()
+        return [dict( zip( cols, nodeData )) for nodeData in nodes]
     
 def test():
-    UpdateNodeOrNew( { 'name': 'NNNNNNNNNN', 'PFPVer': '0.1' }, { 'id': 4 } )
+    print GetNodesExcept( [1], '' )
+    #UpdateNodeOrNew( { 'name': 'NNNNNNNNNN', 'PFPVer': '0.1' }, { 'id': 4 } )
 
 def FileExist( fpath ):
     "check if the db file exist."
