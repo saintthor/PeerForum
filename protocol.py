@@ -34,7 +34,10 @@ class PFPMessage( object ):
     def __init__( self, code = 0 ):
         ""
         self.code = code or self.code
-        self.body = {}
+    
+    def InitBody():
+        ""
+        pass
     
     def GetBody( self, msgD ):
         "this is a received message from remote. decrypt and verify."
@@ -149,6 +152,10 @@ class QryPubKeyMsg( PFPMessage ):
     MustHas = { 'Time', 'PubKey' }
     ReplyCode = 0x11
     
+    def InitBody( self, forMsg = None ):
+        ""
+        self.body = self.LocalNode.GetInfo()
+
     def Reply( self, rmtNode ):
         ""
         RplMsg = PFPMessage( self.ReplyCode )
@@ -181,7 +188,7 @@ class NodeInfoMsg( PFPMessage ):
             
     def RcvData( self, remote, rcvBody ):
         ""
-        print 'NodeInfoMsg.RcvData', rcvBody
+        print 'NodeInfoMsg.RcvData'#, rcvBody
         remote.Update( rcvBody )
 
 

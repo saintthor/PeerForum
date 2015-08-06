@@ -64,7 +64,7 @@ class NeighborNode( object ):
     @classmethod
     def Get( cls, pubK, msgBody = None ):
         ""
-        print 'Neighbor.Get', pubK, msgBody, pubK in cls.LiveD
+        #print 'Neighbor.Get', pubK, msgBody, pubK in cls.LiveD
         if msgBody is None:
             return cls.LiveD.get( pubK )
         return cls.LiveD.setdefault( pubK, cls._New( msgBody ))
@@ -78,8 +78,8 @@ class NeighborNode( object ):
     @classmethod
     def _New( cls, msgBody ):
         ""
-        print 'Neighbor._New'
-        condi = { cls.transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', ) }
+        #print 'Neighbor._New'
+        condi = { cls.transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', 'PubKeyStr' ) }
         GetNodeByPubKeyOrNew( condi )
         return cls( **condi )
     
@@ -139,7 +139,7 @@ class NeighborNode( object ):
             raise NodePubKeyInvalidErr
         k = ''.join( [choice( "1234567890)(*&^%$#@!`~qazxswedcvfrtgbnhyujm,kiolp;.[]{}:?><\"\\'/PLOKMIJNUHBYGVTFCRDXESZWAQ" )
                         for i in range( 32 )] )
-        print 'NeighborNode.Encrypt', k, self.PubKey
+        #print 'NeighborNode.Encrypt', k, self.PubKey
         return {
             "msg": encodestring( CBCEncrypt( s, k )),
             "key": encodestring( rsa.encrypt( k, self.PubKey )),
@@ -170,9 +170,9 @@ class NeighborNode( object ):
         
     def Buffer( self, msgStrs ):
         "buffer the message. wait to send."
-        print '\nNeighborNode.Buffer', id( self ),
+        #print '\nNeighborNode.Buffer', id( self ),
         self.SendBuffer.extend( msgStrs )
-        print len( self.SendBuffer )
+        #print len( self.SendBuffer )
     
     def AllToSend( self ):
         "get the additional messages to the neighbor"

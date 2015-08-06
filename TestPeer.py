@@ -24,5 +24,5 @@ if __name__ == '__main__':
     TestPeerForum.ChkEnv()
     print 'TestPeerForum.LocalNode.PubKey: ', TestPeerForum.LocalNode.PubKey
     debug( True )
-    run( host = '0.0.0.0', port = 8001, reloader = True )
+    run( host = '0.0.0.0', port = 8002, reloader = True )
     

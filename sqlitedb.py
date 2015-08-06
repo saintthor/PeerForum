@@ -90,7 +90,7 @@ def UpdateNodeOrNew( param, where ):
     
 def GetNodeByPubKeyOrNew( d ):
     "or new"
-    print 'GetOrNewNodeByPubKey', d
+    #print 'GetNodeByPubKeyOrNew', d
     with SqliteDB() as cursor:
         cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         if not isinstance( d['PubKey'], basestring ):

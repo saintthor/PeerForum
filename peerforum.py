@@ -62,19 +62,20 @@ class PeerForum( object ):
         "send to certain remote node."
         Msgs = [PFPMessage( msgType ) for msgType in msgTypes]
         [Msg.SetRemoteNode( Remote ) for Msg in Msgs]
+        [Msg.InitBody() for Msg in Msgs]
         ReplyStr = Remote.Send( u'\n'.join( [Msg.Issue() for Msg in Msgs] ))
-        print '\nReplyStr =', ReplyStr
+        #print '\nReplyStr =', ReplyStr
         cls.Reply( ReplyStr.split( '\n' ))
-        
-#        task = QryPubKeyTask( Remote )
-#        task.Start()
     
     @classmethod
     def SendToAll( cls, *msgTypes, **kwds ):
         ""
         print 'SendToAll'
         for Remote in NeighborNode.AllTargets():       #may in thread
-            cls.SendMessage( Remote, *msgTypes, **kwds )
+            try:
+                cls.SendMessage( Remote, *msgTypes, **kwds )
+            except:
+                pass
     
     @classmethod
     def Dida( cls, counter = [0] ):
@@ -169,6 +170,7 @@ if __name__ == '__main__':
     PFPMessage.Init()
     NeighborNode.Init()
     PeerForum.ChkEnv()
-    PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8001/node' ) #test
+    #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8002/node' ) #test
+    PeerForum.SendToAll( 0x11 ) #test
     debug( True )
     run( host = '0.0.0.0', port = 8000, reloader = False )   #set reloader to False to avoid initializing twice.
