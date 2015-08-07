@@ -139,10 +139,10 @@ def CreateSelfNode( **kwds ):
         sql = u'''insert into selfnode %s''' % _InsertStr( kwds )
         cursor.execute( sql )
 
-def GetAllNode( *cols ):
+def GetAllNode( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:
-        sql = u'''select %s from node where level > 0 and ServerProtocol = "HTTP"''' % ','.join( cols )
+        sql = u'''select %s from node where level > 0 and %s''' % ( ','.join( cols ), _WhereStr( filterd ))
         return cursor.execute( sql ).fetchall()
 
 def GetNodeById( nodeId ):
@@ -157,19 +157,31 @@ def GetNodeById( nodeId ):
 #                d.setdefault( col, node[i] )
 #    return d
 
-def GetNodesExcept( ids, excpK ):
+def GetNodesExcept( kItems, ids, excpK ):
     ""
     IdsStr = ','.join( [str( Id ) for Id in ids] )
-    exKStr = excpK.save_pkcs1()
+    exKStr = excpK.save_pkcs1() if excpK else excpK
     with SqliteDB() as cursor:
-        cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol'
-        print 'select %s from node where id in (%s);' % ( ','.join( cols ), IdsStr )
+        #cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol'
+        ProtocolKs, dataCols = zip( *kItems )
+        #print 'select %s from node where id in (%s);' % ( ','.join( cols ), IdsStr )
         nodes = cursor.execute( 'select %s from node where id in (%s) and PubKey != "%s";'
-                                % ( ','.join( cols ), IdsStr, exKStr )).fetchall()
-        return [dict( zip( cols, nodeData )) for nodeData in nodes]
+                                % ( ','.join( dataCols ), IdsStr, exKStr )).fetchall()
+        return [dict( zip( ProtocolKs, nodeData )) for nodeData in nodes]
     
 def test():
-    print GetNodesExcept( [1], '' )
+    transD = {
+        'id': 'id',
+        'PubKey': 'PubKey',
+        'PFPVer': 'PFPVer',
+        'NodeName': 'name',
+        'Description': 'discription',
+        'Address': 'address',
+        'NodeTypeVer': 'TechInfo',
+        'BaseProtocol': 'ServerProtocol',            
+            }
+    its = [it for it in transD.items() if it[0] != 'id']
+    print GetNodesExcept( its, [1, 2], '' )
     #UpdateNodeOrNew( { 'name': 'NNNNNNNNNN', 'PFPVer': '0.1' }, { 'id': 4 } )
 
 def FileExist( fpath ):

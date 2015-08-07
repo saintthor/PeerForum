@@ -55,7 +55,7 @@ class PeerForum( object ):
     def SendToAddr( cls, msgType, addr, bp = 'HTTP', **kwds ):
         "no neighbor data for addr. for QryPubKeyMsg"
         Remote = NeighborNode( address = addr, ServerProtocol = bp )
-        cls.SendMessage( Remote, msgType, msgType, **kwds )
+        cls.SendMessage( Remote, msgType, **kwds )
         
     @classmethod
     def SendMessage( cls, Remote, *msgTypes, **kwds ):
@@ -63,9 +63,13 @@ class PeerForum( object ):
         Msgs = [PFPMessage( msgType ) for msgType in msgTypes]
         [Msg.SetRemoteNode( Remote ) for Msg in Msgs]
         [Msg.InitBody() for Msg in Msgs]
-        ReplyStr = Remote.Send( u'\n'.join( [Msg.Issue() for Msg in Msgs] ))
-        #print '\nReplyStr =', ReplyStr
-        cls.Reply( ReplyStr.split( '\n' ))
+        Remote.Buffer( [Msg.Issue() for Msg in Msgs] )
+        while True:
+            ReplyStr = Remote.Send()
+            print '\nReplyStr =', ReplyStr
+            if not ReplyStr:
+                break
+            Remote = cls.Reply( ReplyStr.split( '\n' ))
     
     @classmethod
     def SendToAll( cls, *msgTypes, **kwds ):
@@ -100,13 +104,13 @@ class PeerForum( object ):
     @classmethod
     def Reply( cls, msgLines ):
         "reply other nodes."
-        print 'Reply'
+        #print 'Reply'
         for MsgStr in filter( None, msgLines ):
             print MsgStr
             ComingMsg = PFPMessage( ord( MsgStr[0] ))
             Neighbor = ComingMsg.Receive( loads( MsgStr[1:] ))      #create neighbor obj from MsgStr
             
-        return Neighbor.AllToSend()
+        return Neighbor
 
 #    @classmethod
 #    def Reply0( cls, msgStr ):
@@ -136,7 +140,8 @@ class PeerForum( object ):
             return 'not permitted.'
         
         #AllMsgs = reduce( list.__add__, [PeerForum.Reply( msg ) for msg in request.POST['pfp'].split( '\n' ) if msg] )
-        AllMsgs = PeerForum.Reply( request.POST['pfp'].split( '\n' ))
+        Remote = PeerForum.Reply( request.POST['pfp'].split( '\n' ))
+        AllMsgs = Remote.AllToSend()
         return '\n'.join( AllMsgs )
         
     @staticmethod
@@ -161,6 +166,12 @@ class PeerForum( object ):
         if request['REMOTE_ADDR'] != '127.0.0.1':
             return 'not permitted.'
         return static_file( '/inc/%s' % fname, root='.' )
+
+def test():
+    ""
+    #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8002/node' )
+    #PeerForum.SendToAll( 0x11 )
+    PeerForum.SendToAll( 0x12 )
     
     
 if __name__ == '__main__':
@@ -170,7 +181,6 @@ if __name__ == '__main__':
     PFPMessage.Init()
     NeighborNode.Init()
     PeerForum.ChkEnv()
-    #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8002/node' ) #test
-    PeerForum.SendToAll( 0x11 ) #test
+    test()
     debug( True )
     run( host = '0.0.0.0', port = 8000, reloader = False )   #set reloader to False to avoid initializing twice.

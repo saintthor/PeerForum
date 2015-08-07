@@ -37,12 +37,11 @@ class NeighborNode( object ):
         'NodeTypeVer': 'TechInfo',
         'BaseProtocol': 'ServerProtocol',            
             }
-    
-    
+        
     @classmethod
     def Init( cls ):
         ""
-        cls.AllNodes = GetAllNode( 'id', 'level' )
+        cls.AllNodes = GetAllNode( 'id', 'level', ServerProtocol = 'HTTP' )
     
     @classmethod
     def Pick( cls ):
@@ -56,10 +55,14 @@ class NeighborNode( object ):
                 if point < 0:
                     return cls( **GetNodeById( node[0] ))
     
-    @classmethod
-    def GetSomeInfo( cls ):
-        ""
-        return []
+#    @classmethod
+#    def GetSomeInfo( cls, excpStr = '' ):
+#        ""
+#        result = []
+#        its = [it for it in cls.transD.items() if it[0] != 'id']
+#        ProtocolKs = [it[0] for it in its]
+#        for NodeData in GetNodeByIds( *[it[1] for it in its] )
+#        return []
     
     @classmethod
     def Get( cls, pubK, msgBody = None ):
@@ -72,7 +75,7 @@ class NeighborNode( object ):
     @classmethod
     def AllTargets( cls ):
         ""
-        for pubK, addr in GetAllNode( 'PubKey', 'address' ):
+        for pubK, addr in GetAllNode( 'PubKey', 'address', ServerProtocol = 'HTTP' ):
             yield cls( PubKey = pubK, address = addr )
         
     @classmethod
@@ -82,11 +85,6 @@ class NeighborNode( object ):
         condi = { cls.transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', 'PubKeyStr' ) }
         GetNodeByPubKeyOrNew( condi )
         return cls( **condi )
-    
-    @classmethod
-    def Bulk( cls, *nodeData ):
-        ""
-        return []
     
     def __init__( self, **kwds ):
         ""
@@ -107,14 +105,16 @@ class NeighborNode( object ):
                 setattr( self, self.transD.get( k, k ), v )
         self.Save()
     
-    def GetNodesForRemote( self ):
+    def GetSomeInfo( self ):
         ""
+        its = [it for it in self.transD.items() if it[0] != 'id']
+        #ProtocolKs = [it[0] for it in its]
         nids = [an[0] for an in self.AllNodes]
         l = len( nids )
         for i in range( len( nids ) - GetNodeNum - 1 ):
             nids.pop( randint( 0, l - i ))
-            
-        return self.Bulk( GetNodesExcept( nids, self.PubKey ))
+        
+        return GetNodesExcept( its, nids, self.PubKey )
         
     def InitPubKey( self, pubK ):
         "init pubkey if it is avoid."
@@ -149,12 +149,14 @@ class NeighborNode( object ):
         ""
         return rsa.verify( message, sign, self.PubKey )                
                 
-    def Send( self, msgLines ):
+    def Send( self ):
         "send to remote node"
-        addiLines = self.SendBuffer
+        if not self.SendBuffer:
+            print 'NeighborNode.Send empty SendBuffer. id is', id( self )
+            return ''
+        data = urlencode( { 'pfp': '\n'.join( self.SendBuffer ) } )
         self.SendBuffer = []
-        data = urlencode( { 'pfp': msgLines + '\n' + '\n'.join( addiLines ) } )
-        print self.address
+        print 'NeighborNode.Send', self.address
         req = urllib2.Request( self.address, data )
         response = urllib2.urlopen( req )
         
@@ -170,7 +172,7 @@ class NeighborNode( object ):
         
     def Buffer( self, msgStrs ):
         "buffer the message. wait to send."
-        #print '\nNeighborNode.Buffer', id( self ),
+        #print '\nNeighborNode.Buffer. id is', id( self ),
         self.SendBuffer.extend( msgStrs )
         #print len( self.SendBuffer )
     

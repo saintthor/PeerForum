@@ -34,24 +34,19 @@ class PFPMessage( object ):
     def __init__( self, code = 0 ):
         ""
         self.code = code or self.code
-    
-    def InitBody():
-        ""
-        pass
-    
+        
     def GetBody( self, msgD ):
-        "this is a received message from remote. decrypt and verify."
+        "this is a received message from remote. decrypt."
         BodyStr = self.LocalNode.Decrypt( decodestring( msgD['msg'] ), decodestring( msgD['key'] ))
         self.ChkMsgBody( loads( BodyStr ))
         return BodyStr
     
-#    def VerifyBody( self, verifyFunc, bodyStr, msgD ):
-#        ""
-#        if not verifyFunc( bodyStr, decodestring( msgD['sign'] )):
-#            raise VerifyFailedErr
+    def __getitems__( self, k ):
+        ""
+        pass
     
     def ChkMsgBody( self, bodyD ):
-        ""
+        "for received messages"
         if not bodyD.viewkeys() > self.MustHas:
             raise MsgKeyLackErr
             
@@ -65,8 +60,9 @@ class PFPMessage( object ):
             except AttributeError:
                 pass
         
-        for k, v in bodyD.items():
-            setattr( self, k, v )
+        self.body = bodyD
+#        for k, v in bodyD.items():
+#            setattr( self, k, v )
         
     def Receive( self, msgBody ):
         "if Neighbor is None, the communication is founded by remote."   
@@ -74,14 +70,14 @@ class PFPMessage( object ):
         VerifyStr = self.GetBody( msgBody )
         if VerifyStr:                                   #not QryPubKeyMsg
             print self.__class__.__name__, '.Receive 1: ', VerifyStr
-            Neighbor = NeighborNode.Get( self.PubKeyStr, loads( VerifyStr ))
+            Neighbor = NeighborNode.Get( self.body['PubKeyStr'], loads( VerifyStr ))
             Neighbor.Verify( VerifyStr, decodestring( msgBody['sign'] ))
-            self.RcvData( Neighbor, loads( VerifyStr ) )
+            #self.RcvData( Neighbor, loads( VerifyStr ) )
         else:
             print self.__class__.__name__, '.Receive 2: ', msgBody
-            Neighbor = NeighborNode.Get( self.PubKeyStr, msgBody )
-            self.RcvData( Neighbor, msgBody )
+            Neighbor = NeighborNode.Get( self.body['PubKeyStr'], msgBody )
             
+        self.RcvData( Neighbor )
         Neighbor.Buffer( self.Reply( Neighbor ))
         
         return Neighbor
@@ -91,18 +87,21 @@ class PFPMessage( object ):
 #        self.RemoteNode.Send( self.Issue())
         
         
-    def RcvData( self, remote, rcvBody ):
+    def RcvData( self, remote ):
         ""
         pass
 
     def Reply( self, rmtNode ):
         ""
-        #print 'PFPMessage.Reply'
+        print self.__class__.__name__, '.Reply', self.ReplyCode
         if self.ReplyCode == 0:
             return ()
         RplMsg = PFPMessage( self.ReplyCode )
         RplMsg.SetRemoteNode( rmtNode )
-        return RplMsg.Issue(),
+        
+        if RplMsg.InitBody( self ) != False:
+            return RplMsg.Issue(),
+        return ()
     
     def Issue( self ):
         ""
@@ -147,21 +146,26 @@ class PFPMessage( object ):
 
 
 class QryPubKeyMsg( PFPMessage ):
-    ""
+    """
+    query the pubkey of the node only addr known.
+    normal task steps:
+    A -----QryPubKeyMsg----> B      don't send more info because this message is not encrypted.
+    A <----NodeInfoMsg------ B      A gets B's info
+    A -----NodeInfoMsg-----> B      B gets A's info. they become neighbors.
+    """
     code = 0x10
-    MustHas = { 'Time', 'PubKey' }
     ReplyCode = 0x11
     
-    def InitBody( self, forMsg = None ):
-        ""
-        self.body = self.LocalNode.GetInfo()
-
-    def Reply( self, rmtNode ):
-        ""
-        RplMsg = PFPMessage( self.ReplyCode )
-        RplMsg.InitBody( self )
-        RplMsg.SetRemoteNode( rmtNode )
-        return RplMsg.Issue(),
+    def InitBody( self ):
+        "for send messages"
+        self.body = {}        
+        
+#    def Reply( self, rmtNode ):
+#        ""
+#        RplMsg = PFPMessage( self.ReplyCode )
+#        RplMsg.InitBody( self )
+#        RplMsg.SetRemoteNode( rmtNode )
+#        return RplMsg.Issue(),
     
     def EncryptBody( self ):
         "do not encrypt for this message."
@@ -173,41 +177,52 @@ class QryPubKeyMsg( PFPMessage ):
     
     
 class NodeInfoMsg( PFPMessage ):
-    ""
+    "confirm node info. answer for QryPubKeyMsg or SearchAddrMsg or itself"
     code = 0x11
+    ReplyCode = 0x11
     Keys = { 'Address', 'NodeName', 'NodeTypeVer', 'PFPVer', 'BaseProtocol', 'Description' }
     
     def InitBody( self, forMsg = None ):
         ""
         print 'NodeInfoMsg.InitBody', forMsg
-        if forMsg is None or isinstance( forMsg, QryPubKeyMsg ):
+        if forMsg is None:                              #to refresh self info to neighbors.
             self.body = self.LocalNode.GetInfo()
+            
+        elif isinstance( forMsg, QryPubKeyMsg ):        #--QryPubKeyMsg->, go on.
+            self.body = self.LocalNode.GetInfo()
+            self.body['Step'] = 1
             print 'NodeInfoMsg.InitBody', self.body
+            
+        elif isinstance( forMsg, NodeInfoMsg ):
+            if forMsg.body.get( 'Step', 0 ) == 0:       #--QryPubKeyMsg->, <-NodeInfoMsg--, --NodeInfoMsg->, Over.
+                print '\nquery task finished.\n'
+                return False
+            self.body = self.LocalNode.GetInfo()        #--QryPubKeyMsg->, <-NodeInfoMsg--, go on.
+            self.body['Step'] = 0
+            print '\nquery task goes on.\n'
+            
         elif isinstance( forMsg, SearchAddrMsg ):
             pass
             
-    def RcvData( self, remote, rcvBody ):
+    def RcvData( self, remote ):
         ""
         print 'NodeInfoMsg.RcvData'#, rcvBody
-        remote.Update( rcvBody )
+        remote.Update( self.body )
 
 
 class GetNodeMsg( PFPMessage ):
-    ""
+    "ask for more neighbor node."
     code = 0x12
-    ReplyCode = 0x11
+    ReplyCode = 0x13
 
     def InitBody( self ):
         ""
         self.body = self.LocalNode.GetInfo()
         self.body['Step'] = 3
-            
-#    def Reply( self, rmtNode ):
-#        ""
-#        RplMsg = PFPMessage( self.ReplyCode )
-#        RplMsg.InitBody( self )
-#        RplMsg.SetRemoteNode( rmtNode )
-#        return RplMsg.Issue(),
+        
+    def RcvData( self, remote ):
+        ""
+        print 'GetNodeMsg.RcvData'
 
 
 class NodeAnswerMsg( PFPMessage ):
@@ -216,12 +231,11 @@ class NodeAnswerMsg( PFPMessage ):
     
     def InitBody( self, forMsg = None ):
         ""
-        self.body = self.LocalNode.GetInfo()
+        self.body = { 'Nodes': self.RemoteNode.GetSomeInfo() }
             
-    def RcvData( self, remote, rcvBody ):
+    def RcvData( self, remote ):
         ""
-        print 'NodeAnswerMsg.RcvData', rcvBody
-        remote.Update( rcvBody )
+        print 'NodeAnswerMsg.RcvData: save neighbors here'
 
 
 class AckMsg( PFPMessage ):
