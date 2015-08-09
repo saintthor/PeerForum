@@ -15,4 +15,5 @@ TaskLiveSec = 120
 CommunicateCycle = 1
 GetNodeStep = 3
 GetNodeMaxStep = 5
+MaxSearchAddrStep = 3
 GetNodeNum = 30

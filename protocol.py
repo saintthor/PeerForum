@@ -3,12 +3,14 @@
 
 import rsa1 as rsa
 
+import threading
+import traceback
 from time import time
 from json import loads, dumps
 from base64 import encodestring, decodestring
 
 from exception import *
-from const import MaxTimeDiff, TaskLiveSec, GetNodeStep, GetNodeMaxStep
+from const import MaxTimeDiff, MaxSearchAddrStep
 from node import NeighborNode
 
 class PFPMessage( object ):
@@ -65,7 +67,7 @@ class PFPMessage( object ):
 #            setattr( self, k, v )
         
     def Receive( self, msgBody ):
-        "if Neighbor is None, the communication is founded by remote."   
+        ""   
         print
         VerifyStr = self.GetBody( msgBody )
         if VerifyStr:                                   #not QryPubKeyMsg
@@ -76,15 +78,18 @@ class PFPMessage( object ):
         else:
             print self.__class__.__name__, '.Receive 2: ', msgBody
             Neighbor = NeighborNode.Get( self.body['PubKeyStr'], msgBody )
+        
+        if not self.FlowControl():
+            return Neighbor
             
         self.RcvData( Neighbor )
         Neighbor.Buffer( self.Reply( Neighbor ))
         
         return Neighbor
     
-#    def Send( self ):
-#        ""
-#        self.RemoteNode.Send( self.Issue())
+    def FlowControl( self ):
+        "record each message for flow control."
+        return True
         
         
     def RcvData( self, remote ):
@@ -115,11 +120,11 @@ class PFPMessage( object ):
     
     def EncryptBody( self ):
         ""
-        print 'EncryptBody', self.body
+        print self.__class__.__name__, '.EncryptBody', self.body
         BodyStr = dumps( self.body )
         CryptMsgD = self.RemoteNode.Encrypt( BodyStr )
         CryptMsgD['sign'] = self.LocalNode.Sign( BodyStr )
-        #print type( CryptMsgD['msg'] ), CryptMsgD['msg']
+        #print CryptMsgD
         return dumps( CryptMsgD )
     
     def SetRemoteNode( self, rmtNode ):
@@ -148,7 +153,7 @@ class PFPMessage( object ):
 class QryPubKeyMsg( PFPMessage ):
     """
     query the pubkey of the node only addr known.
-    normal task steps:
+    normal steps:
     A -----QryPubKeyMsg----> B      don't send more info because this message is not encrypted.
     A <----NodeInfoMsg------ B      A gets B's info
     A -----NodeInfoMsg-----> B      B gets A's info. they become neighbors.
@@ -201,8 +206,12 @@ class NodeInfoMsg( PFPMessage ):
             self.body['Step'] = 0
             print '\nquery task goes on.\n'
             
-        elif isinstance( forMsg, SearchAddrMsg ):
-            pass
+        elif isinstance( forMsg, SearchAddrMsg ):       #--SearchAddrMsg->
+            if forMsg.body["ObjPubKey"] == self.LocalNode.PubKeyStr:
+                self.body = self.LocalNode.GetInfo()
+            else:
+                ObjNode = NeighborNode.Get( forMsg.body["ObjPubKey"] )
+                self.body = ObjNode.GetInfo()
             
     def RcvData( self, remote ):
         ""
@@ -220,10 +229,6 @@ class GetNodeMsg( PFPMessage ):
         self.body = self.LocalNode.GetInfo()
         self.body['Step'] = 3
         
-    def RcvData( self, remote ):
-        ""
-        print 'GetNodeMsg.RcvData'
-
 
 class NodeAnswerMsg( PFPMessage ):
     ""
@@ -235,7 +240,9 @@ class NodeAnswerMsg( PFPMessage ):
             
     def RcvData( self, remote ):
         ""
-        print 'NodeAnswerMsg.RcvData: save neighbors here'
+        #print 'NodeAnswerMsg.RcvData: save neighbors here\n'
+        for nbData in self.body['Nodes']:
+            NeighborNode.NewNeighbor( nbData )
 
 
 class AckMsg( PFPMessage ):
@@ -243,9 +250,82 @@ class AckMsg( PFPMessage ):
     code = 0x14
 
 class SearchAddrMsg( PFPMessage ):
-    ""
+    """
+    ask addr for a node with pubkey known.
+    nomal steps:
+    A -----SearchAddrMsg---> B
+    if B is the Obj or B has the Obj:
+        A <----NodeInfoMsg------ B      A gets Obj's info
+    elif Step > 0:
+        Step--
+        B -----SearchAddrMsg---> C      ask more nodes
+        if C is the Obj or C has the Obj:
+            A <----NodeInfoMsg------ C      A gets Obj's info
+        elif Step > 0:
+            ......
+    """
     code = 0x15
+    ReplyCode = 0x11
 
+    def InitBody( self ):
+        ""
+        print 'SearchAddrMsg.InitBody'
+        self.body = {
+                "ObjPubKey": self.RemoteNode.PubKeyStr + 'zz',
+                "Step": 3,
+                    }
+                    
+    def Receive( self, msgBody ):
+        ""   
+        VerifyStr = self.GetBody( msgBody )
+        print 'SearchAddrMsg.Receive: ', VerifyStr
+        
+        body = loads( VerifyStr )
+        if 'ForwardPubKey' in self.body:
+            SourceNode = NeighborNode( PubKey = self.body['PubKeyStr'] )    #temp node. do not save.
+            ForwardNode = NeighborNode( PubKey = body['ForwardPubKey'] )    #temp node only for verifying
+        else:
+            ForwardNode = SourceNode = NeighborNode( PubKey = self.body['PubKeyStr'] )
+
+#        print 'ForwardNode:', ForwardNode.address
+#        print 'SourceNode:', SourceNode.address
+        ForwardNode.Verify( VerifyStr, decodestring( msgBody['sign'] ))
+        
+        if not self.FlowControl():
+            return ForwardNode
+        
+        try:
+            MsgStrs = PFPMessage.Reply( self, SourceNode )
+            #print 'MsgStrs =', MsgStrs
+            SourceNode.Buffer( MsgStrs )                #found objnode
+            SourceNode.Send()
+        except TypeError:                               #not found
+            print 'fw to neighbors here.'
+            Step = self.body.get( 'Step', 0 )
+            if Step > 0:
+                FwdMsg = PFPMessage( self.code )
+                FwdMsg.body = {}
+                FwdMsg.body.update( self.body )
+                FwdMsg.body['Time'] = int( time() * 1000 )
+                FwdMsg.body['Step'] = min( Step, MaxSearchAddrStep ) - 1
+                FwdMsg.body['PubKey'] = FwdMsg.body.pop( 'PubKeyStr' )      #source node's pubK
+                FwdMsg.body['ForwardPubKey'] = self.LocalNode.PubKeyStr     #forward node's pubK
+                #print '===', FwdMsg.body['PubKey']
+                for Remote in NeighborNode.AllTargets():
+                    #print '---', Remote.PubKeyStr
+                    if FwdMsg.body["PubKey"] == Remote.PubKeyStr:           #do not forward to source node
+                        continue
+                    FwdMsg.SetRemoteNode( Remote )
+                    FwdMsgStr = chr( self.code ) + FwdMsg.EncryptBody()
+                    #print 'FwdMsgStr =', FwdMsgStr
+                    Remote.Buffer(( FwdMsgStr, ))
+                    try:
+                        threading.Thread( target = Remote.Send ).start()
+                    except:
+                        print traceback.format_exc()
+        
+        return ForwardNode
+    
 class NoticeMsg( PFPMessage ):
     ""
     code = 0x16
@@ -266,108 +346,6 @@ class GetTimeLineMsg( PFPMessage ):
     ""
     code = 0x23
 
-
-#no tasks. PHP should be a no status protocol.
-#class Task( object ):
-#    ""
-#    MsgSteps = []
-#    
-#    def __init__( self, rmtNode ):
-#        ""
-#        self.RemoteNode = rmtNode
-#        self.StartAt = time()
-#        
-#    def Start( self ):
-#        ""
-#        print 'Task.Start'
-#        Steps = self.StepGen()
-#        ComingMsgBuff = [None]
-#        
-#        while True:
-#            try:
-#                MsgClses = filter( None, [Steps.send( msg ) for msg in ComingMsgBuff] )
-#                ComingMsgBuff = [None]
-#                if not MsgClses:
-#                    sleep( 1 )
-#                    continue
-#            except StopIteration:
-#                print 'task over.'
-#                break
-#            
-#            Msgs = [MsgCls() for MsgCls in MsgClses]
-#            [msg.SetRemoteNode( self.RemoteNode ) for msg in Msgs]
-#            print 'zzzzzzzzzzzzzz'
-#            [msg.InitBody() for msg in Msgs]
-#            reply = self.RemoteNode.Send( '\n'.join( [msg.Issue() for msg in Msgs] ))
-#            print '============ get reply ============\n', reply
-#            
-#            for msgStr in filter( None, reply.split( '\n' )):
-#                ComingMsg = PFPMessage( ord( msgStr[0] ))
-#                ComingMsg.Receive( loads( msgStr[1:] ), self.RemoteNode )
-#                ComingMsgBuff.append( ComingMsg )
-#
-#
-#    def StepGen( self ):
-#        "need rewrite"
-#        for go, come in self.MsgSteps:
-#            if come is None:
-#                yield go
-#                break
-#            reply = yield go
-#            while not isinstance( reply, come ):
-#                reply = yield None
-#    
-#    def TimeOver( self ):
-#        ""
-#        return time() - self.StartAt > TaskLiveSec
-#        
-#    def __hash__( self ):
-#        "no same type task in one node."
-#        return hash( self.__class__ )
-#        
-#    def __cmp__( self, other ):
-#        "no same type task in one node."
-#        return cmp( self.__class__, other.__class__ )
-#        
-#        
-#class QryPubKeyTask( Task ):
-#    ""
-#    MsgSteps = (
-#        ( QryPubKeyMsg, NodeInfoMsg ),
-#        ( NodeInfoMsg, None ),
-#            )
-#                
-#class ChangeInfoTask( Task ):
-#    ""
-#    MsgSteps = (
-#        ( NodeInfoMsg, None ),
-#            )
-#            
-#class GetNodeTask( Task ):
-#    ""
-#    MsgSteps = (
-#        ( GetNodeMsg, NodeAnswerMsg ),
-#            )
-#            
-#class SearchAddrTask( Task ):
-#    ""
-#    MsgSteps = (
-#        ( SearchAddrMsg, NodeInfoMsg ),
-#            )
-#            
-#class SyncAtclTask( Task ):
-#    ""
-#    MsgSteps = (
-#        ( ChkTreeMsg, GetTreeMsg ),
-#        ( AtclDataMsg, None ),
-#            )
-#            
-#class TimeLineAtclTask( Task ):
-#    ""
-#    MsgSteps = (
-#        ( GetTimeLineMsg, AtclDataMsg ),
-#            )
-            
             
             
     

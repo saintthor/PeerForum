@@ -23,6 +23,7 @@ if __name__ == '__main__':
     PFPMessage.Init()
     TestPeerForum.ChkEnv()
     print 'TestPeerForum.LocalNode.PubKey: ', TestPeerForum.LocalNode.PubKey
+    #TestPeerForum.SendToAll( 0x12 )
     debug( True )
     run( host = '0.0.0.0', port = 8002, reloader = True )
     

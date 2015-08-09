@@ -104,32 +104,14 @@ class PeerForum( object ):
     @classmethod
     def Reply( cls, msgLines ):
         "reply other nodes."
-        #print 'Reply'
+        print '===== Reply ====='
+        sleep( 1 )
         for MsgStr in filter( None, msgLines ):
-            print MsgStr
+            print len( MsgStr ), MsgStr[0]
             ComingMsg = PFPMessage( ord( MsgStr[0] ))
             Neighbor = ComingMsg.Receive( loads( MsgStr[1:] ))      #create neighbor obj from MsgStr
             
         return Neighbor
-
-#    @classmethod
-#    def Reply0( cls, msgStr ):
-#        "reply other nodes."
-#        #print 'PeerForum.Reply', ord( msgStr[0] ), msgStr
-#        ComingMsg = PFPMessage( ord( msgStr[0] ))
-#        MsgBody = loads( msgStr[1:] )
-#        
-#        VerifyStr = ComingMsg.GetBody( MsgBody )
-#        if VerifyStr:
-#            Neighbor = NeighborNode.Get( ComingMsg.PubKey, loads( VerifyStr ))
-#            Neighbor.Verify( VerifyStr, decodestring( MsgBody['sign'] ))
-#        else:
-#            Neighbor = NeighborNode.Get( ComingMsg.PubKey, MsgBody )
-#            
-#        Messages = Neighbor.Reply( ComingMsg ) + Neighbor.Append()
-#        print 'Messages = ', Messages
-#        
-#        return Messages
 
     #===================== http apis with bottle ===================================
     @staticmethod
@@ -142,6 +124,7 @@ class PeerForum( object ):
         #AllMsgs = reduce( list.__add__, [PeerForum.Reply( msg ) for msg in request.POST['pfp'].split( '\n' ) if msg] )
         Remote = PeerForum.Reply( request.POST['pfp'].split( '\n' ))
         AllMsgs = Remote.AllToSend()
+        print 'pfp end', time()
         return '\n'.join( AllMsgs )
         
     @staticmethod
@@ -169,9 +152,15 @@ class PeerForum( object ):
 
 def test():
     ""
+    import threading
     #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8002/node' )
     #PeerForum.SendToAll( 0x11 )
-    PeerForum.SendToAll( 0x12 )
+    #PeerForum.SendToAll( 0x12 )
+    print 'test start', time()
+    threading.Thread( target = PeerForum.SendToAll, args = ( 0x15, )).start()
+    print 'test end', time()
+    #PeerForum.SendToAll( 0x15 )
+    #raise
     
     
 if __name__ == '__main__':

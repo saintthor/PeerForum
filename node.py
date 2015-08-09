@@ -17,7 +17,7 @@ import urllib2
 from urllib import urlencode
 
 from sqlitedb import SqliteDB, CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
-                    GetNodesExcept
+                    GetNodesExcept, GetNodeInfoByPubKey
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
 from crypto import CBCEncrypt, CBCDecrypt
@@ -69,7 +69,7 @@ class NeighborNode( object ):
         ""
         #print 'Neighbor.Get', pubK, msgBody, pubK in cls.LiveD
         if msgBody is None:
-            return cls.LiveD.get( pubK )
+            return cls.LiveD.get( pubK, cls.SearchNode( pubK ))
         return cls.LiveD.setdefault( pubK, cls._New( msgBody ))
         
     @classmethod
@@ -82,19 +82,34 @@ class NeighborNode( object ):
     def _New( cls, msgBody ):
         ""
         #print 'Neighbor._New'
-        condi = { cls.transD.get( k, k ): v for k, v in msgBody.items() if k not in ( 'Time', 'PubKeyStr' ) }
+        condi = { cls.transD.get( k, k ): v for k, v in msgBody.items()
+                    if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step' ) }
         GetNodeByPubKeyOrNew( condi )
         return cls( **condi )
+    
+    @classmethod
+    def NewNeighbor( cls, neighbor ):
+        "save new neighbor from other node"
+        print 'Neighbor.NewNeighbor'
+        condi = { cls.transD.get( k, k ): v for k, v in neighbor.items() if k not in ( 'Time', 'PubKeyStr' ) }
+        GetNodeByPubKeyOrNew( condi )
+    
+    @classmethod
+    def SearchNode( cls, pubK ):
+        ""
+        its = [it for it in cls.transD.items() if it[0] != 'id']
+        return cls( **GetNodeInfoByPubKey( pubK, its ))
+        
     
     def __init__( self, **kwds ):
         ""
         self.SendBuffer = []
-        self.tasks = set( [] )
+        #self.tasks = set( [] )
         self.id = self.PubKey = None
         for k, v in kwds.items():
             setattr( self, k, v )
-        #if hasattr( self, 'PubKey' ):
         if kwds.get( 'PubKey' ):
+            self.PubKeyStr = self.PubKey
             self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKey )
     
     def Update( self, param ):
@@ -139,7 +154,7 @@ class NeighborNode( object ):
             raise NodePubKeyInvalidErr
         k = ''.join( [choice( "1234567890)(*&^%$#@!`~qazxswedcvfrtgbnhyujm,kiolp;.[]{}:?><\"\\'/PLOKMIJNUHBYGVTFCRDXESZWAQ" )
                         for i in range( 32 )] )
-        #print 'NeighborNode.Encrypt', k, self.PubKey
+        #print '\nNeighborNode.Encrypt', k, self.PubKey
         return {
             "msg": encodestring( CBCEncrypt( s, k )),
             "key": encodestring( rsa.encrypt( k, self.PubKey )),
@@ -147,6 +162,7 @@ class NeighborNode( object ):
     
     def Verify( self, message, sign ):
         ""
+        #print '\nVerify', self.PubKeyStr
         return rsa.verify( message, sign, self.PubKey )                
                 
     def Send( self ):
@@ -156,7 +172,7 @@ class NeighborNode( object ):
             return ''
         data = urlencode( { 'pfp': '\n'.join( self.SendBuffer ) } )
         self.SendBuffer = []
-        print 'NeighborNode.Send', self.address
+        print 'NeighborNode.Send', self.address, len( data )
         req = urllib2.Request( self.address, data )
         response = urllib2.urlopen( req )
         
@@ -166,9 +182,9 @@ class NeighborNode( object ):
 #        ""
 #        self.tasks.add( task )
     
-    def ChkTask( self ):
-        ""
-        self.tasks.discard( { task for task in self.tasks if task.TimeOver() })
+#    def ChkTask( self ):
+#        ""
+#        self.tasks.discard( { task for task in self.tasks if task.TimeOver() })
         
     def Buffer( self, msgStrs ):
         "buffer the message. wait to send."
@@ -211,12 +227,13 @@ class SelfNode( object ):
     
     def Decrypt( self, secMsg, secK ):
         ""
-        #print 'SelfNode.Decrypt', self.PubKey
+        #print '\nSelfNode.Decrypt', self.PubKey
         key = rsa.decrypt( secK, self.PriKey )
         return CBCDecrypt( secMsg, key )
     
     def Sign( self, msg ):
         ""
+        #print '\nSign', self.PubKeyStr
         return encodestring( rsa.sign( msg, self.PriKey, SignHashFunc ))
         
     def GetInfo( self ):

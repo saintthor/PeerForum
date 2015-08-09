@@ -105,6 +105,15 @@ def GetNodeByPubKeyOrNew( d ):
             print 'GetOrNewNodeByPubKey', sql
             cursor.execute( sql )
     
+def GetNodeInfoByPubKey( pubK, kItems ):
+    "for search"
+    print 'GetNodeInfoByPubKey'
+    with SqliteDB() as cursor:
+        ProtocolKs, dataCols = zip( *kItems )
+        exist = cursor.execute( 'select %s from node where PubKey = "%s";' % ( ','.join( dataCols ), pubK )).fetchone()
+        #exist = None
+        return dict( zip( ProtocolKs, exist ))
+
 #def CreateNodeORUpdate( d ):
 #    "if neighbor node exist then update else create."
 #    print 'CreateNodeORUpdate', d
