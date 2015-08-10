@@ -112,7 +112,8 @@ def GetNodeInfoByPubKey( pubK, kItems ):
         ProtocolKs, dataCols = zip( *kItems )
         exist = cursor.execute( 'select %s from node where PubKey = "%s";' % ( ','.join( dataCols ), pubK )).fetchone()
         #exist = None
-        return dict( zip( ProtocolKs, exist ))
+        print '\nexist =', exist
+        return dict( zip( dataCols, exist ))
 
 #def CreateNodeORUpdate( d ):
 #    "if neighbor node exist then update else create."

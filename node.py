@@ -68,8 +68,8 @@ class NeighborNode( object ):
     def Get( cls, pubK, msgBody = None ):
         ""
         #print 'Neighbor.Get', pubK, msgBody, pubK in cls.LiveD
-        if msgBody is None:
-            return cls.LiveD.get( pubK, cls.SearchNode( pubK ))
+#        if msgBody is None:
+#            return cls.LiveD.get( pubK, cls.SearchNode( pubK ))
         return cls.LiveD.setdefault( pubK, cls._New( msgBody ))
         
     @classmethod
@@ -98,11 +98,15 @@ class NeighborNode( object ):
     def SearchNode( cls, pubK ):
         ""
         its = [it for it in cls.transD.items() if it[0] != 'id']
-        return cls( **GetNodeInfoByPubKey( pubK, its ))
+        try:
+            return cls( **GetNodeInfoByPubKey( pubK, its ))
+        except TypeError:
+            return
         
     
     def __init__( self, **kwds ):
         ""
+        print kwds
         self.SendBuffer = []
         #self.tasks = set( [] )
         self.id = self.PubKey = None

@@ -130,6 +130,18 @@ class PFPMessage( object ):
     def SetRemoteNode( self, rmtNode ):
         "send target"
         self.RemoteNode = rmtNode
+    
+    def SimpleSend( self, rmtNode ):
+        "send to remote node without expecting response"
+        self.SetRemoteNode( rmtNode )
+        MsgStr = chr( self.code ) + self.EncryptBody()
+        #print 'FwdMsgStr =', FwdMsgStr
+        rmtNode.Buffer(( MsgStr, ))
+        try:
+            threading.Thread( target = rmtNode.Send ).start()
+        except:
+            print traceback.format_exc()
+
         
     @staticmethod
     def _Check_Time( v ):
@@ -196,22 +208,19 @@ class NodeInfoMsg( PFPMessage ):
         elif isinstance( forMsg, QryPubKeyMsg ):        #--QryPubKeyMsg->, go on.
             self.body = self.LocalNode.GetInfo()
             self.body['Step'] = 1
-            print 'NodeInfoMsg.InitBody', self.body
+            #print 'NodeInfoMsg.InitBody', self.body
             
         elif isinstance( forMsg, NodeInfoMsg ):
             if forMsg.body.get( 'Step', 0 ) == 0:       #--QryPubKeyMsg->, <-NodeInfoMsg--, --NodeInfoMsg->, Over.
                 print '\nquery task finished.\n'
                 return False
             self.body = self.LocalNode.GetInfo()        #--QryPubKeyMsg->, <-NodeInfoMsg--, go on.
-            self.body['Step'] = 0
-            print '\nquery task goes on.\n'
+            #self.body['Step'] = 0
+            #print '\nquery task goes on.\n'
             
         elif isinstance( forMsg, SearchAddrMsg ):       #--SearchAddrMsg->
-            if forMsg.body["ObjPubKey"] == self.LocalNode.PubKeyStr:
-                self.body = self.LocalNode.GetInfo()
-            else:
-                ObjNode = NeighborNode.Get( forMsg.body["ObjPubKey"] )
-                self.body = ObjNode.GetInfo()
+            #assert forMsg.body["ObjPubKey"] == self.LocalNode.PubKeyStr
+            self.body = self.LocalNode.GetInfo()
             
     def RcvData( self, remote ):
         ""
@@ -226,8 +235,7 @@ class GetNodeMsg( PFPMessage ):
 
     def InitBody( self ):
         ""
-        self.body = self.LocalNode.GetInfo()
-        self.body['Step'] = 3
+        self.body = {}
         
 
 class NodeAnswerMsg( PFPMessage ):
@@ -254,12 +262,12 @@ class SearchAddrMsg( PFPMessage ):
     ask addr for a node with pubkey known.
     nomal steps:
     A -----SearchAddrMsg---> B
-    if B is the Obj or B has the Obj:
+    if B is the Obj or B has the Obj in neighbors:
         A <----NodeInfoMsg------ B      A gets Obj's info
     elif Step > 0:
         Step--
         B -----SearchAddrMsg---> C      ask more nodes
-        if C is the Obj or C has the Obj:
+        if C is the Obj or C has the Obj in neighbors:
             A <----NodeInfoMsg------ C      A gets Obj's info
         elif Step > 0:
             ......
@@ -271,21 +279,22 @@ class SearchAddrMsg( PFPMessage ):
         ""
         print 'SearchAddrMsg.InitBody'
         self.body = {
-                "ObjPubKey": self.RemoteNode.PubKeyStr + 'zz',
+                "ObjPubKey": self.RemoteNode.PubKeyStr,
+                #"ObjPubKey": self.LocalNode.PubKeyStr,
                 "Step": 3,
                     }
                     
     def Receive( self, msgBody ):
-        ""   
+        "PubKey and Address belongs to the source. ForwardPubKey belongs to the forwarder."   
         VerifyStr = self.GetBody( msgBody )
         print 'SearchAddrMsg.Receive: ', VerifyStr
         
         body = loads( VerifyStr )
         if 'ForwardPubKey' in self.body:
-            SourceNode = NeighborNode( PubKey = self.body['PubKeyStr'] )    #temp node. do not save.
+            SourceNode = NeighborNode( PubKey = self.body['PubKeyStr'], address = self.body['Address'] )    #temp node. do not save.
             ForwardNode = NeighborNode( PubKey = body['ForwardPubKey'] )    #temp node only for verifying
         else:
-            ForwardNode = SourceNode = NeighborNode( PubKey = self.body['PubKeyStr'] )
+            ForwardNode = SourceNode = NeighborNode( PubKey = self.body['PubKeyStr'], address = self.body['Address'] )
 
 #        print 'ForwardNode:', ForwardNode.address
 #        print 'SourceNode:', SourceNode.address
@@ -293,37 +302,36 @@ class SearchAddrMsg( PFPMessage ):
         
         if not self.FlowControl():
             return ForwardNode
-        
-        try:
+                
+        if self.LocalNode.PubKeyStr == self.body["ObjPubKey"]:          #self is objnode
+            print 'self is obj.'
             MsgStrs = PFPMessage.Reply( self, SourceNode )
             #print 'MsgStrs =', MsgStrs
-            SourceNode.Buffer( MsgStrs )                #found objnode
+            SourceNode.Buffer( MsgStrs )
             SourceNode.Send()
-        except TypeError:                               #not found
-            print 'fw to neighbors here.'
+        else:                                           #not found
             Step = self.body.get( 'Step', 0 )
-            if Step > 0:
-                FwdMsg = PFPMessage( self.code )
-                FwdMsg.body = {}
-                FwdMsg.body.update( self.body )
-                FwdMsg.body['Time'] = int( time() * 1000 )
-                FwdMsg.body['Step'] = min( Step, MaxSearchAddrStep ) - 1
-                FwdMsg.body['PubKey'] = FwdMsg.body.pop( 'PubKeyStr' )      #source node's pubK
-                FwdMsg.body['ForwardPubKey'] = self.LocalNode.PubKeyStr     #forward node's pubK
+            FwdMsg = PFPMessage( self.code )
+            FwdMsg.body = {}
+            FwdMsg.body.update( self.body )
+            FwdMsg.body['Time'] = int( time() * 1000 )
+            FwdMsg.body['Step'] = min( Step, MaxSearchAddrStep ) - 1
+            FwdMsg.body['PubKey'] = FwdMsg.body.pop( 'PubKeyStr' )      #source node's pubK
+            FwdMsg.body['ForwardPubKey'] = self.LocalNode.PubKeyStr     #forward node's pubK
+            
+            ObjNode = NeighborNode.SearchNode( self.body["ObjPubKey"] )
+            if ObjNode is not None:
+                print 'find obj in neighbors.'
+                FwdMsg.SimpleSend( ObjNode )                
+            elif Step > 0:
+                print 'forward to neighbors here.'
                 #print '===', FwdMsg.body['PubKey']
                 for Remote in NeighborNode.AllTargets():
                     #print '---', Remote.PubKeyStr
-                    if FwdMsg.body["PubKey"] == Remote.PubKeyStr:           #do not forward to source node
+                    if FwdMsg.body["PubKey"] == Remote.PubKeyStr:       #do not forward to source node
                         continue
-                    FwdMsg.SetRemoteNode( Remote )
-                    FwdMsgStr = chr( self.code ) + FwdMsg.EncryptBody()
-                    #print 'FwdMsgStr =', FwdMsgStr
-                    Remote.Buffer(( FwdMsgStr, ))
-                    try:
-                        threading.Thread( target = Remote.Send ).start()
-                    except:
-                        print traceback.format_exc()
-        
+                    FwdMsg.SimpleSend( Remote )
+                            
         return ForwardNode
     
 class NoticeMsg( PFPMessage ):
