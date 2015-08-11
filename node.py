@@ -167,7 +167,7 @@ class NeighborNode( object ):
     def Verify( self, message, sign ):
         ""
         #print '\nVerify', self.PubKeyStr
-        return rsa.verify( message, sign, self.PubKey )                
+        return rsa.verify( message, sign, self.PubKey )
                 
     def Send( self ):
         "send to remote node"

@@ -149,6 +149,18 @@ def CreateSelfNode( **kwds ):
         sql = u'''insert into selfnode %s''' % _InsertStr( kwds )
         cursor.execute( sql )
 
+def CreateSelfUser( **kwds ):
+    ""
+    with SqliteDB() as cursor:
+        sql = u'''insert into self %s''' % _InsertStr( kwds )
+        cursor.execute( sql )
+
+def GetDefaultUser():
+    ""
+    with SqliteDB() as cursor:
+        sql = """select NickName, PubKey, PriKey from self where status >= 0 order by status desc limit 1;"""
+        return cursor.execute( sql ).fetchone()
+
 def GetAllNode( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:

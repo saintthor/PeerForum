@@ -4,22 +4,54 @@ Created on Sun Jun 21 22:02:40 2015
 
 @author: thor
 """
-from sqlitedb import SqliteDB
+from sqlitedb import CreateSelfUser, GetDefaultUser
+import rsa1 as rsa
+from base64 import encodestring, decodestring
+from const import SignHashFunc
 
-class User( object ):
-    "peerforum user"
+
+class OtherUser( object ):
+    ""
+    def __init__( self, pubK, kType = 'rsa', name = '' ):
+        ""
+        assert kType.lower() == 'rsa'
+        self.Name = name
+        #print '\nOtherUser.__init__', pubK
+        self.PubKey = rsa.PublicKey.load_pkcs1( pubK )
+
+    def Verify( self, message, sign ):
+        ""
+        #print '\nVerify', message, sign
+        return rsa.verify( message, decodestring( sign ), self.PubKey )
+
+
+class SelfUser( object ):
+    ""
+    @classmethod
+    def New( cls, name = 'DefaultUser' ):
+        "create a new self user."
+        PubKey, PriKey = rsa.newkeys( 2048 )
+        CreateSelfUser( NickName = name, PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
+
     def __init__( self, condi = '' ):
         ""
-        with SqliteDB() as cursor:
-            if condi:
-                sql = """select NickName, PubKey, PriKey from self where %s and level >= 0;""" % condi
-            else:
-                sql = """select name, PubKey, PriKey from self where level >= 0 order by level desc limit 1;"""
-                            
-            UserData = cursor.execute( sql ).fetchone()
-        
+        UserData = GetDefaultUser()
         if UserData is None:
-            raise NoAvailableUserErr
+            self.New()
+            UserData = GetDefaultUser()
             
-        self.NickName, self.PubKey, self.PriKey = UserData
+        self.NickName, self.PubKeyStr, PriKeyStr = UserData
+        self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
+        self.PriKey = rsa.PrivateKey.load_pkcs1( PriKeyStr )
         
+    def Sign( self, msg ):
+        ""
+        #print '\nSign', self.PubKeyStr
+        return encodestring( rsa.sign( msg, self.PriKey, SignHashFunc ))
+    
+    def InitItem( self ):
+        "for article items"
+        return {
+            'AuthPubKey': self.PubKeyStr,
+            'NickName': self.NickName,
+                }
