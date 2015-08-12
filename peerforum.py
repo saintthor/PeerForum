@@ -6,16 +6,18 @@ Created on Mon Jun 22 15:33:58 2015
 """
 import logging
 import traceback
+import threading
 from json import loads, dumps
 from base64 import decodestring
-#import re
+from Queue import Empty
 import rsa1 as rsa
 
 from time import time, sleep
 from bottle import route, run, post, debug, request, static_file
+import urllib2
+from urllib import urlencode
 
 import user
-
 from node import NeighborNode, SelfNode
 from protocol import PFPMessage, QryPubKeyMsg, NodeInfoMsg, GetNodeMsg, NodeAnswerMsg, SearchAddrMsg, \
                     NoticeMsg, ChkTreeMsg, GetTreeMsg, AtclDataMsg, GetTimeLineMsg
@@ -64,13 +66,30 @@ class PeerForum( object ):
         [Msg.SetRemoteNode( Remote ) for Msg in Msgs]
         [Msg.InitBody() for Msg in Msgs]
         Remote.Buffer( [Msg.Issue() for Msg in Msgs] )
-        while True:
-            ReplyStr = Remote.Send()
+        while Remote is not None:
+            #ReplyStr = Remote.Send()
+            ReplyStr = cls.Send( *Remote.AllToSend())
             print '\nReplyStr =', ReplyStr
             if not ReplyStr:
                 break
             Remote = cls.Reply( ReplyStr.split( '\n' ))
     
+    @classmethod
+    def Send( cls, addr, msgs ):
+        "send to remote node"
+        data = urlencode( { 'pfp': '\n'.join( msgs ) } )
+        req = urllib2.Request( addr, data )
+        print 'PeerForum.Send', addr, len( data )
+        response = urllib2.urlopen( req )
+        
+        return response.read()
+    
+    @classmethod
+    def SendBuffer( cls, remote ):
+        ""
+        print 'SendBuffer'
+        threading.Thread( target = cls.Send, args = remote.AllToSend() ).start()
+        
     @classmethod
     def SendToAll( cls, *msgTypes, **kwds ):
         ""
@@ -84,7 +103,15 @@ class PeerForum( object ):
     @classmethod
     def Dida( cls, counter = [0] ):
         ""
-        print 'PeerForum.Dida'
+        print 'PeerForum.Dida', NeighborNode.taskQ.qsize()
+        while True:
+            try:
+                task, param = NeighborNode.taskQ.get_nowait()
+                print '\nNeighborNode.task', task, param
+                getattr( cls, task )( param )
+            except Empty:
+                break
+            
         counter[0] = n = counter[0] + 1
         if n % CommunicateCycle == 0:
             cls.Communicate()
@@ -123,7 +150,10 @@ class PeerForum( object ):
         
         #AllMsgs = reduce( list.__add__, [PeerForum.Reply( msg ) for msg in request.POST['pfp'].split( '\n' ) if msg] )
         Remote = PeerForum.Reply( request.POST['pfp'].split( '\n' ))
-        AllMsgs = Remote.AllToSend()
+        PeerForum.Dida()
+        if Remote is None:
+            return ''
+        addr, AllMsgs = Remote.AllToSend()
         print 'pfp end', time()
         return '\n'.join( AllMsgs )
         
@@ -152,13 +182,10 @@ class PeerForum( object ):
 
 def test():
     ""
-    import threading
     #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8002/node' )
     #PeerForum.SendToAll( 0x11 )
     #PeerForum.SendToAll( 0x12 )
-    print 'test start', time()
     threading.Thread( target = PeerForum.SendToAll, args = ( 0x15, )).start()
-    print 'test end', time()
     #PeerForum.SendToAll( 0x15 )
     #raise
     

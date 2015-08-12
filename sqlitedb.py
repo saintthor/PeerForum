@@ -115,33 +115,6 @@ def GetNodeInfoByPubKey( pubK, kItems ):
         print '\nexist =', exist
         return dict( zip( dataCols, exist ))
 
-#def CreateNodeORUpdate( d ):
-#    "if neighbor node exist then update else create."
-#    print 'CreateNodeORUpdate', d
-#    with SqliteDB() as cursor:
-#        cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
-#        exist = None
-#        
-#        if 'address' in d:
-#            exist = cursor.execute( 'select %s from node where PubKey = "" and address = "%s";' % ( ','.join( cols ), d['address'] )).fetchone()
-#            sql = u'''update node set %s where address = "%s";''' % ( _UpdateStr( d ), d['address'] )
-#            
-#        if exist is None and 'PubKey' in d:
-#            if not isinstance( d['PubKey'], basestring ):
-#                d['PubKey'] = d['PubKey'].save_pkcs1()
-#            exist = cursor.execute( 'select %s from node where PubKey = "%s";' % ( ','.join( cols ), d['PubKey'] )).fetchone()
-#            PubKey = d.pop( 'PubKey' )
-#            sql = u'''update node set %s where PubKey = "%s";''' % ( _UpdateStr( d ), PubKey )
-#            
-#        if exist is not None:
-#            print 'CreateNodeORUpdate', sql
-#            cursor.execute( sql )
-#            for i, col in enumerate( cols ):
-#                d.setdefault( col, exist[i] )
-#        else:
-#            sql = u'''insert into node %s''' % _InsertStr( d )
-#            print 'CreateNodeORUpdate', sql
-#            cursor.execute( sql )
 
 def CreateSelfNode( **kwds ):
     ""
@@ -169,15 +142,10 @@ def GetAllNode( *cols, **filterd ):
 
 def GetNodeById( nodeId ):
     ""
-#    d = {}
     with SqliteDB() as cursor:
         cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         node = cursor.execute( 'select %s from node where id = %s;' % ( ','.join( cols ), nodeId )).fetchone()
         return dict( zip( cols, node ))
-#        if node:
-#            for i, col in enumerate( cols ):
-#                d.setdefault( col, node[i] )
-#    return d
 
 def GetNodesExcept( kItems, ids, excpK ):
     ""
@@ -230,8 +198,9 @@ def InitDB( path = '' ):
         #自己的马甲
         c.execute( """create table self (NickName varchar(32), PubKey varchar(1024) unique,
                     PriKey varchar(4096), status int(2) default 0);""" )
-        #邻节点
-        c.execute( """create table node (id integer primary key not null, name varchar(32) default '', 
+        #邻节点                            id is the alias for rowid by declared with integer.
+                    #multi addrs for each node.
+        c.execute( """create table node (id integer primary key asc, name varchar(32) default '', 
                     PubKey varchar(1024) unique, discription varchar(2048) default '', address varchar(64) default '',
                     TechInfo varchar(64) default '', PFPVer varchar(16) default '', ServerProtocol varchar(16) default '',
                     LastTime int(14) default 0, level int(2) default 10);""" )

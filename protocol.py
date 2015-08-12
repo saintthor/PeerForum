@@ -3,8 +3,8 @@
 
 import rsa1 as rsa
 
-import threading
-import traceback
+#import threading
+#import traceback
 from time import time
 from json import loads, dumps
 from base64 import encodestring, decodestring
@@ -119,7 +119,7 @@ class PFPMessage( object ):
         return chr( self.code ) + self.EncryptBody()
     
     def EncryptBody( self ):
-        ""
+        "encrypt and sign"
         print self.__class__.__name__, '.EncryptBody', self.body
         BodyStr = dumps( self.body )
         CryptMsgD = self.RemoteNode.Encrypt( BodyStr )
@@ -131,17 +131,13 @@ class PFPMessage( object ):
         "send target"
         self.RemoteNode = rmtNode
     
-    def SimpleSend( self, rmtNode ):
+    def PostTo( self, *nodes ):
         "send to remote node without expecting response"
-        self.SetRemoteNode( rmtNode )
-        MsgStr = chr( self.code ) + self.EncryptBody()
-        #print 'FwdMsgStr =', FwdMsgStr
-        rmtNode.Buffer(( MsgStr, ))
-        try:
-            threading.Thread( target = rmtNode.Send ).start()
-        except:
-            print traceback.format_exc()
-
+        for rmtNode in nodes:
+            self.SetRemoteNode( rmtNode )
+            MsgStr = chr( self.code ) + self.EncryptBody()
+            rmtNode.Buffer(( MsgStr, ))
+            NeighborNode.taskQ.put(( 'SendBuffer', rmtNode ))
         
     @staticmethod
     def _Check_Time( v ):
@@ -296,19 +292,17 @@ class SearchAddrMsg( PFPMessage ):
         else:
             ForwardNode = SourceNode = NeighborNode( PubKey = self.body['PubKeyStr'], address = self.body['Address'] )
 
-#        print 'ForwardNode:', ForwardNode.address
-#        print 'SourceNode:', SourceNode.address
         ForwardNode.Verify( VerifyStr, decodestring( msgBody['sign'] ))
         
         if not self.FlowControl():
-            return ForwardNode
+            return
                 
         if self.LocalNode.PubKeyStr == self.body["ObjPubKey"]:          #self is objnode
             print 'self is obj.'
             MsgStrs = PFPMessage.Reply( self, SourceNode )
             #print 'MsgStrs =', MsgStrs
             SourceNode.Buffer( MsgStrs )
-            SourceNode.Send()
+            return SourceNode
         else:                                           #not found
             Step = self.body.get( 'Step', 0 )
             FwdMsg = PFPMessage( self.code )
@@ -322,17 +316,11 @@ class SearchAddrMsg( PFPMessage ):
             ObjNode = NeighborNode.SearchNode( self.body["ObjPubKey"] )
             if ObjNode is not None:
                 print 'find obj in neighbors.'
-                FwdMsg.SimpleSend( ObjNode )                
+                FwdMsg.PostTo( ObjNode )
             elif Step > 0:
                 print 'forward to neighbors here.'
-                #print '===', FwdMsg.body['PubKey']
-                for Remote in NeighborNode.AllTargets():
-                    #print '---', Remote.PubKeyStr
-                    if FwdMsg.body["PubKey"] == Remote.PubKeyStr:       #do not forward to source node
-                        continue
-                    FwdMsg.SimpleSend( Remote )
-                            
-        return ForwardNode
+                objPKStr = FwdMsg.body["PubKey"]
+                FwdMsg.PostTo( *[rmt for rmt in NeighborNode.AllTargets() if rmt.PubKeyStr != objPKStr] )
     
 class NoticeMsg( PFPMessage ):
     ""

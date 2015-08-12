@@ -7,14 +7,11 @@ Created on Sun Jun 21 22:04:20 2015
 
 import logging
 
-from threading import Thread
+#from threading import Thread
 from Queue import Queue, Empty
 from random import choice, randint
 import rsa1 as rsa
-from md5 import md5
 from base64 import encodestring, decodestring
-import urllib2
-from urllib import urlencode
 
 from sqlitedb import SqliteDB, CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
                     GetNodesExcept, GetNodeInfoByPubKey
@@ -27,6 +24,7 @@ class NeighborNode( object ):
     ""
     LiveD = {}
     AllNodes = []
+    taskQ = Queue()
     transD = {
         'id': 'id',
         'PubKey': 'PubKey',
@@ -169,18 +167,18 @@ class NeighborNode( object ):
         #print '\nVerify', self.PubKeyStr
         return rsa.verify( message, sign, self.PubKey )
                 
-    def Send( self ):
-        "send to remote node"
-        if not self.SendBuffer:
-            print 'NeighborNode.Send empty SendBuffer. id is', id( self )
-            return ''
-        data = urlencode( { 'pfp': '\n'.join( self.SendBuffer ) } )
-        self.SendBuffer = []
-        print 'NeighborNode.Send', self.address, len( data )
-        req = urllib2.Request( self.address, data )
-        response = urllib2.urlopen( req )
-        
-        return response.read()
+#    def Send( self ):
+#        "send to remote node"
+#        if not self.SendBuffer:
+#            print 'NeighborNode.Send empty SendBuffer. id is', id( self )
+#            return ''
+#        data = urlencode( { 'pfp': '\n'.join( self.SendBuffer ) } )
+#        self.SendBuffer = []
+#        print 'NeighborNode.Send', self.address, len( data )
+#        req = urllib2.Request( self.address, data )
+#        response = urllib2.urlopen( req )
+#        
+#        return response.read()
     
 #    def SetTask( self, task ):
 #        ""
@@ -200,7 +198,7 @@ class NeighborNode( object ):
         "get the additional messages to the neighbor"
         Msgs = self.SendBuffer
         self.SendBuffer = []
-        return Msgs
+        return self.address, Msgs
 
 class SelfNode( object ):
     "peerforum self node"
