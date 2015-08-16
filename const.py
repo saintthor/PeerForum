@@ -17,3 +17,5 @@ GetNodeStep = 3
 GetNodeMaxStep = 5
 MaxSearchAddrStep = 3
 GetNodeNum = 30
+DelFromNodeHours = 24
+#MaxTreeNum = 100        #max articles in a tree

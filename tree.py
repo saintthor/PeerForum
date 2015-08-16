@@ -10,11 +10,13 @@ from time import time
 from hashlib import md5, sha1
 
 from user import SelfUser, OtherUser
+from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic
 
 class Article( object ):
     ""
     NORMAL = 0
     LIKE = 1
+    MinTime = 1439596800000     #2015-8-15 00:00:00
     
     def __init__( self, Id = None, itemD = None, itemStr = '', content = '' ):
         ""
@@ -22,10 +24,11 @@ class Article( object ):
             self.ItemD = itemD
             self.ItemStr = dumps( itemD )
             self.id = sha1( self.ItemStr ).hexdigest()
-        else:                           #receive
+        else:                           #receive or load from local
             self.id = Id
             self.ItemStr = itemStr
             self.ItemD = loads( itemStr )
+            
         self.content = content
     
     def Issue( self ):
@@ -35,6 +38,17 @@ class Article( object ):
             'Items': self.ItemStr,
             'Content': self.content,
                 }
+    
+    def Save( self, **kwds ):
+        ""
+        kwds.update( {
+                'id': self.id,
+                'items': self.ItemStr,
+                'content': self.content,
+                'CreateTime': self.ItemD['CreateTime'],
+                'AuthPubKey': self.ItemD['AuthPubKey'],
+                    } )
+        SaveArticle( **kwds )
     
     def Check( self ):
         "do not check destroy time here"
@@ -49,15 +63,24 @@ class Article( object ):
             assert self.ItemD['Sign'] == md5( content ).hexdigest()
         else:
             assert author.Verify( content, self.ItemD['Sign'] )
+    
+    def IsRoot( self ):
+        ""
+        return not self.ItemD.get( 'ParentID' )
+    
+    def GetLabels( self ):
+        ""
+        return self.ItemD.get( 'Labels' ).split( ',' )
         
                 
     @classmethod
     def New( cls, user = None, Type = 0, content = '', life = 0, **kwds ):
-        "create from localhost"
+        "create from local"
         SignFunc = ( lambda s: md5( s ).hexdigest() ) if user is None else user.Sign
         itemD = {} if user is None else user.InitItem()         #get AuthPubKeyType, AuthPubKey, NickName
         itemD['Type'] = Type
         if Type == Article.NORMAL:
+            assert content
             itemD['Sign'] = SignFunc( content )
         else:
             content = ''
@@ -68,30 +91,65 @@ class Article( object ):
             itemD['DestroyTime'] = itemD['CreateTime'] + life
         itemD['SignHashType'] = 'md5'
         itemD['IDHashType'] = 'sha1'
-        for k in kwds.viewkeys() & ( 'RootID', 'ParentID', 'ProtoID', 'Labels' ):
+        for k in kwds.viewkeys() & { 'RootID', 'ParentID', 'ProtoID', 'Labels' }:
             itemD[k] = kwds[k]      #all texts should be encoded to utf-8
+            if k == 'ParentID':
+                Parent = cls.Get( kwds[k] )
+                if 'DestroyTime' in Parent.ItmeD:
+                    itemD['DestroyTime'] = min( itemD['DestroyTime'], Parent.ItmeD['DestroyTime'] )
         
-        return cls( None, itemD = itemD, content = content )
+        #print 'Article.New', itemD
+        Atcl = cls( None, itemD = itemD, content = content )
+        
+        if Atcl.IsRoot():
+            Topic.New( Atcl )
+            
+        return Atcl
 
     @classmethod
-    def Receive( cls, atclData ):
+    def Receive( cls, atclData, FromNode = '' ):
         "get from other nodes"
         #atclData['Content'] += 'e'
         Atcl = cls( atclData['Id'], itemStr = atclData['Items'], content = atclData['Content'] )
         Atcl.Check()
+        #Atcl.Save( FromNode = FromNode )
         return Atcl
     
+    @classmethod
+    def Get( cls, atclId ):
+        ""
+        ItemStr, Content = GetOneArticle( 'items', 'content', id = atclId )
+        return cls( Id = atclId, itemStr = ItemStr, content = Content )
+        
 
-class PFTree( object ):
+class Topic( object ):
     ""
     def __init__( self, root ):
         ""
+        #print root.ItemD
+        assert root.ItemD.get( 'Type' ) == 0
+        assert root.ItemD.get( 'Labels' ) > ''          #every tree must has labels
         self.Root = root
+    
+    def Save( self, **kwds ):
+        ""
+        print 'Topic.Save'
+        SaveTopic( **kwds )
+        SaveTopicLabels( self.Root.id, self.Root.GetLabels())
 
+        
+    @classmethod
+    def New( cls, atcl ):
+        ""
+        print 'Topic.New'
+        cls( atcl ).Save( root = atcl.id, title = atcl.content.split( '\n' )[0][:30], num = 1,
+                        FirstAuthName = atcl.ItemD.get( 'NickName' ), LastAuthName = atcl.ItemD.get( 'NickName' ),
+                        FirstTime = atcl.ItemD.get( 'CreateTime' ), LastTime = atcl.ItemD.get( 'CreateTime' ), )
 
 if __name__ == '__main__':
-    a = Article.New( SelfUser(), 0, '从假牙假肢，到人工肾人工心，借助於现代医学之力，人可以把自己身上的一切部件——只除开大脑——都更新替换而仍不失为自己。科学终於证明，所谓自我，无非是我的大脑而已。我就是我的大脑。如果一个人的大脑受到某种损害但依然能保持自我，那么，这个叫做自我的东西到底存身于我的大脑的哪个地方呢？',
-                    0, RootID = 'zzzzzzzzzz', ParentID = 'sssssssssss', ProtoID = 'wwwwwwwwwwwww', Labels = '医学,替换' )
+    a = Article.New( SelfUser(), 0, '有凤\n有凤于飞，翙翙其翼。西番之使，九夏之裔。\n有凤于飞，喈喈其声。西番之使，九夏之风。\n有凤于飞，集于桐木。西番之使，九夏其慕。',
+                    0, Labels = '诗' )
+    a.Save()
     j = a.Issue()
     print j
-    print Article.Receive( j )
+    #print Article.Receive( j )

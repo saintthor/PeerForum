@@ -10,7 +10,7 @@ import sqlite3
 from rsa1 import PrivateKey, PublicKey
 from time import time
 
-from const import DB_FILE
+from const import DB_FILE, DelFromNodeHours
 
 def ChangePath( newPath ):
     "for testing"
@@ -54,13 +54,13 @@ def _InsertStr( d ):
     "make str for insert sql"
     def statement( v ):
         if isinstance( v, basestring ):
-            return u'"%s"' % v
+            return "'%s'" % v
         if isinstance( v, ( PrivateKey, PublicKey )):
-            return u'"%s"' % v.save_pkcs1()
-        return u'%s' % v
+            return '"%s"' % v.save_pkcs1()
+        return '%s' % v
     ks, vs = zip( *d.items())
     vStrs = [statement( v ) for v in vs]
-    return u'( %s ) values ( %s )' % ( u','.join( ks ), u','.join( vStrs ))
+    return '( %s ) values ( %s )' % ( ','.join( ks ), ','.join( vStrs ))
 
 def _WhereStr( d ):
     "make where str"
@@ -158,8 +158,56 @@ def GetNodesExcept( kItems, ids, excpK ):
         nodes = cursor.execute( 'select %s from node where id in (%s) and PubKey != "%s";'
                                 % ( ','.join( dataCols ), IdsStr, exKStr )).fetchall()
         return [dict( zip( ProtocolKs, nodeData )) for nodeData in nodes]
+
+def GetOneArticle( *cols, **filterd ):
+    ""
+    with SqliteDB() as cursor:
+        sql = 'select %s from node where %s' % ( ','.join( cols ), _WhereStr( filterd ))
+        return cursor.execute( sql ).fetchone()
+
+def SaveArticle( **param ):
+    ""
+    param['GetTime'] = int( time()) * 1000
+    #print 'SaveArticle', param
+    with SqliteDB() as cursor:
+        sql = 'insert into article %s' % _InsertStr( param )
+        #print sql
+        cursor.execute( sql )
+
+def UpdateArticles():
+    "check destroy, del FromNode"
+    t = int( time()) * 1000
+    with SqliteDB() as cursor:
+        cursor.execute( 'update article set status = -2 where DestroyTime < %d' % t )
+        cursor.execute( 'update article set FromNode = '', GetTime = 9999999999999 where GetTime < %d'
+                        % ( t - DelFromNodeHours * 3600000 ))
     
+def SaveTopicLabels( topicId, labels, Type = 0 ):
+    ""
+    print 'SaveTopicLabels'
+    with SqliteDB() as cursor:
+        for label in filter( None, labels ):
+            sql = 'insert into label %s' % _InsertStr( { 'name': label, 'TopicID': topicId, 'type': Type } )
+            print sql
+            cursor.execute( sql )
+    
+
+def SaveTopic( **param ):
+    ""
+    print 'SaveTopic', param
+    with SqliteDB() as cursor:
+        sql = 'insert into topic %s' % _InsertStr( param )
+        print sql
+        cursor.execute( sql )
+    
+
 def test():
+    with SqliteDB() as c:
+        c.execute( """create table topic (root varchar(256) unique,
+                    title varchar(128) not null, num int(4), status int(2) default 0,
+                    FirstAuthName  varchar(32), FirstTime int(13),
+                    LastAuthName  varchar(32), LastTime int(13));""" )
+    return
     transD = {
         'id': 'id',
         'PubKey': 'PubKey',
@@ -195,6 +243,8 @@ def InitDB( path = '' ):
     with SqliteDB( path ) as c:
         #飘论坛的用户
         c.execute( "create table user (NickName varchar(32), PubKey varchar(1024) unique, status int(2) default 0);" )
+        #用户圈子       many to many
+        c.execute( "create table circle (UserPubKey varchar(1024), CircleName varchar(64));" )
         #自己的马甲
         c.execute( """create table self (NickName varchar(32), PubKey varchar(1024) unique,
                     PriKey varchar(4096), status int(2) default 0);""" )
@@ -208,11 +258,19 @@ def InitDB( path = '' ):
         c.execute( """create table selfnode (name varchar(32), PubKey varchar(1024) unique,
                     discription varchar(2048), PriKey varchar(4096), address varchar(64),
                     ServerProtocol varchar(16), level int(2) default 0);""" )
-        #帖子
-        c.execute( """create table article (content varchar(20480), id varchar(256) unique,
+        #帖子         Type = 0 for normal, 1 for like
+                                                                    #id is not rowid
+        c.execute( """create table article (content varchar(60080), id varchar(256) unique,
                     items varchar(8192), root varchar(256), status int(2) default 0,
-                    AuthPubKey varchar(1024), Type int(2) default 0, CreateTime int(13));""" )
-        #标签
+                    AuthPubKey varchar(1024), Type int(2) default 0, CreateTime int(13),
+                    DestroyTime int(13) default 9999999999999,
+                    GetTime int(13), FromNode varchar(1024));""" )      #GetTime and FromNode should be deleted in hours.
+        #话题
+        c.execute( """create table topic (root varchar(256) unique,
+                    title varchar(128) not null, num int(4), status int(2) default 0,
+                    FirstAuthName  varchar(32), FirstTime int(13),
+                    LastAuthName  varchar(32), LastTime int(13));""" )
+        #标签                                             type = 0 for static label; 1 for node label
         c.execute( """create table label (name varchar(32), type int(2), TopicID varchar(256));""" )
 #        #运行时
 #        c.execute( """create table task (id integer primary key not null, time int(13),

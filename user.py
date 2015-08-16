@@ -52,6 +52,6 @@ class SelfUser( object ):
     def InitItem( self ):
         "for article items"
         return {
-            'AuthPubKey': self.PubKeyStr,
-            'NickName': self.NickName,
+            'AuthPubKey': self.PubKeyStr.encode( 'ascii' ),
+            'NickName': self.NickName.encode( 'ascii' ),
                 }
