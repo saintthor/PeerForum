@@ -40,13 +40,13 @@ class SelfUser( object ):
             self.New()
             UserData = GetDefaultUser()
             
-        NickName, self.PubKeyStr, PriKeyStr = UserData
+        self.NickName, self.PubKeyStr, PriKeyStr = UserData
         self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
         self.PriKey = rsa.PrivateKey.load_pkcs1( PriKeyStr )
-        try:
-            self.NickName = NickName.encode( 'ascii' )
-        except:
-            self.NickName = NickName.encode( 'utf8' )
+#        try:
+#            self.NickName = NickName.encode( 'ascii' )
+#        except:
+#            self.NickName = NickName.encode( 'utf8' )
             
         
     def Sign( self, msg ):
@@ -57,6 +57,6 @@ class SelfUser( object ):
     def InitItem( self ):
         "for article items"
         return {
-            'AuthPubKey': self.PubKeyStr.encode( 'ascii' ),
+            'AuthPubKey': self.PubKeyStr,
             'NickName': self.NickName,
                 }

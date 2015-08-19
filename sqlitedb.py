@@ -42,51 +42,54 @@ class SqliteDB( object ):
 
 def _UpdateStr( d ):
     "make str for update sql"
-    def statement( k, v ):
-        if isinstance( v, basestring ):
-            return '%s = "%s"' % ( k, v )
+    def statement( v ):
         if isinstance( v, ( PrivateKey, PublicKey )):
-            return '%s = "%s"' % ( k, v.save_pkcs1())
-        return '%s = %s' % ( k, v )
-    return ','.join( [statement( *it ) for it in d.items()] )
+            return v.save_pkcs1()
+        return v
+    cols, vals = tuple( zip( *d.items()))
+    return ','.join( [( c + '=?' ) for c in cols] ), tuple( map( statement, vals ))
 
 def _InsertStr( d ):
     "make str for insert sql"
     def statement( v ):
-        if isinstance( v, basestring ):
-            return "'%s'" % v
         if isinstance( v, ( PrivateKey, PublicKey )):
-            return '"%s"' % v.save_pkcs1()
-        return '%s' % v
+            return v.save_pkcs1()
+        return v
     ks, vs = zip( *d.items())
     vStrs = [statement( v ) for v in vs]
-    return '( %s ) values ( %s )' % ( ','.join( ks ), ','.join( vStrs ))
+    return ','.join( ks ), tuple( vStrs )
 
 def _WhereStr( d ):
     "make where str"
-    def statement( k, v ):
-        if isinstance( v, basestring ):
-            return u'%s = "%s"' % ( k, v )
+    def statement( v ):
         if isinstance( v, ( PrivateKey, PublicKey )):
-            return u'%s = "%s"' % ( k, v.save_pkcs1())
-        return u'%s = %s' % ( k, v )
-    return u' and '.join( [statement( *it ) for it in d.items()] )
+            return v.save_pkcs1()
+        return v
+    cols, vals = tuple( zip( *d.items()))
+    return ' and '.join( [( c + '=?' ) for c in cols] ), tuple( map( statement, vals ))
+    #return u' and '.join( [statement( *it ) for it in d.items()] )
     
 
 def UpdateNodeOrNew( param, where ):
     "if neighbor node exist then update else create."
     param['LastTime'] = int( time() * 1000 )
+    
     with SqliteDB() as cursor:
         if where:       #update
-            sql = u'''update node set %s where %s;''' % ( _UpdateStr( param ), _WhereStr( where ))
+            ucols, uvals = _UpdateStr( param )
+            wcols, wvals = _WhereStr( where )
+            vals = uvals + wvals
+            sql = u'''update node set %s where %s;''' % ( ucols, wcols )
         else:           #insert
-            exist = cursor.execute( 'select id from node where %s;' % _WhereStr( { 'PubKey': param['PubKey'] } )).fetchone()
+            exist = cursor.execute( 'select id from node where PubKey = ?;', ( param['PubKey'], )).fetchone()
             if exist is None:
-                sql = u'''insert into node %s''' % _InsertStr( param )
+                cols, vals = _InsertStr( param )
+                sql = u'insert into node (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
             else:
-                sql = u'''update node set %s where id = %s;''' % ( _UpdateStr( param ), exist[0] )
-        print 'UpdateNodeOrNew', sql
-        cursor.execute( sql )
+                cols, vals = _UpdateStr( param )
+                sql = u'''update node set %s where id = %s;''' % ( cols, exist[0] )
+        print 'UpdateNodeOrNew', sql, vals
+        cursor.execute( sql, vals )
     
 def GetNodeByPubKeyOrNew( d ):
     "or new"
@@ -95,22 +98,22 @@ def GetNodeByPubKeyOrNew( d ):
         cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         if not isinstance( d['PubKey'], basestring ):
             d['PubKey'] = d['PubKey'].save_pkcs1()
-        exist = cursor.execute( 'select %s from node where PubKey = "%s";' % ( ','.join( cols ), d['PubKey'] )).fetchone()
+        exist = cursor.execute( 'select %s from node where PubKey = ?;' % ','.join( cols ), ( d['PubKey'], )).fetchone()
         
         if exist is not None:
             for i, col in enumerate( cols ):
                 d.setdefault( col, exist[i] )
         else:
-            sql = u'''insert into node %s''' % _InsertStr( d )
-            print 'GetOrNewNodeByPubKey', sql
-            cursor.execute( sql )
+            cols, vals = _InsertStr( d )
+            sql = u'insert into node (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
+            cursor.execute( sql, vals )
     
 def GetNodeInfoByPubKey( pubK, kItems ):
     "for search"
     print 'GetNodeInfoByPubKey'
     with SqliteDB() as cursor:
         ProtocolKs, dataCols = zip( *kItems )
-        exist = cursor.execute( 'select %s from node where PubKey = "%s";' % ( ','.join( dataCols ), pubK )).fetchone()
+        exist = cursor.execute( 'select %s from node where PubKey = ?;' % ','.join( dataCols ), ( pubK, )).fetchone()
         #exist = None
         print '\nexist =', exist
         return dict( zip( dataCols, exist ))
@@ -119,14 +122,16 @@ def GetNodeInfoByPubKey( pubK, kItems ):
 def CreateSelfNode( **kwds ):
     ""
     with SqliteDB() as cursor:
-        sql = u'''insert into selfnode %s''' % _InsertStr( kwds )
-        cursor.execute( sql )
+        cols, vals = _InsertStr( kwds )
+        sql = u'insert into selfnode (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
+        cursor.execute( sql, vals )
 
 def CreateSelfUser( **kwds ):
     ""
     with SqliteDB() as cursor:
-        sql = u'''insert into self %s''' % _InsertStr( kwds )
-        cursor.execute( sql )
+        cols, vals = _InsertStr( kwds )
+        sql = u'insert into self (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
+        cursor.execute( sql, vals )
 
 def GetDefaultUser():
     ""
@@ -137,14 +142,15 @@ def GetDefaultUser():
 def GetAllNode( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:
-        sql = u'''select %s from node where level > 0 and %s''' % ( ','.join( cols ), _WhereStr( filterd ))
-        return cursor.execute( sql ).fetchall()
+        wcols, vals = _WhereStr( filterd )
+        sql = u'''select %s from node where level > 0 and %s''' % ( ','.join( cols ), wcols )
+        return cursor.execute( sql, vals ).fetchall()
 
 def GetNodeById( nodeId ):
     ""
     with SqliteDB() as cursor:
         cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
-        node = cursor.execute( 'select %s from node where id = %s;' % ( ','.join( cols ), nodeId )).fetchone()
+        node = cursor.execute(( 'select %s from node where id = ?;' % ','.join( cols )), ( nodeId, )).fetchone()
         return dict( zip( cols, node ))
 
 def GetNodesExcept( kItems, ids, excpK ):
@@ -155,62 +161,67 @@ def GetNodesExcept( kItems, ids, excpK ):
         #cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol'
         ProtocolKs, dataCols = zip( *kItems )
         #print 'select %s from node where id in (%s);' % ( ','.join( cols ), IdsStr )
-        nodes = cursor.execute( 'select %s from node where id in (%s) and PubKey != "%s";'
-                                % ( ','.join( dataCols ), IdsStr, exKStr )).fetchall()
+        nodes = cursor.execute( 'select %s from node where id in (%s) and PubKey != ?;'
+                                % ( ','.join( dataCols ), IdsStr ), ( exKStr, )).fetchall()
         return [dict( zip( ProtocolKs, nodeData )) for nodeData in nodes]
 
 def GetOneArticle( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:
-        sql = 'select %s from article where %s' % ( ','.join( cols ), _WhereStr( filterd ))
+        wcols, vals = _WhereStr( filterd )
+        sql = 'select %s from article where %s' % ( ','.join( cols ), wcols )
         #print 'GetOneArticle', sql
-        return cursor.execute( sql ).fetchone()
+        return cursor.execute( sql, vals ).fetchone()
 
 def SaveArticle( **param ):
     ""
     param['GetTime'] = int( time() * 1000 )
     #print 'SaveArticle', param
     with SqliteDB() as cursor:
-        sql = 'insert into article %s' % _InsertStr( param )
-        #print sql
-        cursor.execute( sql )
+        cols, vals = _InsertStr( param )
+        sql = u'insert into article (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
+        print sql
+        cursor.execute( sql, vals )
 
 def UpdateArticles():
     "check destroy, del FromNode"
     t = int( time() * 1000 )
     with SqliteDB() as cursor:
-        cursor.execute( 'update article set status = -2 where DestroyTime < %d' % t )
-        cursor.execute( 'update article set FromNode = '', GetTime = 9999999999999 where GetTime < %d'
-                        % ( t - DelFromNodeHours * 3600000 ))
+        cursor.execute( 'update article set status = -2 where DestroyTime < ?', ( t, ))
+        cursor.execute( 'update article set FromNode = '', GetTime = 9999999999999 where GetTime < ?',
+                        (( t - DelFromNodeHours * 3600000 ),))
     
 def SaveTopicLabels( topicId, labels, Type = 0 ):
     ""
     print 'SaveTopicLabels'
     with SqliteDB() as cursor:
         for label in filter( None, labels ):
-            sql = 'insert into label %s' % _InsertStr( { 'name': label, 'TopicID': topicId, 'type': Type } )
+            cols, vals = _InsertStr( { 'name': label, 'TopicID': topicId, 'type': Type } )
+            sql = u'insert into label (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
             print sql
-            cursor.execute( sql )
-
+            cursor.execute( sql, vals )
+    
 def UpdateTopic( tpcId, **param ):
     ""
     print 'UpdateTopic'
     with SqliteDB() as cursor:
-#            sql = u'''update node set %s where %s;''' % ( _UpdateStr( param ), _WhereStr( where ))
-        sql = 'update topic set num = num + 1, %s where root = "%s"' % ( _UpdateStr( param ), tpcId )
-        print sql
-        cursor.execute( sql )
+        cols, vals = _UpdateStr( param )
+        sql = 'update topic set num = num + 1, %s where root = ?' % cols
+        cursor.execute( sql, vals + ( tpcId, ))
 
 def SaveTopic( **param ):
     ""
     print 'SaveTopic', param
     with SqliteDB() as cursor:
-        sql = 'insert into topic %s' % _InsertStr( param )
+        cols, vals = _InsertStr( param )
+        sql = u'insert into topic (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
         print sql
-        cursor.execute( sql )
+        cursor.execute( sql, vals )
     
 
 def test():
+    print GetNodeById( 1 )
+    return
     with SqliteDB() as c:
         c.execute( """create table topic (root varchar(256) unique,
                     title varchar(128) not null, num int(4), status int(2) default 0,

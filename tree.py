@@ -65,13 +65,10 @@ class Article( object ):
         assert self.id == sha1( self.ItemStr ).hexdigest()
         assert self.ItemD.get( 'SignHashType', 'md5' ).lower() == 'md5'
         
-        content = self.content if self.ItemD['Type'] == Article.NORMAL else self.ItemD['ParentID']
+        content = self.content.encode( 'utf8' ) if self.ItemD['Type'] == Article.NORMAL else self.ItemD['ParentID']
         AuthPubKey = self.ItemD.get( 'AuthPubKey' )
-        author = None if AuthPubKey is None else OtherUser( AuthPubKey )
-        if author is None:
-            assert self.ItemD['Sign'] == md5( content ).hexdigest()
-        else:
-            assert author.Verify( content, self.ItemD['Sign'] )
+        author = OtherUser( AuthPubKey )
+        assert author.Verify( content, self.ItemD['Sign'] )
     
     def IsRoot( self ):
         ""
@@ -90,7 +87,7 @@ class Article( object ):
         itemD['Type'] = Type
         if Type == Article.NORMAL:
             assert content
-            itemD['Sign'] = user.Sign( content )
+            itemD['Sign'] = user.Sign( content.encode( 'utf8' ))
         elif Type == Article.LIKE:
             content = ''        #LIKE has no content, life, ProtoID, Labels
             life = 0
@@ -110,7 +107,7 @@ class Article( object ):
             if k == 'ParentID':
                 Parent = cls.Get( kwds[k] )
                 if 'DestroyTime' in Parent.ItemD:
-                    itemD['DestroyTime'] = min( itemD['DestroyTime'], Parent.ItmeD['DestroyTime'] )
+                    itemD['DestroyTime'] = min( itemD.get( 'DestroyTime', 9999999999999 ), Parent.ItemD['DestroyTime'] )
         
         #print 'Article.New', itemD
         Atcl = cls( None, itemD = itemD, content = content )
@@ -161,9 +158,9 @@ class Topic( object ):
                         FirstTime = atcl.ItemD.get( 'CreateTime' ), LastTime = atcl.ItemD.get( 'CreateTime' ), )
 
 if __name__ == '__main__':
-    a = Article.New( SelfUser(), 1, '大梦三年乱事秋，天津炸案尚无头。九重圣意垂云汉，不论苍生论足球。',
-                    0, Labels = '诗', RootID = '1fb5381c3200bb03561cb9b79c40bed50eda8515', ParentID = '1fb5381c3200bb03561cb9b79c40bed50eda8515',)
+    a = Article.New( SelfUser(), 0, u'儿童怪问客从来，迂阔颟顸语近呆。醉指他乡风物好，淡真不必甚多才。',
+                    0, Labels = u'诗', RootID = '9786b0cb0761e87e720733e45bc6c831785f0bac', ParentID = '9786b0cb0761e87e720733e45bc6c831785f0bac', )
     a.Save()
     j = a.Issue()
     print j
-    #print Article.Receive( j )
+    print Article.Receive( j )
