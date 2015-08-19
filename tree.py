@@ -10,12 +10,13 @@ from time import time
 from hashlib import md5, sha1
 
 from user import SelfUser, OtherUser
-from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic
+from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic
 
 class Article( object ):
     ""
     NORMAL = 0
     LIKE = 1
+    CHAT = 2
     MinTime = 1439596800000     #2015-8-15 00:00:00
     
     def __init__( self, Id = None, itemD = None, itemStr = '', content = '' ):
@@ -43,12 +44,20 @@ class Article( object ):
         ""
         kwds.update( {
                 'id': self.id,
+                'root': self.ItemD.get( 'RootID', self.id ),    #for root, the itemD is filled before creating rootId. so, itemD.RootID is null
                 'items': self.ItemStr,
                 'content': self.content,
+                'Type': self.ItemD['Type'],
                 'CreateTime': self.ItemD['CreateTime'],
                 'AuthPubKey': self.ItemD['AuthPubKey'],
                     } )
         SaveArticle( **kwds )
+        
+        if not self.IsRoot():
+            UpdateTopic( self.ItemD['RootID'], **{
+                                    'LastAuthName': self.ItemD.get( 'NickName' ),
+                                    'LastTime': self.ItemD.get( 'CreateTime' ),
+                                                } )
     
     def Check( self ):
         "do not check destroy time here"
@@ -66,7 +75,7 @@ class Article( object ):
     
     def IsRoot( self ):
         ""
-        return not self.ItemD.get( 'ParentID' )
+        return not self.ItemD.get( 'RootID' )
     
     def GetLabels( self ):
         ""
@@ -74,17 +83,22 @@ class Article( object ):
         
                 
     @classmethod
-    def New( cls, user = None, Type = 0, content = '', life = 0, **kwds ):
+    def New( cls, user, Type = 0, content = '', life = 0, **kwds ):
         "create from local"
-        SignFunc = ( lambda s: md5( s ).hexdigest() ) if user is None else user.Sign
+        #SignFunc = ( lambda s: md5( s ).hexdigest() ) if user is None else user.Sign
         itemD = {} if user is None else user.InitItem()         #get AuthPubKeyType, AuthPubKey, NickName
         itemD['Type'] = Type
         if Type == Article.NORMAL:
             assert content
-            itemD['Sign'] = SignFunc( content )
+            itemD['Sign'] = user.Sign( content )
+        elif Type == Article.LIKE:
+            content = ''        #LIKE has no content, life, ProtoID, Labels
+            life = 0
+            for k in kwds.viewkeys() & { 'ProtoID', 'Labels' }:
+                del kwds[k]
+            itemD['Sign'] = user.Sign( kwds['ParentID'] )
         else:
-            content = ''
-            itemD['Sign'] = SignFunc( kwds['ParentID'] )
+            raise       #for chat here
         
         itemD['CreateTime'] = int( time() * 1000 )
         if life > 0:
@@ -95,7 +109,7 @@ class Article( object ):
             itemD[k] = kwds[k]      #all texts should be encoded to utf-8
             if k == 'ParentID':
                 Parent = cls.Get( kwds[k] )
-                if 'DestroyTime' in Parent.ItmeD:
+                if 'DestroyTime' in Parent.ItemD:
                     itemD['DestroyTime'] = min( itemD['DestroyTime'], Parent.ItmeD['DestroyTime'] )
         
         #print 'Article.New', itemD
@@ -147,8 +161,8 @@ class Topic( object ):
                         FirstTime = atcl.ItemD.get( 'CreateTime' ), LastTime = atcl.ItemD.get( 'CreateTime' ), )
 
 if __name__ == '__main__':
-    a = Article.New( SelfUser(), 0, '有凤\n有凤于飞，翙翙其翼。西番之使，九夏之裔。\n有凤于飞，喈喈其声。西番之使，九夏之风。\n有凤于飞，集于桐木。西番之使，九夏其慕。',
-                    0, Labels = '诗' )
+    a = Article.New( SelfUser(), 1, '大梦三年乱事秋，天津炸案尚无头。九重圣意垂云汉，不论苍生论足球。',
+                    0, Labels = '诗', RootID = '1fb5381c3200bb03561cb9b79c40bed50eda8515', ParentID = '1fb5381c3200bb03561cb9b79c40bed50eda8515',)
     a.Save()
     j = a.Issue()
     print j

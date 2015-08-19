@@ -44,11 +44,11 @@ def _UpdateStr( d ):
     "make str for update sql"
     def statement( k, v ):
         if isinstance( v, basestring ):
-            return u'%s = "%s"' % ( k, v )
+            return '%s = "%s"' % ( k, v )
         if isinstance( v, ( PrivateKey, PublicKey )):
-            return u'%s = "%s"' % ( k, v.save_pkcs1())
-        return u'%s = %s' % ( k, v )
-    return u','.join( [statement( *it ) for it in d.items()] )
+            return '%s = "%s"' % ( k, v.save_pkcs1())
+        return '%s = %s' % ( k, v )
+    return ','.join( [statement( *it ) for it in d.items()] )
 
 def _InsertStr( d ):
     "make str for insert sql"
@@ -162,12 +162,13 @@ def GetNodesExcept( kItems, ids, excpK ):
 def GetOneArticle( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:
-        sql = 'select %s from node where %s' % ( ','.join( cols ), _WhereStr( filterd ))
+        sql = 'select %s from article where %s' % ( ','.join( cols ), _WhereStr( filterd ))
+        #print 'GetOneArticle', sql
         return cursor.execute( sql ).fetchone()
 
 def SaveArticle( **param ):
     ""
-    param['GetTime'] = int( time()) * 1000
+    param['GetTime'] = int( time() * 1000 )
     #print 'SaveArticle', param
     with SqliteDB() as cursor:
         sql = 'insert into article %s' % _InsertStr( param )
@@ -176,7 +177,7 @@ def SaveArticle( **param ):
 
 def UpdateArticles():
     "check destroy, del FromNode"
-    t = int( time()) * 1000
+    t = int( time() * 1000 )
     with SqliteDB() as cursor:
         cursor.execute( 'update article set status = -2 where DestroyTime < %d' % t )
         cursor.execute( 'update article set FromNode = '', GetTime = 9999999999999 where GetTime < %d'
@@ -190,7 +191,15 @@ def SaveTopicLabels( topicId, labels, Type = 0 ):
             sql = 'insert into label %s' % _InsertStr( { 'name': label, 'TopicID': topicId, 'type': Type } )
             print sql
             cursor.execute( sql )
-    
+
+def UpdateTopic( tpcId, **param ):
+    ""
+    print 'UpdateTopic'
+    with SqliteDB() as cursor:
+#            sql = u'''update node set %s where %s;''' % ( _UpdateStr( param ), _WhereStr( where ))
+        sql = 'update topic set num = num + 1, %s where root = "%s"' % ( _UpdateStr( param ), tpcId )
+        print sql
+        cursor.execute( sql )
 
 def SaveTopic( **param ):
     ""
