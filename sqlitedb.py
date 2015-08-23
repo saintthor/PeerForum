@@ -217,10 +217,32 @@ def SaveTopic( **param ):
         sql = u'insert into topic (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
         print sql
         cursor.execute( sql, vals )
-    
 
+def GetRootIds( **condi ):
+    ""
+    status = max( condi.get( 'Status', 1 ), 1 )
+    with SqliteDB() as cursor:
+        return [tpc[0] for tpc in cursor.execute(
+                        'select root from topic where LastTime >= ? and LastTime <= ? and status >= ?', 
+                        ( condi['From'], condi['To'], status )
+                                                ).fetchall()]
+    
+def GetTreeAtcls( *rootIds ):
+    ""
+    d = {}
+    with SqliteDB() as cursor:
+        for root, Id, itemStr, content in cursor.execute(
+                    'select root, id, items, content from article where root in (%s)' % ','.join( ['?'] * len( rootIds )),
+                    tuple( rootIds )
+                        ).fetchall():
+            #print root, Id
+            d.setdefault( root, {} )[Id] = itemStr, content
+    
+    return d
+    
+    
 def test():
-    print GetNodeById( 1 )
+    print GetTreeAtcls( [u'1fb5381c3200bb03561cb9b79c40bed50eda8515', u'4d1f0212871dae4898aea2de9eae31924c85fb87', u'9786b0cb0761e87e720733e45bc6c831785f0bac'] )
     return
     with SqliteDB() as c:
         c.execute( """create table topic (root varchar(256) unique,
@@ -245,7 +267,6 @@ def test():
 def FileExist( fpath ):
     "check if the db file exist."
     if fpath[:2] == './':
-        import os
         segs = os.path.abspath( __file__ ).split( '/' )[:-1]
         fpath = '/'.join( segs ) + fpath[1:]
         

@@ -19,8 +19,7 @@ from urllib import urlencode
 
 import user
 from node import NeighborNode, SelfNode
-from protocol import PFPMessage, QryPubKeyMsg, NodeInfoMsg, GetNodeMsg, NodeAnswerMsg, SearchAddrMsg, \
-                    NoticeMsg, ChkTreeMsg, GetTreeMsg, AtclDataMsg, GetTimeLineMsg
+from protocol import PFPMessage
 from const import LOG_FILE, CommunicateCycle
 from sqlitedb import SqliteDB, InitDB
 from exception import *
@@ -150,7 +149,9 @@ class PeerForum( object ):
         
         #AllMsgs = reduce( list.__add__, [PeerForum.Reply( msg ) for msg in request.POST['pfp'].split( '\n' ) if msg] )
         Remote = PeerForum.Reply( request.POST['pfp'].split( '\n' ))
+        # for testing ---------
         PeerForum.Dida()
+        #----------------------
         if Remote is None:
             return ''
         addr, AllMsgs = Remote.AllToSend()
@@ -182,12 +183,9 @@ class PeerForum( object ):
 
 def test():
     ""
-    #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8002/node' )
-    #PeerForum.SendToAll( 0x11 )
-    #PeerForum.SendToAll( 0x12 )
-    threading.Thread( target = PeerForum.SendToAll, args = ( 0x15, )).start()
-    #PeerForum.SendToAll( 0x15 )
+    threading.Thread( target = PeerForum.SendToAll, args = ( 0x20, )).start()
     #raise
+    return
     
     
 if __name__ == '__main__':
@@ -197,6 +195,6 @@ if __name__ == '__main__':
     PFPMessage.Init()
     NeighborNode.Init()
     PeerForum.ChkEnv()
-    test()
+    #test()
     debug( True )
-    run( host = '0.0.0.0', port = 8000, reloader = False )   #set reloader to False to avoid initializing twice.
+    run( host = '0.0.0.0', port = 8000, reloader = True )   #set reloader to False to avoid initializing twice.

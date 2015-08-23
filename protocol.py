@@ -4,14 +4,15 @@
 import rsa1 as rsa
 
 #import threading
-#import traceback
+import traceback
 from time import time
 from json import loads, dumps
 from base64 import encodestring, decodestring
 
 from exception import *
-from const import MaxTimeDiff, MaxSearchAddrStep
+from const import MaxTimeDiff, MaxSearchAddrStep, GetTreeInHours
 from node import NeighborNode
+from tree import Topic
 
 class PFPMessage( object ):
     ""
@@ -106,6 +107,7 @@ class PFPMessage( object ):
         
         if RplMsg.InitBody( self ) != False:
             return RplMsg.Issue(),
+        print 'nothing to reply.'
         return ()
     
     def Issue( self ):
@@ -120,7 +122,7 @@ class PFPMessage( object ):
     
     def EncryptBody( self ):
         "encrypt and sign"
-        print self.__class__.__name__, '.EncryptBody', self.body
+        print self.__class__.__name__, '.EncryptBody\n', self.body
         BodyStr = dumps( self.body )
         CryptMsgD = self.RemoteNode.Encrypt( BodyStr )
         CryptMsgD['sign'] = self.LocalNode.Sign( BodyStr )
@@ -133,6 +135,7 @@ class PFPMessage( object ):
     
     def PostTo( self, *nodes ):
         "send to remote node without expecting response"
+        #print 'PFPMessage.PostTo len( nodes ) =', len( nodes )
         for rmtNode in nodes:
             self.SetRemoteNode( rmtNode )
             MsgStr = chr( self.code ) + self.EncryptBody()
@@ -326,21 +329,77 @@ class NoticeMsg( PFPMessage ):
     ""
     code = 0x16
 
-class ChkTreeMsg( PFPMessage ):
-    ""
+class QryTreeMsg( PFPMessage ):
+    """
+    ask remote node for trees by query conditions. and tell remote the hot trees to offer.
+    A -----QryTreeMsg -----> B  ( optional )
+    A <----TreesInfoMsg ---- B
+    A -----GetTreeMsg -----> B
+    A <----AtclDataMsg ----- B
+    """
     code = 0x20
+    ReplyCode = 0x21
+    
+    def InitBody( self ):
+        ""
+        print '\nQryTreeMsg.InitBody'
+        t = int( time() * 1000 )
+        GetTreeInHours = 480
+        self.body = {
+                "From": t - GetTreeInHours * 3600 * 1000,
+                "To": t,
+                "Status": 1,
+                    }
+
+class TreesInfoMsg( PFPMessage ):
+    ""
+    code = 0x21
+    ReplyCode = 0x22
+    
+    def InitBody( self, forMsg = None ):
+        ""
+        print '\nTreesInfoMsg.InitBody'
+        self.body = {
+                'Offer': [tpc.GetInfo() for tpc in Topic.Filter( forMsg.body )],
+                    }
+                    
+        if not self.body['Offer']:
+            return False
 
 class GetTreeMsg( PFPMessage ):
     ""
-    code = 0x21
+    code = 0x22
+    ReplyCode = 0x23
+    
+    def InitBody( self, forMsg = None ):
+        ""
+        print '\nGetTreeMsg.InitBody', forMsg.body['Offer']
+        if not forMsg.body.get( 'Offer' ):
+            return False
+            
+        self.body = {
+                'Trees': filter( None, [Topic.Compare( TreeInfo ) for TreeInfo in forMsg.body['Offer']] ),
+                    }
 
 class AtclDataMsg( PFPMessage ):
     ""
-    code = 0x22
+    code = 0x23
+    
+    def InitBody( self, forMsg = None ):
+        ""
+        print '\nAtclDataMsg.InitBody'
+        if not forMsg.body.get( 'Trees' ):
+            return False
+            
+        self.body = {
+                'Articles': [atcl.Issue() for atcl in reduce( list.__add__,
+                                     [Topic.GetReqAtcls( TreeReq ) for TreeReq in forMsg.body['Trees']] )],
+                    }
 
 class GetTimeLineMsg( PFPMessage ):
     ""
-    code = 0x23
+    code = 0x24
+    ReplyCode = 0x23
 
             
             
