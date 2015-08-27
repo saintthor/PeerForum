@@ -30,6 +30,7 @@ class SelfUser( object ):
     @classmethod
     def New( cls, name = 'DefaultUser' ):
         "create a new self user."
+        print 'creating local user...'
         PubKey, PriKey = rsa.newkeys( 2048 )
         CreateSelfUser( NickName = name, PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
 

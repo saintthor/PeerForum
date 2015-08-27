@@ -7,8 +7,10 @@ Created on Sun Jun 14 17:20:40 2015
 
 import os
 import sqlite3
+import traceback
 from rsa1 import PrivateKey, PublicKey
 from time import time
+from json import loads
 
 from const import DB_FILE, DelFromNodeHours
 
@@ -30,8 +32,12 @@ class SqliteDB( object ):
         self.conn = sqlite3.connect( self.path )
         return self.conn.cursor()
     
-    def __exit__( self, *args ):
+    def __exit__( self, eType, eObj, tb ):
         ""
+        if eType is not None:
+            print '======= SqliteDB catches ======\n', eType, eObj
+            print ''.join( traceback.format_tb( tb ))
+            print '==============================================='
         self.conn.commit()
         self.conn.close()
     
@@ -73,7 +79,7 @@ def _WhereStr( d ):
 def UpdateNodeOrNew( param, where ):
     "if neighbor node exist then update else create."
     param['LastTime'] = int( time() * 1000 )
-    
+    print 'UpdateNodeOrNew', param
     with SqliteDB() as cursor:
         if where:       #update
             ucols, uvals = _UpdateStr( param )
@@ -81,7 +87,7 @@ def UpdateNodeOrNew( param, where ):
             vals = uvals + wvals
             sql = u'''update node set %s where %s;''' % ( ucols, wcols )
         else:           #insert
-            exist = cursor.execute( 'select id from node where PubKey = ?;', ( param['PubKey'], )).fetchone()
+            exist = cursor.execute( 'select id from node where PubKey = ?;', ( param['PubKey'].save_pkcs1(), )).fetchone()
             if exist is None:
                 cols, vals = _InsertStr( param )
                 sql = u'insert into node (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
@@ -176,7 +182,7 @@ def GetOneArticle( *cols, **filterd ):
 def SaveArticle( **param ):
     ""
     param['GetTime'] = int( time() * 1000 )
-    #print 'SaveArticle', param
+    print 'SaveArticle', param
     with SqliteDB() as cursor:
         cols, vals = _InsertStr( param )
         sql = u'insert into article (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
@@ -239,7 +245,35 @@ def GetTreeAtcls( *rootIds ):
             d.setdefault( root, {} )[Id] = itemStr, content
     
     return d
-    
+
+def SetAtclsWithoutTopic():
+    ""
+    d = {}
+    with SqliteDB() as cursor:
+        for root, Id, itemStr, content in cursor.execute(
+                    '''select root, id, items, content from article where root in 
+                        ( select article.id from article left outer join topic on article.id = topic.root
+                        where article.id = article.root and topic.root is null )'''
+                                                ).fetchall():
+            itemD = loads( itemStr )
+            labels = itemD.get( 'Labels', '' ) if root == Id else ''
+            firstLine = content.split( '\n' )[0] if root == Id and content else ''
+            d.setdefault( root, {} )[Id] = itemD['CreateTime'], itemD['NickName'], firstLine, labels
+            
+        print 'GetAtclsWithoutTopic d0 =', d
+        for root, atclD in d.items():
+            atclItems = atclD.values()
+            first = min( atclItems, key = lambda x: x[0] )[:2]
+            last = max( atclItems, key = lambda x: x[0] )[:2]
+            titleLine = atclD[root][2]
+            labels = atclD[root][3]
+            
+            SaveTopic( root = root, title = titleLine[:30], num = len( atclD ), status = 0,
+                        FirstAuthName = first[1], LastAuthName = last[1],
+                        FirstTime = first[0], LastTime = last[0] )
+            SaveTopicLabels( root, labels )
+            
+    return len( d )
     
 def test():
     print GetTreeAtcls( [u'1fb5381c3200bb03561cb9b79c40bed50eda8515', u'4d1f0212871dae4898aea2de9eae31924c85fb87', u'9786b0cb0761e87e720733e45bc6c831785f0bac'] )

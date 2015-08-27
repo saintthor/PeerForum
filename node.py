@@ -205,7 +205,8 @@ class SelfNode( object ):
     @classmethod
     def New( cls ):
         "create a new self node."
-        PubKey, PriKey = rsa.newkeys( 2048 )
+        print 'creating local node...'
+        PubKey, PriKey = rsa.newkeys( 1024 )
         CreateSelfNode( PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
         
     def __init__( self, condi = '' ):

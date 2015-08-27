@@ -131,10 +131,11 @@ class PeerForum( object ):
     def Reply( cls, msgLines ):
         "reply other nodes."
         print '===== Reply ====='
-        sleep( 1 )
+        #sleep( 1 )
+        Neighbor = None
         for MsgStr in filter( None, msgLines ):
-            print len( MsgStr ), MsgStr[0]
             ComingMsg = PFPMessage( ord( MsgStr[0] ))
+            print len( MsgStr ), ComingMsg.__class__.__name__
             Neighbor = ComingMsg.Receive( loads( MsgStr[1:] ))      #create neighbor obj from MsgStr
             
         return Neighbor
@@ -183,6 +184,9 @@ class PeerForum( object ):
 
 def test():
     ""
+    from tree import Topic
+    #Topic.Patch()
+    #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8000/node' )
     threading.Thread( target = PeerForum.SendToAll, args = ( 0x20, )).start()
     #raise
     return

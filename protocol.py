@@ -12,7 +12,7 @@ from base64 import encodestring, decodestring
 from exception import *
 from const import MaxTimeDiff, MaxSearchAddrStep, GetTreeInHours
 from node import NeighborNode
-from tree import Topic
+from tree import Topic, Article
 
 class PFPMessage( object ):
     ""
@@ -107,7 +107,7 @@ class PFPMessage( object ):
         
         if RplMsg.InitBody( self ) != False:
             return RplMsg.Issue(),
-        print 'nothing to reply.'
+        print 'Reply nothing to reply.'
         return ()
     
     def Issue( self ):
@@ -387,14 +387,44 @@ class AtclDataMsg( PFPMessage ):
     
     def InitBody( self, forMsg = None ):
         ""
-        print '\nAtclDataMsg.InitBody'
+        print '\nAtclDataMsg.InitBody', forMsg.body
         if not forMsg.body.get( 'Trees' ):
             return False
-            
+        
+        AskBackTrees = []       #for check leaf mode, if the remote leaves are more than local, askback
         self.body = {
                 'Articles': [atcl.Issue() for atcl in reduce( list.__add__,
-                                     [Topic.GetReqAtcls( TreeReq ) for TreeReq in forMsg.body['Trees']] )],
+                                     [Topic.GetReqAtcls( TreeReq, AskBackTrees.append ) for TreeReq in forMsg.body['Trees']]
+                                                             )],
                     }
+                    
+        if AskBackTrees:
+            self.AskBack( AskBackTrees )
+            
+        if not self.body['Articles']:
+            return False
+    
+    def AskBack( self, trees ):
+        "send back a GetTreeMsg if remote leaves is more than local"
+        print 'AtclDataMsg.AskBack', trees
+        BackMsg = GetTreeMsg()
+        BackMsg.SetRemoteNode( self.RemoteNode )
+        BackMsg.body = { 'Trees': trees }
+        BackMsg.RemoteNode.Buffer(( BackMsg.Issue(), ))
+
+    def RcvData( self, remote ):
+        ""
+        print '\nAtclDataMsg.RcvData', len( self.body['Articles'] )
+        Atcls = [Article.Receive( atclData ) for atclData in self.body['Articles']]
+        Atcls.sort( key = Article.SortType )
+        
+        print [a.id for a in Atcls]
+        pkStr = remote.PubKeyStr
+        
+        for atcl in Atcls:
+            if atcl.Check():
+                atcl.Save( FromNode = pkStr )
+
 
 class GetTimeLineMsg( PFPMessage ):
     ""
