@@ -19,9 +19,9 @@ from urllib import urlencode
 
 import user
 from node import NeighborNode, SelfNode
-from protocol import PFPMessage
-from const import LOG_FILE, CommunicateCycle
-from sqlitedb import SqliteDB, InitDB
+from protocol import PFPMessage, GetTimeLineMsg
+from const import LOG_FILE, CommunicateCycle, GetTimeLineInHours
+from sqlitedb import SqliteDB, InitDB, GetAtclIdByUser
 from exception import *
 
 
@@ -74,6 +74,20 @@ class PeerForum( object ):
             Remote = cls.Reply( ReplyStr.split( '\n' ))
     
     @classmethod
+    def SendMsgToRemote( cls, remote, msg ):
+        ""
+        print 'PeerForum.SendMsgToRemote'
+        msg.SetRemoteNode( remote )
+        remote.Buffer(( msg.Issue(), ))
+        while remote is not None:
+            ReplyStr = cls.Send( *remote.AllToSend())
+            print '\nReplyStr =', ReplyStr
+            if not ReplyStr:
+                break
+            remote = cls.Reply( ReplyStr.split( '\n' ))        
+        
+    
+    @classmethod
     def Send( cls, addr, msgs ):
         "send to remote node"
         data = urlencode( { 'pfp': '\n'.join( msgs ) } )
@@ -99,6 +113,34 @@ class PeerForum( object ):
             except:
                 pass
     
+#    @classmethod
+#    def SendMsgToAll( cls, msg ):
+#        ""
+#        print 'SendToAll'
+#        for Remote in NeighborNode.AllTargets():       #may in thread
+#            try:
+#                cls.SendMsgToRemote( Remote, msg )
+#            except:
+#                pass
+    
+    @classmethod
+    def GetTimeLine( cls, userPubK, From = None, To = None ):
+        ""
+        To = To or int( time() * 1000 )
+        From  = From or To - GetTimeLineInHours * 3600 * 1000
+        existKs = GetAtclIdByUser( userPubK, From, To )
+        
+        Msg = GetTimeLineMsg()
+        Msg.InitBody( UserPubKey = userPubK, From = From, To = To, Exist = existKs )
+        
+        print 'PeerForum.GetTimeLine'
+        for Remote in NeighborNode.AllTargets():       #may in thread
+            try:
+                cls.SendMsgToRemote( Remote, Msg )
+            except:
+                print traceback.format_exc()
+        
+        
     @classmethod
     def Dida( cls, counter = [0] ):
         ""
@@ -148,8 +190,8 @@ class PeerForum( object ):
         if request.method == 'GET':
             return 'not permitted.'
         
-        #AllMsgs = reduce( list.__add__, [PeerForum.Reply( msg ) for msg in request.POST['pfp'].split( '\n' ) if msg] )
-        Remote = PeerForum.Reply( request.POST['pfp'].split( '\n' ))
+        #some message must be responses
+        Remote = PeerForum.Reply( filter( lambda ln: ln and ord( ln[0] ) not in ( 0x21, 0x23 ), request.POST['pfp'].split( '\n' )))
         # for testing ---------
         PeerForum.Dida()
         #----------------------
@@ -184,10 +226,11 @@ class PeerForum( object ):
 
 def test():
     ""
-    from tree import Topic
+    PeerForum.GetTimeLine( '-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEAzXrwCvJM60raP3dcbreAdJCVzKCwXD9M8QFrAMPfQMJ2eSj18fib\nbCTvCqP+saX9WzAtAeuD4042GEQiV/28z3iX3cL2njHaH9G5H7b9Eip5wbQyH0Ji\nU6wHOvQuBuB69gjVbcRwoMnGXYwEC6hxXLPNcBas1f3xunm8HIRM1Iypkk+BmFJW\n47vrekwmYGfiNeO8mnlqrwkzvW91CuTzoZEfg8PE70QuwDXaLwicoHtJYG34OEbl\ncUbCkmibKMO3M7yki5MyfQicxpOM6be2nmXDuLFA47CoH7xPUfSP9Wd6bctJfRwX\nCf1wyAHhZjYTCWdvQ+Vy567y+uzSosb1XwIDAQAB\n-----END RSA PUBLIC KEY-----\n', From = 1400801099622 )
+    #from tree import Topic
     #Topic.Patch()
     #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8000/node' )
-    threading.Thread( target = PeerForum.SendToAll, args = ( 0x20, )).start()
+    #threading.Thread( target = PeerForum.SendToAll, args = ( 0x20, )).start()
     #raise
     return
     

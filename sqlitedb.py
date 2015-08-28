@@ -237,12 +237,12 @@ def GetTreeAtcls( *rootIds ):
     ""
     d = {}
     with SqliteDB() as cursor:
-        for root, Id, itemStr, content in cursor.execute(
+        for root, Id, itemStr, content, status in cursor.execute(
                     'select root, id, items, content from article where root in (%s)' % ','.join( ['?'] * len( rootIds )),
                     tuple( rootIds )
                         ).fetchall():
             #print root, Id
-            d.setdefault( root, {} )[Id] = itemStr, content
+            d.setdefault( root, {} )[Id] = itemStr, content, status
     
     return d
 
@@ -274,6 +274,23 @@ def SetAtclsWithoutTopic():
             SaveTopicLabels( root, labels )
             
     return len( d )
+
+def GetAtclIdByUser( uPubK, From, To ):
+    ""
+    with SqliteDB() as cursor:
+        atcls = cursor.execute( 'select id from article where AuthPubKey = ? and CreateTime >= ? and CreateTime <= ?',
+                               ( uPubK, From, To )).fetchall()
+        print 'GetAtclIdByUser', uPubK, From, To
+        return [a[0] for a in atcls]
+    
+def GetAtclByUser( uPubK, From, To, exist = () ):
+    ""
+    exist = tuple( exist ) + ( 'zzz', )
+    with SqliteDB() as cursor:                                            #for testing check status condition availible
+        sql = '''select id, items, content from article where AuthPubKey = ? and status > 0 
+                and CreateTime >= ? and CreateTime <= ? and id not in (%s)''' % ','.join( ['?'] * len( exist ))
+        #print sql
+        return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
     
 def test():
     print GetTreeAtcls( [u'1fb5381c3200bb03561cb9b79c40bed50eda8515', u'4d1f0212871dae4898aea2de9eae31924c85fb87', u'9786b0cb0761e87e720733e45bc6c831785f0bac'] )

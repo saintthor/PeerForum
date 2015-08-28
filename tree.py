@@ -13,8 +13,8 @@ import traceback
 
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
-                     GetTreeAtcls, SetAtclsWithoutTopic
-from const import MaxOfferRootNum, TitleLength
+                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser
+from const import MaxOfferRootNum, TitleLength, AutoNode
 
 class Article( object ):
     ""
@@ -31,7 +31,7 @@ class Article( object ):
     MinTime = 1439596800000     #2015-8-15 00:00:00
     LiveD = {}
     
-    def __init__( self, Id = None, itemD = None, itemStr = '', content = '' ):
+    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None ):
         ""
         if Id is None:                  #create
             self.ItemD = itemD
@@ -40,6 +40,7 @@ class Article( object ):
             self.id = sha1( self.ItemStr ).hexdigest()
         else:                           #receive or load from local
             self.id = Id
+            self.status = int( AutoNode ) if status is None else status
             self.ItemStr = itemStr
             self.ItemD = loads( itemStr )
             
@@ -99,6 +100,10 @@ class Article( object ):
     def IsRoot( self ):
         ""
         return not self.ItemD.get( 'RootID' )
+    
+    def IsPassed( self ):
+        ""
+        return self.status > Article.PASS
     
     def SortType( self ):
         ""
@@ -163,11 +168,20 @@ class Article( object ):
             return cls( Id = atclId, itemStr = aData[0], content = aData[1] )
     
     @classmethod
+    def GetByUser( cls, uPubK, From, To, exist ):
+        ""
+        print 'Article.GetByUser'
+        for Id, items, content in GetAtclByUser( uPubK, From, To, exist ):
+            print Id, items, content
+            yield cls( Id = Id, itemStr = items, content = content )
+        print 'Article.GetByUser over.'
+        
+    @classmethod
     def Cache( cls, d ):    #d = { atclId: ( itemStr, content ) }
         ""
-        for atclId, ( itemStr, content ) in d.iteritems():
+        for atclId, ( itemStr, content, status ) in d.iteritems():
             if atclId not in cls.LiveD:
-                cls.LiveD[atclId] = cls( atclId, itemStr = itemStr, content = content )
+                cls.LiveD[atclId] = cls( atclId, itemStr = itemStr, content = content, status = status )
                 
 class TreeStruct( object ):
     ""

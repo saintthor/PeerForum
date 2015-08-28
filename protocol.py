@@ -344,7 +344,7 @@ class QryTreeMsg( PFPMessage ):
         ""
         print '\nQryTreeMsg.InitBody'
         t = int( time() * 1000 )
-        GetTreeInHours = 480
+        #GetTreeInHours = 480
         self.body = {
                 "From": t - GetTreeInHours * 3600 * 1000,
                 "To": t,
@@ -386,24 +386,34 @@ class AtclDataMsg( PFPMessage ):
     code = 0x23
     
     def InitBody( self, forMsg = None ):
-        ""
-        print '\nAtclDataMsg.InitBody', forMsg.body
-        if not forMsg.body.get( 'Trees' ):
-            return False
-        
-        AskBackTrees = []       #for check leaf mode, if the remote leaves are more than local, askback
-        self.body = {
-                'Articles': [atcl.Issue() for atcl in reduce( list.__add__,
-                                     [Topic.GetReqAtcls( TreeReq, AskBackTrees.append ) for TreeReq in forMsg.body['Trees']]
-                                                             )],
-                    }
-                    
-        if AskBackTrees:
-            self.AskBack( AskBackTrees )
+        ""        
+        if isinstance( forMsg, GetTreeMsg ):
+            print '\nAtclDataMsg.InitBody for GetTreeMsg:', forMsg.body
+            if not forMsg.body.get( 'Trees' ):
+                return False
             
+            AskBackTrees = []       #for check leaf mode, if the remote leaves are more than local, askback
+            self.body = {
+                    'Articles': [atcl.Issue() for atcl in reduce( list.__add__,
+                                         [Topic.GetReqAtcls( TreeReq, AskBackTrees.append ) for TreeReq in forMsg.body['Trees']]
+                                                                 ) if atcl.IsPassed()],
+                        }
+                        
+            if AskBackTrees:
+                self.AskBack( AskBackTrees )
+                
+        elif isinstance( forMsg, GetTimeLineMsg ):
+            print '\nAtclDataMsg.InitBody for GetTimeLineMsg:', forMsg.body
+            self.body = {
+                    'Articles': [atcl.Issue() for atcl in Article.GetByUser(
+                                    *map( forMsg.body.get, ['UserPubKey', 'From', 'To', 'Exist'] )
+                                                                )],
+                        }
+                        
         if not self.body['Articles']:
             return False
-    
+                
+                        
     def AskBack( self, trees ):
         "send back a GetTreeMsg if remote leaves is more than local"
         print 'AtclDataMsg.AskBack', trees
@@ -431,6 +441,9 @@ class GetTimeLineMsg( PFPMessage ):
     code = 0x24
     ReplyCode = 0x23
 
-            
+    def InitBody( self, **body ):
+        ""
+        print '\nGetTimeLineMsg.InitBody', body
+        self.body = body
             
     
