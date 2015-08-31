@@ -55,7 +55,7 @@ class PeerForum( object ):
     @classmethod
     def SendToAddr( cls, msgType, addr, bp = 'HTTP', **kwds ):
         "no neighbor data for addr. for QryPubKeyMsg"
-        Remote = NeighborNode( address = addr, ServerProtocol = bp )
+        Remote = NeighborNode( Addrs = [[0, addr]], ServerProtocol = bp )
         cls.SendMessage( Remote, msgType, **kwds )
         
     @classmethod
@@ -66,8 +66,7 @@ class PeerForum( object ):
         [Msg.InitBody() for Msg in Msgs]
         Remote.Buffer( [Msg.Issue() for Msg in Msgs] )
         while Remote is not None:
-            #ReplyStr = Remote.Send()
-            ReplyStr = cls.Send( *Remote.AllToSend())
+            ReplyStr = cls.Send( *Remote.AllToSend() )
             print '\nReplyStr =', ReplyStr
             if not ReplyStr:
                 break
@@ -88,14 +87,22 @@ class PeerForum( object ):
         
     
     @classmethod
-    def Send( cls, addr, msgs ):
+    def Send( cls, addrs, msgs ):
         "send to remote node"
+        print 'PeerForum.Send', addrs
         data = urlencode( { 'pfp': '\n'.join( msgs ) } )
-        req = urllib2.Request( addr, data )
-        print 'PeerForum.Send', addr, len( data )
-        response = urllib2.urlopen( req )
-        
-        return response.read()
+        for Type, addr in addrs:
+            try:
+                req = urllib2.Request( addr, data )
+                print 'PeerForum.Send', addr, len( data )
+                response = urllib2.urlopen( req )
+                return response.read()
+                break
+            except:
+                print traceback.format_exc()
+                pass
+        print 'PeerForum.Send all addrs failed.'
+        return ''
     
     @classmethod
     def SendBuffer( cls, remote ):
@@ -197,7 +204,7 @@ class PeerForum( object ):
         #----------------------
         if Remote is None:
             return ''
-        addr, AllMsgs = Remote.AllToSend()
+        addrs, AllMsgs = Remote.AllToSend()
         print 'pfp end', time()
         return '\n'.join( AllMsgs )
         
@@ -226,10 +233,10 @@ class PeerForum( object ):
 
 def test():
     ""
-    PeerForum.GetTimeLine( '-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEAzXrwCvJM60raP3dcbreAdJCVzKCwXD9M8QFrAMPfQMJ2eSj18fib\nbCTvCqP+saX9WzAtAeuD4042GEQiV/28z3iX3cL2njHaH9G5H7b9Eip5wbQyH0Ji\nU6wHOvQuBuB69gjVbcRwoMnGXYwEC6hxXLPNcBas1f3xunm8HIRM1Iypkk+BmFJW\n47vrekwmYGfiNeO8mnlqrwkzvW91CuTzoZEfg8PE70QuwDXaLwicoHtJYG34OEbl\ncUbCkmibKMO3M7yki5MyfQicxpOM6be2nmXDuLFA47CoH7xPUfSP9Wd6bctJfRwX\nCf1wyAHhZjYTCWdvQ+Vy567y+uzSosb1XwIDAQAB\n-----END RSA PUBLIC KEY-----\n', From = 1400801099622 )
+    #PeerForum.GetTimeLine( '-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEAzXrwCvJM60raP3dcbreAdJCVzKCwXD9M8QFrAMPfQMJ2eSj18fib\nbCTvCqP+saX9WzAtAeuD4042GEQiV/28z3iX3cL2njHaH9G5H7b9Eip5wbQyH0Ji\nU6wHOvQuBuB69gjVbcRwoMnGXYwEC6hxXLPNcBas1f3xunm8HIRM1Iypkk+BmFJW\n47vrekwmYGfiNeO8mnlqrwkzvW91CuTzoZEfg8PE70QuwDXaLwicoHtJYG34OEbl\ncUbCkmibKMO3M7yki5MyfQicxpOM6be2nmXDuLFA47CoH7xPUfSP9Wd6bctJfRwX\nCf1wyAHhZjYTCWdvQ+Vy567y+uzSosb1XwIDAQAB\n-----END RSA PUBLIC KEY-----\n', From = 1400801099622 )
     #from tree import Topic
     #Topic.Patch()
-    #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8000/node' )
+    PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8000/node' )
     #threading.Thread( target = PeerForum.SendToAll, args = ( 0x20, )).start()
     #raise
     return

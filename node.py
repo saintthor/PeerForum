@@ -13,8 +13,8 @@ from random import choice, randint
 import rsa1 as rsa
 from base64 import encodestring, decodestring
 
-from sqlitedb import SqliteDB, CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
-                    GetNodesExcept, GetNodeInfoByPubKey
+from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
+                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
 from crypto import CBCEncrypt, CBCDecrypt
@@ -81,7 +81,7 @@ class NeighborNode( object ):
         ""
         #print 'Neighbor._New'
         condi = { cls.transD.get( k, k ): v for k, v in msgBody.items()
-                    if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step' ) }
+                    if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step', 'Address' ) }
         GetNodeByPubKeyOrNew( condi )
         return cls( **condi )
     
@@ -198,7 +198,7 @@ class NeighborNode( object ):
         "get the additional messages to the neighbor"
         Msgs = self.SendBuffer
         self.SendBuffer = []
-        return self.address, Msgs
+        return self.Addrs, Msgs
 
 class SelfNode( object ):
     "peerforum self node"
@@ -210,21 +210,10 @@ class SelfNode( object ):
         CreateSelfNode( PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
         
     def __init__( self, condi = '' ):
-        ""
-        with SqliteDB() as cursor:
-            if condi:
-                sql = """select name, PubKey, PriKey, ServerProtocol, discription, address, level
-                            from selfnode where %s and level >= 0;""" % condi
-            else:
-                sql = """select name, PubKey, PriKey, ServerProtocol, discription, address, level
-                            from selfnode where level >= 0 order by level desc limit 1;"""
-                            
-            NodeData = cursor.execute( sql ).fetchone()
-        
-        if NodeData is None:
-            raise NoAvailableNodeErr
+        ""                            
+        NodeData = GetSelfNode()
             
-        self.Name, self.PubKeyStr, PriKeyStr, self.SvPrtcl, self.Desc, self.Addr, self.Level = NodeData
+        self.Name, self.PubKeyStr, PriKeyStr, self.SvPrtcl, self.Desc, self.Level, self.Addrs = NodeData
         self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
         self.PriKey = rsa.PrivateKey.load_pkcs1( PriKeyStr )
     
@@ -242,7 +231,7 @@ class SelfNode( object ):
     def GetInfo( self ):
         ""
         return {
-            "Address": self.Addr,
+            "Address": self.Addrs,
             "NodeName": self.Name,
             "NodeTypeVer": TechInfo,
             "PFPVer": PFPVersion,

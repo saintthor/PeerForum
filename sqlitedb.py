@@ -13,6 +13,7 @@ from time import time
 from json import loads
 
 from const import DB_FILE, DelFromNodeHours
+from exception import *
 
 def ChangePath( newPath ):
     "for testing"
@@ -80,6 +81,11 @@ def UpdateNodeOrNew( param, where ):
     "if neighbor node exist then update else create."
     param['LastTime'] = int( time() * 1000 )
     print 'UpdateNodeOrNew', param
+    PubKeyStr = param['PubKey'].save_pkcs1()
+    if 'address' in param:
+        Addrs = param.pop( 'address' )
+    else:
+        Addrs = ()
     with SqliteDB() as cursor:
         if where:       #update
             ucols, uvals = _UpdateStr( param )
@@ -87,7 +93,7 @@ def UpdateNodeOrNew( param, where ):
             vals = uvals + wvals
             sql = u'''update node set %s where %s;''' % ( ucols, wcols )
         else:           #insert
-            exist = cursor.execute( 'select id from node where PubKey = ?;', ( param['PubKey'].save_pkcs1(), )).fetchone()
+            exist = cursor.execute( 'select id from node where PubKey = ?;', ( PubKeyStr, )).fetchone()
             if exist is None:
                 cols, vals = _InsertStr( param )
                 sql = u'insert into node (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
@@ -96,12 +102,17 @@ def UpdateNodeOrNew( param, where ):
                 sql = u'''update node set %s where id = %s;''' % ( cols, exist[0] )
         print 'UpdateNodeOrNew', sql, vals
         cursor.execute( sql, vals )
+        
+        for Type, Addr in Addrs:
+            sql = 'insert into address (type, addr, NodePubKey) values(?, ?, ?)'
+            print sql, Type, Addr, PubKeyStr
+            cursor.execute( sql, ( Type, Addr, PubKeyStr ))
     
 def GetNodeByPubKeyOrNew( d ):
     "or new"
-    #print 'GetNodeByPubKeyOrNew', d
+    print 'GetNodeByPubKeyOrNew', d
     with SqliteDB() as cursor:
-        cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
+        cols = 'name', 'PubKey', 'discription', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         if not isinstance( d['PubKey'], basestring ):
             d['PubKey'] = d['PubKey'].save_pkcs1()
         exist = cursor.execute( 'select %s from node where PubKey = ?;' % ','.join( cols ), ( d['PubKey'], )).fetchone()
@@ -109,6 +120,7 @@ def GetNodeByPubKeyOrNew( d ):
         if exist is not None:
             for i, col in enumerate( cols ):
                 d.setdefault( col, exist[i] )
+            d['Addrs'] = cursor.execute( "select type, addr from address where NodePubKey = ?", ( d['PubKey'], )).fetchall()
         else:
             cols, vals = _InsertStr( d )
             sql = u'insert into node (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
@@ -127,6 +139,7 @@ def GetNodeInfoByPubKey( pubK, kItems ):
 
 def CreateSelfNode( **kwds ):
     ""
+    kwds.pop( 'address' )
     with SqliteDB() as cursor:
         cols, vals = _InsertStr( kwds )
         sql = u'insert into selfnode (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
@@ -144,6 +157,30 @@ def GetDefaultUser():
     with SqliteDB() as cursor:
         sql = """select NickName, PubKey, PriKey from self where status >= 0 order by status desc limit 1;"""
         return cursor.execute( sql ).fetchone()
+
+def GetSelfNode( single = True ):
+    "get one or all"
+    with SqliteDB() as cursor:
+        if single:
+            data = cursor.execute( """select name, PubKey, PriKey, ServerProtocol, discription, level
+                            from selfnode where level >= 0 order by level desc limit 1;""" ).fetchone()
+            if data is None:
+                raise NoAvailableNodeErr
+                
+            addrs = cursor.execute( "select type, addr from address where NodePubKey = ?", ( data[1], )).fetchall()
+            
+            return data + ( addrs, )
+        else:
+            d = {}
+            for data in cursor.execute( """select name, PubKey, PriKey, ServerProtocol, discription, level, type, addr
+                                            from selfnode join address on selfnode.PubKey = address.NodePubKey 
+                                            where level >= 0;""" ).fetchall():
+                PubKey, EachAddr = data[1], data[6:]
+                data[6:] = []
+                del data[1]
+                d.setdefault( PubKey, data )[-1].append( EachAddr )
+        
+            return d
 
 def GetAllNode( *cols, **filterd ):
     ""
@@ -293,13 +330,8 @@ def GetAtclByUser( uPubK, From, To, exist = () ):
         return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
     
 def test():
-    print GetTreeAtcls( [u'1fb5381c3200bb03561cb9b79c40bed50eda8515', u'4d1f0212871dae4898aea2de9eae31924c85fb87', u'9786b0cb0761e87e720733e45bc6c831785f0bac'] )
-    return
     with SqliteDB() as c:
-        c.execute( """create table topic (root varchar(256) unique,
-                    title varchar(128) not null, num int(4), status int(2) default 0,
-                    FirstAuthName  varchar(32), FirstTime int(13),
-                    LastAuthName  varchar(32), LastTime int(13));""" )
+        c.execute( """create table address (type int(2), addr varchar(256), NodePubKey varchar(1024))""" )
     return
     transD = {
         'id': 'id',
@@ -343,13 +375,18 @@ def InitDB( path = '' ):
         #邻节点                            id is the alias for rowid by declared with integer.
                     #multi addrs for each node.
         c.execute( """create table node (id integer primary key asc, name varchar(32) default '', 
-                    PubKey varchar(1024) unique, discription varchar(2048) default '', address varchar(64) default '',
+                    PubKey varchar(1024) unique, discription varchar(2048) default '',
                     TechInfo varchar(64) default '', PFPVer varchar(16) default '', ServerProtocol varchar(16) default '',
                     LastTime int(14) default 0, level int(2) default 10);""" )
         #自身节点
         c.execute( """create table selfnode (name varchar(32), PubKey varchar(1024) unique,
-                    discription varchar(2048), PriKey varchar(4096), address varchar(64),
+                    discription varchar(2048), PriKey varchar(4096),
                     ServerProtocol varchar(16), level int(2) default 0);""" )
+                    
+        #物理地址 for selfnode and neighbor. type = 0-public, 1-inner
+        c.execute( """create table address (type int(2), addr varchar(256), NodePubKey varchar(1024),
+                    FailNum int(5) default 0, LastCommuTime int(13) default 0)""" )
+        
         #帖子         Type = 0 for normal, 1 for like
                                                                     #id is not rowid
         c.execute( """create table article (content varchar(60080), id varchar(256) unique,

@@ -343,8 +343,8 @@ class Topic( object ):
     
     @classmethod
     def GetMulti( cls, *rootIds ):
-        ""
-        print 'Topic.Get rootIds =', rootIds
+        "a generator to get multi topic objs from rootIds"
+        print 'Topic.GetMulti rootIds =', rootIds
         rootSet = set( rootIds )
         cacheSet = cls.LiveD.viewkeys()
         

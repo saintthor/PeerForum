@@ -50,7 +50,7 @@ class PFPMessage( object ):
     
     def ChkMsgBody( self, bodyD ):
         "for received messages"
-        if not bodyD.viewkeys() > self.MustHas:
+        if not bodyD.viewkeys() >= self.MustHas:
             raise MsgKeyLackErr
             
         for k, v in bodyD.items():
@@ -114,7 +114,7 @@ class PFPMessage( object ):
         ""
         self.body['Time'] = int( time() * 1000 )
         self.body['PubKey'] = self.LocalNode.PubKeyStr
-        self.body['Address'] = self.LocalNode.Addr
+        #self.body['Address'] = self.LocalNode.Addr
         for k, v in self.body.items():
             if v is None:
                 self.body[k] = ''
@@ -224,6 +224,10 @@ class NodeInfoMsg( PFPMessage ):
     def RcvData( self, remote ):
         ""
         print 'NodeInfoMsg.RcvData'#, rcvBody
+        def ChkInnerAddr( addr ):
+            return True
+        
+        self.body['Address'] = filter( ChkInnerAddr, self.body['Address'] )
         remote.Update( self.body )
 
 
