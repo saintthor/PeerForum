@@ -14,7 +14,7 @@ import traceback
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
                      GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser
-from const import MaxOfferRootNum, TitleLength, AutoNode
+from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser
 
 class Article( object ):
     ""
@@ -171,10 +171,10 @@ class Article( object ):
     def GetByUser( cls, uPubK, From, To, exist ):
         ""
         print 'Article.GetByUser'
-        for Id, items, content in GetAtclByUser( uPubK, From, To, exist ):
-            print Id, items, content
-            yield cls( Id = Id, itemStr = items, content = content )
-        print 'Article.GetByUser over.'
+        if SeekSelfUser or not SelfUser.IsSelf( uPubK ):
+            for Id, items, content in GetAtclByUser( uPubK, From, To, exist ):
+                print Id, items, content
+                yield cls( Id = Id, itemStr = items, content = content )
         
     @classmethod
     def Cache( cls, d ):    #d = { atclId: ( itemStr, content ) }

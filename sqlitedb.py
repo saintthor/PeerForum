@@ -152,6 +152,11 @@ def CreateSelfUser( **kwds ):
         sql = u'insert into self (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
         cursor.execute( sql, vals )
 
+def GetSelfPubKeyStrs():
+    ""
+    with SqliteDB() as cursor:
+        return [r[0] for r in cursor.execute( 'select PubKey from self' ).fetchall()]
+
 def GetDefaultUser():
     ""
     with SqliteDB() as cursor:

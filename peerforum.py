@@ -17,7 +17,7 @@ from bottle import route, run, post, debug, request, static_file
 import urllib2
 from urllib import urlencode
 
-import user
+from user import SelfUser
 from node import NeighborNode, SelfNode
 from protocol import PFPMessage, GetTimeLineMsg
 from const import LOG_FILE, CommunicateCycle, GetTimeLineInHours
@@ -247,6 +247,7 @@ if __name__ == '__main__':
     SqliteDB.SetMod()
     logging.basicConfig( filename = LOG_FILE, level = logging.DEBUG )
     PFPMessage.Init()
+    SelfUser.Init()
     NeighborNode.Init()
     PeerForum.ChkEnv()
     #test()
