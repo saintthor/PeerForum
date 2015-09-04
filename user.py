@@ -68,7 +68,7 @@ class SelfUser( object ):
     def Init( cls ):
         ""
         cls.AllPubKeyStrs = set( GetSelfPubKeyStrs())
-        print cls.AllPubKeyStrs
+        #print cls.AllPubKeyStrs
         
     @classmethod
     def IsSelf( cls, pubK ):

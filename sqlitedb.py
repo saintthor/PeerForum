@@ -194,6 +194,18 @@ def GetAllNode( *cols, **filterd ):
         sql = u'''select %s from node where level > 0 and %s''' % ( ','.join( cols ), wcols )
         return cursor.execute( sql, vals ).fetchall()
 
+def GetTargetNodes():
+    ""
+    d = {}
+    with SqliteDB() as cursor:
+        pubKs = [data[0] for data in cursor.execute( 'select PubKey from node where ServerProtocol = "HTTP"' ).fetchall()]
+        for pubK, Type, addr in cursor.execute(
+                'select NodePubKey, type, addr from address where NodePubKey in (%s)' % ','.join( ['?'] * len( pubKs )),
+                tuple( pubKs )).fetchall():
+            d.setdefault( pubK, [] ).append( [Type, addr] )
+            
+    return d.items()
+
 def GetNodeById( nodeId ):
     ""
     with SqliteDB() as cursor:
@@ -224,6 +236,7 @@ def GetOneArticle( *cols, **filterd ):
 def SaveArticle( **param ):
     ""
     param['GetTime'] = int( time() * 1000 )
+    param.setdefault( 'DestroyTime', 9999999999999 )
     print 'SaveArticle', param
     with SqliteDB() as cursor:
         cols, vals = _InsertStr( param )
@@ -248,6 +261,17 @@ def SaveTopicLabels( topicId, labels, Type = 0 ):
             sql = u'insert into label (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
             print sql
             cursor.execute( sql, vals )
+            
+def DelTopicLabels( topicId, labels ):
+    """
+    NOTE:
+    use this api to delete both static labels and node labels in this node.
+    when sending to other nodes, the deleted static labels will also be sent.
+    because the static labels can be changed only by the author's edition.
+    """
+    with SqliteDB() as cursor:
+        cursor.execute( 'delete from label where TopicID = ? and name in (%s)' % ','.join( ['?'] * len( labels )),
+                       ( topicId, ) + tuple( labels ))
     
 def UpdateTopic( tpcId, **param ):
     ""
@@ -277,15 +301,23 @@ def GetRootIds( **condi ):
     
 def GetTreeAtcls( *rootIds ):
     ""
+    print 'GetTreeAtcls', rootIds
     d = {}
     with SqliteDB() as cursor:
-        for root, Id, itemStr, content, status in cursor.execute(
-                    'select root, id, items, content from article where root in (%s)' % ','.join( ['?'] * len( rootIds )),
+        print 'select root, id, items, content, status, RemoteLabels, RemoteEval from article where root in (%s)' % ','.join( ['?'] * len( rootIds ))
+        for root, Id, itemStr, content, status, RLabels, REval in cursor.execute(
+                    'select root, id, items, content, status, RemoteLabels, RemoteEval from article where root in (%s)' % ','.join( ['?'] * len( rootIds )),
                     tuple( rootIds )
                         ).fetchall():
-            #print root, Id
-            d.setdefault( root, {} )[Id] = itemStr, content, status
+            #print '-----', root, Id
+            d.setdefault( root, {} )[Id] = itemStr, content, status, RLabels, REval, []
     
+        for root, labelName in cursor.execute(
+                    'select TopicID, name from label where type = 1'
+                        ).fetchall():
+            #print root, labelName
+            d[root][root][-1].append( labelName )
+        
     return d
 
 def SetAtclsWithoutTopic():
@@ -335,8 +367,7 @@ def GetAtclByUser( uPubK, From, To, exist = () ):
         return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
     
 def test():
-    with SqliteDB() as c:
-        c.execute( """create table address (type int(2), addr varchar(256), NodePubKey varchar(1024))""" )
+    DelTopicLabels( '1fb5381c3200bb03561cb9b79c40bed50eda8515', ( u'诗', u'经', u'体', ))
     return
     transD = {
         'id': 'id',
@@ -397,8 +428,8 @@ def InitDB( path = '' ):
         c.execute( """create table article (content varchar(60080), id varchar(256) unique,
                     items varchar(8192), root varchar(256), status int(2) default 0,
                     AuthPubKey varchar(1024), Type int(2) default 0, CreateTime int(13),
-                    DestroyTime int(13) default 9999999999999,
-                    GetTime int(13), FromNode varchar(1024));""" )      #GetTime and FromNode should be deleted in hours.
+                    DestroyTime int(13) default 9999999999999, GetTime int(13), FromNode varchar(1024),
+                    RemoteLabels varchar(256), RemoteEval int(2));""" )      #GetTime and FromNode should be deleted in hours.
         #话题
         c.execute( """create table topic (root varchar(256) unique,
                     title varchar(128) not null, num int(4), status int(2) default 0,

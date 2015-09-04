@@ -348,7 +348,7 @@ class QryTreeMsg( PFPMessage ):
         ""
         print '\nQryTreeMsg.InitBody'
         t = int( time() * 1000 )
-        #GetTreeInHours = 480
+        GetTreeInHours = 480
         self.body = {
                 "From": t - GetTreeInHours * 3600 * 1000,
                 "To": t,

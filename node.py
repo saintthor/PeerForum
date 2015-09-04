@@ -14,7 +14,7 @@ import rsa1 as rsa
 from base64 import encodestring, decodestring
 
 from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
-                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode
+                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
 from crypto import CBCEncrypt, CBCDecrypt
@@ -73,8 +73,9 @@ class NeighborNode( object ):
     @classmethod
     def AllTargets( cls ):
         ""
-        for pubK, addr in GetAllNode( 'PubKey', 'address', ServerProtocol = 'HTTP' ):
-            yield cls( PubKey = pubK, address = addr )
+        for pubK, addrs in GetTargetNodes():
+            print pubK, addrs
+            yield cls( PubKey = pubK, Addrs = addrs )
         
     @classmethod
     def _New( cls, msgBody ):

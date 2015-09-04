@@ -13,7 +13,7 @@ import traceback
 
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
-                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser
+                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels
 from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser
 
 class Article( object ):
@@ -31,7 +31,7 @@ class Article( object ):
     MinTime = 1439596800000     #2015-8-15 00:00:00
     LiveD = {}
     
-    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None ):
+    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None, nodeLabels = '' ):
         ""
         if Id is None:                  #create
             self.ItemD = itemD
@@ -45,6 +45,7 @@ class Article( object ):
             self.ItemD = loads( itemStr )
             
         self.content = content
+        self.NodeLabels = set( nodeLabels )
         #self.Children = set()
     
     def Issue( self ):
@@ -53,6 +54,8 @@ class Article( object ):
             'Id': self.id,
             'Items': self.ItemStr,
             'Content': self.content,
+            'NodeLabels': u','.join( self.NodeLabels ),
+            'NodeEval': self.status
                 }
     
     def Save( self, **kwds ):
@@ -65,6 +68,8 @@ class Article( object ):
                 'Type': self.ItemD['Type'],
                 'CreateTime': self.ItemD['CreateTime'],
                 'AuthPubKey': self.ItemD['AuthPubKey'],
+                'RemoteLabels': self.RemoteLabels,
+                'RemoteEval': self.RemoteEval,
                     } )
                     
         SaveArticle( **kwds )
@@ -76,7 +81,18 @@ class Article( object ):
                                     'LastAuthName': self.ItemD.get( 'NickName' ),
                                     'LastTime': self.ItemD.get( 'CreateTime' ),
                                                 } )
+
+    def SetNodeLabels( self, *labels ):
+        ""
+        labels = set( labels ) - self.NodeLabels
+        self.NodeLabels += labels
+        SaveTopicLabels( self.id, labels )
     
+    def DelNodeLabels( self, *labels ):
+        ""
+        self.NodeLabels -= set( labels )
+        DelTopicLabels( self.id, labels )
+
     def Check( self ):
         "do not check destroy time here"
         print 'Article.Check', self.id
@@ -103,7 +119,7 @@ class Article( object ):
     
     def IsPassed( self ):
         ""
-        return self.status > Article.PASS
+        return self.status >= Article.PASS
     
     def SortType( self ):
         ""
@@ -152,10 +168,16 @@ class Article( object ):
             
         return Atcl
 
+    def SetLastNodeInfo( self, info ):
+        ""
+        self.RemoteLabels = info.get( 'NodeLabels', '' )
+        self.RemoteEval = info.get( 'NodeEval', 1 )
+        
     @classmethod
     def Receive( cls, atclData ):
         "get from other nodes"
         Atcl = cls( atclData['Id'], itemStr = atclData['Items'], content = atclData['Content'] )
+        Atcl.SetLastNodeInfo( atclData )
         return Atcl
     
     @classmethod
@@ -179,9 +201,10 @@ class Article( object ):
     @classmethod
     def Cache( cls, d ):    #d = { atclId: ( itemStr, content ) }
         ""
-        for atclId, ( itemStr, content, status ) in d.iteritems():
+        for atclId, ( itemStr, content, status, RmtLabels, RmtEval, NodeLabels ) in d.iteritems():
             if atclId not in cls.LiveD:
-                cls.LiveD[atclId] = cls( atclId, itemStr = itemStr, content = content, status = status )
+                cls.LiveD[atclId] = cls( atclId, itemStr = itemStr, content = content,
+                                         status = status, nodeLabels = NodeLabels )
                 
 class TreeStruct( object ):
     ""
@@ -382,6 +405,7 @@ class Topic( object ):
         print 'Topic.GetReqAtcls treeReq =', treeReq
         for topic in cls.GetMulti( treeReq['TreeId'] ):
             if treeReq['Mode'] == 'all':
+                print topic.AtclD
                 return topic.AtclD.values()
             if treeReq['Mode'] == 'leaf':
                 Atcls, AskBack = topic.ChkByLeaves( set( treeReq['Leaves'] ))
