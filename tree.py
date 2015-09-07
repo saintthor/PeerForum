@@ -191,7 +191,7 @@ class Article( object ):
     
     @classmethod
     def GetByUser( cls, uPubK, From, To, exist ):
-        ""
+        "timeline"
         print 'Article.GetByUser'
         if SeekSelfUser or not SelfUser.IsSelf( uPubK ):
             for Id, items, content in GetAtclByUser( uPubK, From, To, exist ):

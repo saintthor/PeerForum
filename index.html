@@ -3,64 +3,266 @@
   <head>
 	<style type="text/css">
 		.header { background-color: #65f; padding: 50px; color: white; }
+		table.main { width: 96%; }
+		td#rightarea { width: 240px; border: solid #4a3 1px; }
+		td>div { padding: 5px; margin-top: 2px; }
+		div#logo { height: 160px }
+		div.title { cursor: pointer; }
+		div.content { height: 180px; overflow-y: auto; }
+		span.arrow { padding-left: 4px; padding-right: 4px; }
+		span.newnum { padding-left: 4px; padding-right: 4px; color: red; }
 	</style>
 	<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
 	<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
 	<META HTTP-EQUIV="Expires" CONTENT="0">
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>飘论坛</title>
+    <title>飘</title>
     <script language="javascript" src="inc/jq_1_11_1.js" type="text/javascript"></script>
     <script language="javascript" src="inc/underscore.js" type="text/javascript"></script>
+    <script language="javascript" src="inc/forum.js" type="text/javascript"></script>
+    <script language="javascript" src="inc/set.js" type="text/javascript"></script>
+    <script language="javascript" src="inc/msg.js" type="text/javascript"></script>
   </head>
  <body>
 	<script language="javascript">
+/*var LabelBox = function( owner, labels, name )
+{
+	var lb = this;
+	this.Owner = owner;
+	this.Name = name;
+
+	this.Draw = function()
+	{
+		var dom = $( '<div class="labelbox"><div class="labelname"></div><div class="labelcontent"></div></div>' );
+
+		dom.children( '.labelname' ).html( '<span class="label">' + labels.join( '</span><span class="label">' ) + '</span>' );
+		dom.children( '.labelcontent' ).html( '<div></div>' * 3 );
+
+		if( this.Name )
+		{
+			dom.attr( 'id', this.Name );
+			this.Owner.children( '#' + this.Name ).remove();
+		}
+		this.Owner.append( dom );
+		dom.data( 'obj', this );
+	}
+
+	this.GetLabel = function()
+	{
+		var dom = this.Name ? $( '#' + this.Name ) : this.Owner.children( '.labelbox:eq(0)' );
+		return dom.children( '.labelname' );
+	}
+
+	this.GetContent = function()
+	{
+		var dom = this.Name ? $( '#' + this.Name ) : this.Owner.children( '.labelbox:eq(0)' );
+		return dom.children( '.labelcontent' );
+	}
+
+	this.SetLabels = function( labels )
+	{
+		var Content = this.GetContent();
+		var LabelName = this.GetLabel();
+		LabelName.html( '<span class="label">' + labels.join( '</span><span class="label">' ) + '</span>' );
+
+		LabelName.children( '.label' ).click( function()
+		{
+			var LabelObj = 
+		})
+	}
+
+}*/
+
+var PFItem = function( owner, name, title, objpg )
+{
+	var it = this;
+
+	this.Owner = owner;
+	this.Name = name;
+	this.ObjPg = objpg;
+
+	this.Draw = function()
+	{
+		var dom = $( '<div class="pfitem" id="' + this.Name + '"><div class="title"><span class="arrow">▷</span>' + title +'<span class="newnum"></span></div><div class="content"></div></div>' );
+		this.Owner.children( '#' + this.Name ).remove();
+		this.Owner.append( dom );
+		dom.data( 'obj', this );
+	};
+
+	this.GetTitle = function()
+	{
+		return $( '#' + this.Name ).children( '.title' );
+	}
+
+	this.GetContent = function()
+	{
+		return $( '#' + this.Name ).children( '.content' );
+	}
+
+	this.Close = function()
+	{
+		var dom = $( '#' + this.Name );
+		dom.children( '.content' ).hide( 300 );
+		dom.children( '.title' ).children( '.arrow' ).html( '▷' );
+		this.ObjPg.hide( 300 );
+	};
+
+	this.Open = function()
+	{
+		var dom = $( '#' + this.Name );
+		dom.children( '.content' ).show( 300 );
+		dom.children( '.title' ).children( '.arrow' ).html( '◀' );
+		this.ObjPg.show( 300 );
+	};
+
+	this.Click = function( Map )
+	{
+		try
+		{
+			$( '.pfitem:contains(◀)' ).data( 'obj' ).Close();
+		}
+		catch( e ){}
+
+		this.Open();
+	};
+
+	this.Draw();
+}
+
 var PeerForum = function()
 {
 	var pf = this;
+	this.Info = { warning: [], error: [], info: [] };
 
 	this.Init = function()
 	{
+		//this.Info = { warning: [], error: [], info: [] };
+		this.Forum = new Forum();
+		this.PageIdx = {};
+
+		var ItemBox = $( '#itembox' );
+		[
+			['message', '消息', 'msgpg'],
+			['forum', '论坛', 'forumpg'],
+			['timeline', '时间线', 'timelinepg'],
+			['setting', '设置', 'setpg']
+		].forEach( function( data )
+		{
+			pf.PageIdx[data[0]] = new PFItem( ItemBox, data[0], data[1], $( '#' + data[2] ));
+		} );
+
+		$( '.pfitem' ).click( function()
+		{
+			$( this ).data( 'obj' ).Click();
+		} );
+
+		$( '.page' ).hide();
+		$( '.pfitem>.content' ).hide();
+		$( '#forum' ).click();
+
 		this.ChkEnv();
-		this.GetNode();
-		this.GetUser();
+		//this.GetNode();
+		//this.GetUser();
+		//setTimeout( this.Dida, 5000 );
+	};
+
+	this.ShowInfo = function()
+	{
+		var dom = $( '#message' );
+		var content = dom.children( '.content' );
+		_( ['error', 'warning', 'info'] ).each( function( k )
+		{
+			_( pf.Info[k] ).each( function( msg )
+			{
+				var MsgItem = $( '<div></div>' );
+				content.append( MsgItem );
+				msg.Notice( MsgItem );
+			} );
+		} );
+		dom.children( '.title' ).children( '.newnum' ).html( content.children( 'div' ).length );
+	};
+
+	this.ChkLocalNode = function( lcNode )
+	{
+		if( !lcNode[1] )
+		{
+			this.Info.warning.push( new PFMessage( 'SetNodeName', lcNode ));
+		}
+	};
+
+	this.ChkLocalUser = function( lcUser )
+	{
+		if( !lcUser[1] )
+		{
+			this.Info.error.push( new PFMessage( 'SetUserName', lcUser ));
+		}
+	};
+
+	this.GetResult = function( rslt )
+	{
+		console.log( rslt );
+		_( {
+			 'CurNode': 'ChkLocalNode',
+			 'CurUser': 'ChkLocalUser',
+			} ).chain().pairs().each( function( p )
+		{
+			console.log( p );
+			if( p[0] in rslt )
+			{
+				var v = pf[p[0]] = rslt[p[0]];
+				if( p[1] )
+				{
+					pf[p[1]]( v );
+				}
+			}
+		} );
+
+		this.ShowInfo();
+		console.log( pf.CurUser, pf.CurNode );
+	};
+
+	this.ChkInfo = function()
+	{
+		if( this.Info )
+		{
+			//show info notes.
+		}
+	};
+
+	this.Dida = function()
+	{
+		this.Post( { cmd: 'Dida' }, 'GetResult' );
+
+		setTimeout( this.Dida, 5000 );
 	};
 
 	this.ChkEnv = function()
 	{
-		this.Post( { cmd: 'ChkEnv' }, function( rslt )
-		{
-			alert( rslt.message );
-		} );
+		this.Post( { cmd: 'ChkEnv' }, 'GetResult' );
 	};
 
 	this.GetNode = function()
 	{
-		this.Post( { cmd: 'GetNode' }, function( rslt )
-		{
-			alert( rslt.message );
-		} );
+		this.Post( { cmd: 'GetNode' }, 'GetResult' );
 	};
 
 	this.GetUser = function()
 	{
-		this.Post( { cmd: 'GetUser' }, function( rslt )
-		{
-			alert( rslt.message );
-		} );
+		this.Post( { cmd: 'GetUser' }, 'GetResult' );
 	};
 
 	this.Post = function( params, dataFunc, errFunc )
 	{
-		$.post( '/', Params, function( data )
+		$.post( '/', params, function( data )
 		{
 			var Result = JSON.parse( data );
 			if( 'error' in Result )
 			{
 				( errFunc || alert )( Result.error );
 			}
-			dataFunc( Result );
+			pf[dataFunc]( Result );
 		} );
-	}
+	};
 
 	this.Init();
 };
@@ -70,6 +272,28 @@ $( function()
 	new PeerForum();
 } );
 	</script>
-		<div class="header">PeerForum</div>
+		<div>
+			<table class='main' align='center'>
+				<tbody>
+					<tr>
+						<td id='leftarea' valign='top'>
+							<div id='forumpg' class='page'>
+								<div id='newtopic'>
+									<div id='newtpcbtn'>发布新话题</div>
+									<div id='tpcinput'></div>
+								</div>
+							</div>
+							<div id='msgpg' class='page'>msgpage</div>
+							<div id='timelinepg' class='page'>timelinepg</div>
+							<div id='setpg' class='page'>setpg</div>
+						</td>
+						<td id='rightarea' valign='top'>
+							<div id='logo'>PeerForum</div>
+							<div id='itembox'></div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
   </body>
 </html>

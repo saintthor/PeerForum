@@ -177,12 +177,11 @@ def GetSelfNode( single = True ):
             return data + ( addrs, )
         else:
             d = {}
-            for data in cursor.execute( """select name, PubKey, PriKey, ServerProtocol, discription, level, type, addr
+            for data in cursor.execute( """select PubKey, name, ServerProtocol, discription, level, type, addr
                                             from selfnode join address on selfnode.PubKey = address.NodePubKey 
                                             where level >= 0;""" ).fetchall():
-                PubKey, EachAddr = data[1], data[6:]
-                data[6:] = []
-                del data[1]
+                PubKey, EachAddr = data[0], data[5:]
+                data = data[1:5] + ( [], )
                 d.setdefault( PubKey, data )[-1].append( EachAddr )
         
             return d
@@ -367,7 +366,8 @@ def GetAtclByUser( uPubK, From, To, exist = () ):
         return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
     
 def test():
-    DelTopicLabels( '1fb5381c3200bb03561cb9b79c40bed50eda8515', ( u'诗', u'经', u'体', ))
+    print GetSelfNode( False )
+    #DelTopicLabels( '1fb5381c3200bb03561cb9b79c40bed50eda8515', ( u'诗', u'经', u'体', ))
     return
     transD = {
         'id': 'id',

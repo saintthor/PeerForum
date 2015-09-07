@@ -30,17 +30,18 @@ class PeerForum( object ):
     LocalNode = None
     
     @classmethod
-    def ChkEnv( cls ):
+    def cmdChkEnv( cls, *args ):
         ""
-        for i in range( 2 ):
-            try:
-                cls.LocalNode = PFPMessage.LocalNode = SelfNode()
-                break
-            except NoAvailableNodeErr:
-                SelfNode.New()
-        else:
-            return { 'error': 'no availabel self node.' }
-        return { 'CurNode': cls.LocalNode.Show() }
+        result = {}
+        try:
+            cls.LocalNode = PFPMessage.LocalNode = SelfNode()
+            result['CurNode'] = cls.LocalNode.Issue()
+            cls.LocalUser = SelfUser()
+            result['CurUser'] = cls.LocalUser.Issue()
+        except NoAvailableNodeErr:
+            result.setdefault( 'error', [] ).append( 'no availabel self node.' )
+            
+        return result
     
     @staticmethod
     def GetNode():
@@ -150,7 +151,7 @@ class PeerForum( object ):
         
         
     @classmethod
-    def Dida( cls, counter = [0] ):
+    def cmdDida( cls, counter = [0] ):
         ""
         print 'PeerForum.Dida', NeighborNode.taskQ.qsize()
         while True:
@@ -162,21 +163,10 @@ class PeerForum( object ):
                 break
             
         counter[0] = n = counter[0] + 1
-        if n % CommunicateCycle == 0:
-            cls.Communicate()
+#        if n % CommunicateCycle == 0:
+#            cls.Communicate()
         return {}
-    
-    @classmethod
-    def Communicate( cls ):
-        ""
-        print 'PeerForum.Communicate'
-#        Remote = NeighborNode.Pick()
-#        print 'Pick NeighborNode', Remote
-#        if Remote is None:
-#            return
-#        task = QryPubKeyTask( Remote )
-#        task.Start()
-    
+        
     @classmethod
     def Reply( cls, msgLines ):
         "reply other nodes."
@@ -201,7 +191,7 @@ class PeerForum( object ):
         #some message must be responses
         Remote = PeerForum.Reply( filter( lambda ln: ln and ord( ln[0] ) not in ( 0x21, 0x23 ), request.POST['pfp'].split( '\n' )))
         # for testing ---------
-        PeerForum.Dida()
+        #PeerForum.cmdDida()
         #----------------------
         if Remote is None:
             return ''
@@ -211,6 +201,7 @@ class PeerForum( object ):
         
     @staticmethod
     @route( '/' )
+    @post( '/' )
     def local():
         'for local ui'
         #if re.match( r'^localhost(\:\d+)?$', request.environ.get( 'HTTP_HOST' )) is None:
@@ -219,9 +210,12 @@ class PeerForum( object ):
         if request.method == 'GET':
             return static_file( 'index.html', root='.' )
         try:
-            return getattr( PeerForum, request.POST['cmd'] )( request.POST )
+            result = getattr( PeerForum, 'cmd' + request.POST['cmd'] )( request.POST )
+            #print result
+            return dumps( result )
         except Exception, e:
-            logging.error( traceback.format_exc())
+            print traceback.format_exc()
+            #logging.error( traceback.format_exc())
             return { 'error': str( e ) }
         
     @staticmethod
@@ -250,7 +244,7 @@ if __name__ == '__main__':
     PFPMessage.Init()
     SelfUser.Init()
     NeighborNode.Init()
-    PeerForum.ChkEnv()
+    #PeerForum.cmdChkEnv()
     #test()
     debug( True )
     run( host = '0.0.0.0', port = 8000, reloader = True )   #set reloader to False to avoid initializing twice.

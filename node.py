@@ -211,8 +211,12 @@ class SelfNode( object ):
         CreateSelfNode( PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
         
     def __init__( self, condi = '' ):
-        ""                            
-        NodeData = GetSelfNode()
+        ""
+        try:
+            NodeData = GetSelfNode()
+        except NoAvailableNodeErr:
+            self.New()
+            NodeData = GetSelfNode()
             
         self.Name, self.PubKeyStr, PriKeyStr, self.SvPrtcl, self.Desc, self.Level, self.Addrs = NodeData
         self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
@@ -240,8 +244,8 @@ class SelfNode( object ):
             "Description": self.Desc,
                 }
                 
-    def Show( self ):
+    def Issue( self ):
         "show in local client"
-        return [self.Name, self.PubKey, self.Level]
+        return self.PubKeyStr, self.Name, self.Level
 
 

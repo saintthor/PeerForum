@@ -50,7 +50,10 @@ class SelfUser( object ):
 #            self.NickName = NickName.encode( 'ascii' )
 #        except:
 #            self.NickName = NickName.encode( 'utf8' )
-            
+        
+    def Issue( self ):
+        ""
+        return self.PubKeyStr, self.NickName
         
     def Sign( self, msg ):
         ""
