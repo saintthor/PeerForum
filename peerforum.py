@@ -19,6 +19,7 @@ from urllib import urlencode
 
 from user import SelfUser
 from node import NeighborNode, SelfNode
+from tree import Article, Topic
 from protocol import PFPMessage, GetTimeLineMsg
 from const import LOG_FILE, CommunicateCycle, GetTimeLineInHours
 from sqlitedb import SqliteDB, InitDB, GetAtclIdByUser
@@ -28,6 +29,7 @@ from exception import *
 class PeerForum( object ):
     "physical node"
     LocalNode = None
+    LocalUser = None
     
     @classmethod
     def cmdChkEnv( cls, *args ):
@@ -148,7 +150,18 @@ class PeerForum( object ):
                 cls.SendMsgToRemote( Remote, Msg )
             except:
                 print traceback.format_exc()
+    
+    @classmethod
+    def cmdNewTopic( cls, topic ):
+        ""
+        print topic['Labels']
+        life = int( topic['life'] )
+        Labels = topic['Labels'].decode( 'utf-8' )
+        content = topic['content'].decode( 'utf-8' )
         
+        Root = Article.New( cls.LocalUser, life = life, Labels = Labels, content = content )
+        Root.Save()
+        return { 'NewTopic': Topic.ListById( Root.id ) }
         
     @classmethod
     def cmdDida( cls, counter = [0] ):
@@ -210,6 +223,7 @@ class PeerForum( object ):
         if request.method == 'GET':
             return static_file( 'index.html', root='.' )
         try:
+            print request.POST.keys()
             result = getattr( PeerForum, 'cmd' + request.POST['cmd'] )( request.POST )
             #print result
             return dumps( result )

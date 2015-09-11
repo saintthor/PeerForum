@@ -297,6 +297,23 @@ def GetRootIds( **condi ):
                         'select root from topic where LastTime >= ? and LastTime <= ? and status >= ?', 
                         ( condi['From'], condi['To'], status )
                                                 ).fetchall()]
+
+def GetTopicRowById( rootId ):
+    ""
+    with SqliteDB() as cursor:
+        for row in cursor.execute(
+            '''select root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
+                from topic where root=?''', ( rootId, )
+                                ).fetchall():
+            return row
+            
+def GetTopics( where, order ):  #for list. todo
+    ""
+    wcols, wvals = _WhereStr( where )
+#    with SqliteDB() as cursor:
+#        return cursor.execute(
+#            'select root, title, status, FirstAuthName, FirstTime, LastAuthName, LastTime from topic where %s order by %s' % ( wcols, ),
+#            wvals ).fetchall()
     
 def GetTreeAtcls( *rootIds ):
     ""
@@ -433,7 +450,7 @@ def InitDB( path = '' ):
         #话题
         c.execute( """create table topic (root varchar(256) unique,
                     title varchar(128) not null, num int(4), status int(2) default 0,
-                    FirstAuthName  varchar(32), FirstTime int(13),
+                    labels varchar(256), FirstAuthName  varchar(32), FirstTime int(13),
                     LastAuthName  varchar(32), LastTime int(13));""" )
         #标签                                             type = 0 for static label; 1 for node label
         c.execute( """create table label (name varchar(32), type int(2), TopicID varchar(256));""" )

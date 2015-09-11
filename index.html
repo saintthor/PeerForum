@@ -2,15 +2,26 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">
   <head>
 	<style type="text/css">
+		body { font-size: 14px; font-family: 宋体,Arial,Helvetica,sans-serif; line-height: 18px; }
 		.header { background-color: #65f; padding: 50px; color: white; }
-		table.main { width: 96%; }
+		table { width: 96%; }
 		td#rightarea { width: 240px; border: solid #4a3 1px; }
 		td>div { padding: 5px; margin-top: 2px; }
-		div#logo { height: 160px }
+		div#logo { height: 160px; }
 		div.title { cursor: pointer; }
-		div.content { height: 180px; overflow-y: auto; }
+		div.content { max-height: 180px; overflow-y: auto; border-left: solid #4a3 1px; }
+		div#newtpcbtn { padding: 5px; margin-top: 0; background-color: #8f7; cursor: pointer; }
 		span.arrow { padding-left: 4px; padding-right: 4px; }
 		span.newnum { padding-left: 4px; padding-right: 4px; color: red; }
+		div.atcllabel { float: left; padding: 4px; margin-left: 4px; margin-top: 3px; cursor: pointer; border: solid #4a3 1px; }
+		div.alllabelidx { cursor: pointer; }
+		div.alluseridx { cursor: pointer; }
+		div#tpcinput { border: solid #8f7 1px; margin-bottom: 5px; }
+		div.ubbbtn { float: left; padding: 2px; padding-left: 4px; padding-right: 4px; margin-left: 2px; margin-top: 2px; cursor: pointer; border: solid #4a3 1px; }
+		th { border: solid #4a3 1px; color: #272; }
+		td { border-bottom: solid #4a3 1px; }
+		td.>span { cursor: pointer; margin-right: 3px; }
+		span.tpclabel { font-size: 0.7em; color: #272; }
 	</style>
 	<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
 	<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
@@ -25,53 +36,6 @@
   </head>
  <body>
 	<script language="javascript">
-/*var LabelBox = function( owner, labels, name )
-{
-	var lb = this;
-	this.Owner = owner;
-	this.Name = name;
-
-	this.Draw = function()
-	{
-		var dom = $( '<div class="labelbox"><div class="labelname"></div><div class="labelcontent"></div></div>' );
-
-		dom.children( '.labelname' ).html( '<span class="label">' + labels.join( '</span><span class="label">' ) + '</span>' );
-		dom.children( '.labelcontent' ).html( '<div></div>' * 3 );
-
-		if( this.Name )
-		{
-			dom.attr( 'id', this.Name );
-			this.Owner.children( '#' + this.Name ).remove();
-		}
-		this.Owner.append( dom );
-		dom.data( 'obj', this );
-	}
-
-	this.GetLabel = function()
-	{
-		var dom = this.Name ? $( '#' + this.Name ) : this.Owner.children( '.labelbox:eq(0)' );
-		return dom.children( '.labelname' );
-	}
-
-	this.GetContent = function()
-	{
-		var dom = this.Name ? $( '#' + this.Name ) : this.Owner.children( '.labelbox:eq(0)' );
-		return dom.children( '.labelcontent' );
-	}
-
-	this.SetLabels = function( labels )
-	{
-		var Content = this.GetContent();
-		var LabelName = this.GetLabel();
-		LabelName.html( '<span class="label">' + labels.join( '</span><span class="label">' ) + '</span>' );
-
-		LabelName.children( '.label' ).click( function()
-		{
-			var LabelObj = 
-		})
-	}
-
-}*/
 
 var PFItem = function( owner, name, title, objpg )
 {
@@ -137,18 +101,19 @@ var PeerForum = function()
 	this.Init = function()
 	{
 		//this.Info = { warning: [], error: [], info: [] };
-		this.Forum = new Forum();
+		//this.Forum = new Forum();
 		this.PageIdx = {};
 
 		var ItemBox = $( '#itembox' );
 		[
-			['message', '消息', 'msgpg'],
-			['forum', '论坛', 'forumpg'],
-			['timeline', '时间线', 'timelinepg'],
-			['setting', '设置', 'setpg']
+			['message', '消息', 'msgpg', 'InitMsgPg'],
+			['forum', '论坛', 'forumpg', 'InitForumPg'],
+			['timeline', '时间线', 'timelinepg', 'InitTimeLinePg'],
+			['setting', '设置', 'setpg', 'InitSetPg'],
 		].forEach( function( data )
 		{
 			pf.PageIdx[data[0]] = new PFItem( ItemBox, data[0], data[1], $( '#' + data[2] ));
+			pf[data[3]]();
 		} );
 
 		$( '.pfitem' ).click( function()
@@ -165,6 +130,22 @@ var PeerForum = function()
 		//this.GetUser();
 		//setTimeout( this.Dida, 5000 );
 	};
+
+	this.InitForumPg = function()
+	{
+		this.Forum = new Forum( this );
+		return
+
+		$( '#newtpcbtn' ).click( function()
+		{
+			$( '#tpcinput' ).toggle( 350 );
+		} );
+
+	}
+
+	this.InitMsgPg = function(){};
+	this.InitTimeLinePg = function(){};
+	this.InitSetPg = function(){};
 
 	this.ShowInfo = function()
 	{
@@ -198,12 +179,71 @@ var PeerForum = function()
 		}
 	};
 
+	this.SetAtclLabels = function( atclLabels )
+	{
+		var LabelArea = $( '#forum>.content' );
+		LabelArea.html( '<div id="alllabelidx">所有话题</div>' );
+
+		$( '#alllabelidx' ).click( function()
+		{
+			pf.Post( { cmd: 'GetAllTopic' }, 'GetResult' );
+		} );
+
+		atclLabels.forEach( function( lb )
+		{
+			LabelArea.append( '<div class="atcllabel">' + lb + '</div>' );
+		} );
+
+		LabelArea.children( '.atcllabel' ).click( function()
+		{
+			pf.Post( { cmd: 'GetTpcByLabel', label: this.html() }, 'GetResult' );
+		} );
+	};
+
+	this.SetFollowUsers = function( users )
+	{
+		var UserArea = $( '#timeline>.content' );
+		UserArea.html( '<div id="alluseridx">所有关注用户</div>' );
+
+		$( '#alluseridx' ).click( function()
+		{
+			pf.Post( { cmd: 'GetAllTimeLine' }, 'GetResult' );
+		} );
+
+		users.forEach( function( u )
+		{
+			UserArea.append( '<div class="atcllabel" title="' + u[1] + '">' + u[0] + '</div>' );
+		} );
+
+		UserArea.children( '.atcllabel' ).click( function()
+		{
+			pf.Post( { cmd: 'GetTimeLine', user: this.attr( 'title' ) }, 'GetResult' );
+		} );
+	};
+
+	this.ShowNewTopic = function( topic )
+	{
+		console.log( topic );
+		/*var TR = $( '<tr><td class="title"></td><td class="first"></td><td class="num">1</td><td class="last"></td></tr>' );
+		TR.children( 'td:eq(0)' ).html( topic[1] )
+		TR.children( 'td:eq(1)' ).html( topic[5] + '<br>' + topic[6] );
+		TR.children( 'td:eq(2)' ).html( topic[4] )
+		TR.children( 'td:eq(3)' ).html( topic[8] + '<br>' + topic[7] );*/
+
+		$( '#tpclist>table>tbody>tr:eq(0)' ).after( this.Forum.TopicTR( topic ));
+	};
+
 	this.GetResult = function( rslt )
 	{
+		rslt.Labels = ['帖子', '格行', '禁止', '块', '隐现器'];
+		rslt.Follows = [['带删除', 'iggojojp'], ['下划线', '8g7ff6d'], ['表格行', 'yft7f6d5d'], ['页内跳转', 'ou98767df'], ['选择器选项', 'jhgyfdd']];
 		console.log( rslt );
 		_( {
 			 'CurNode': 'ChkLocalNode',
 			 'CurUser': 'ChkLocalUser',
+			 'Labels': 'SetAtclLabels',
+			 'Follows': 'SetFollowUsers',
+			 'NewTopic': 'ShowNewTopic',
 			} ).chain().pairs().each( function( p )
 		{
 			console.log( p );
@@ -280,7 +320,47 @@ $( function()
 							<div id='forumpg' class='page'>
 								<div id='newtopic'>
 									<div id='newtpcbtn'>发布新话题</div>
-									<div id='tpcinput'></div>
+									<div id='tpcinput' style='display:none'>
+										<table>
+											<tbody>
+												<tr>
+													<td id="editbtn" width="150px">
+														<div class='ubbbtn' title='锚标'>a</div><div class='ubbbtn' title='粗体'>b</div><div class='ubbbtn' title='斜体'>i</div><div class='ubbbtn' title='带下划线'>u</div><div class='ubbbtn' title='带删除线'>s</div><div class='ubbbtn' title='上标'>sup</div><div class='ubbbtn' title='下标'>sub</div><div class='ubbbtn' title='块'>div</div><div class='ubbbtn' title='文字颜色'>color</div><div class='ubbbtn' title='文字尺寸'>size</div><div class='ubbbtn' title='禁止转义'>r</div><div class='ubbbtn' title='水平分隔线'>hr</div><div class='ubbbtn' title='链接'>url</div><div class='ubbbtn' title='帖子链接'>pl</div><div class='ubbbtn' title='图片'>pic</div><div class='ubbbtn' title='隐现器'>toggle</div><div class='ubbbtn' title='表格'>table</div><div class='ubbbtn' title='表格行'>tr</div><div class='ubbbtn' title='表格列'>td</div><div class='ubbbtn' title='选择器'>select</div><div class='ubbbtn' title='选择器选项'>choice</div><div class='ubbbtn' title='页内跳转'>goto</div><div class='ubbbtn' title='表情'>emote</div>
+													</td>
+													<td id="tpctd">
+														<textarea name="article" id="atcl" rows="16" cols="100" style="overflow:auto; width:100%;" placeholder="在此输入帖子内容。第一行为标题。"></textarea>
+														<br/>
+														<select id="live">
+															<option value=0>永久保存</option>
+															<option value=10>保存 10 日</option>
+															<option value=50>保存 50 日</option>
+															<option value=200>保存 200 日</option>
+															<option value=1000>保存 1000 日</option>
+														</select>
+														<input type='text' placeholder="在此输入标签，用逗号分隔。不能为空。" id="setlabels"/>
+														<button>　发　布　</button>
+														<div class="note"/>
+													</td>
+												</tr>
+											</tbody>
+										</table>
+									</div>
+								</div>
+								<br/><br/>
+								<div id='tpclist'>
+									<div>话题列表</div>
+									<table width='100%'>
+										<tbody>
+											<tr>
+												<th>标题</th>
+												<th width='150px'>首发</th>
+												<th width='50px'>帖数</th>
+												<th width='150px'>末发</th>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+								<div id='dispbbs'>
 								</div>
 							</div>
 							<div id='msgpg' class='page'>msgpage</div>

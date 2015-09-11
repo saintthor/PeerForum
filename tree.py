@@ -13,7 +13,7 @@ import traceback
 
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
-                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels
+                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels, GetTopicRowById
 from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser
 
 class Article( object ):
@@ -31,7 +31,7 @@ class Article( object ):
     MinTime = 1439596800000     #2015-8-15 00:00:00
     LiveD = {}
     
-    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None, nodeLabels = '' ):
+    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None, nodeLabels = () ):
         ""
         if Id is None:                  #create
             self.ItemD = itemD
@@ -68,10 +68,13 @@ class Article( object ):
                 'Type': self.ItemD['Type'],
                 'CreateTime': self.ItemD['CreateTime'],
                 'AuthPubKey': self.ItemD['AuthPubKey'],
-                'RemoteLabels': self.RemoteLabels,
-                'RemoteEval': self.RemoteEval,
                     } )
-                    
+        
+        if hasattr( self, 'RemoteLabels' ):
+            kwds['RemoteLabels'] = self.RemoteLabels
+        if hasattr( self, 'RemoteEval' ):
+            kwds['RemoteEval'] = self.RemoteEval
+            
         SaveArticle( **kwds )
         
         if self.IsRoot():
@@ -127,7 +130,7 @@ class Article( object ):
     
     def GetLabels( self ):
         ""
-        return self.ItemD.get( 'Labels' ).split( ',' )
+        return self.ItemD.get( 'Labels' ).replace( u'，', ',' ).split( ',' )
         
         
     @classmethod
@@ -138,7 +141,7 @@ class Article( object ):
         itemD['Type'] = Type
         if Type == Article.NORMAL:
             assert content
-            itemD['Sign'] = user.Sign( content.encode( 'utf8' ))
+            itemD['Sign'] = user.Sign( content.encode( 'utf-8' ) )
         elif Type == Article.LIKE:
             content = ''        #LIKE has no content, life, ProtoID, Labels
             life = 0
@@ -153,12 +156,12 @@ class Article( object ):
             itemD['DestroyTime'] = itemD['CreateTime'] + life
         itemD['SignHashType'] = 'md5'
         itemD['IDHashType'] = 'sha1'
+
         for k in kwds.viewkeys() & { 'RootID', 'ParentID', 'ProtoID', 'Labels' }:
             itemD[k] = kwds[k]      #all texts should be encoded to utf-8
             if k == 'ParentID':
                 Parent = cls.Get( kwds[k] )
-                if 'DestroyTime' in Parent.ItemD:
-                    itemD['DestroyTime'] = min( itemD.get( 'DestroyTime', 9999999999999 ), Parent.ItemD['DestroyTime'] )
+                itemD['DestroyTime'] = Parent.itemD.get( 'DestroyTime', 9999999999999 )     #only root has destroytime
         
         #print 'Article.New', itemD
         Atcl = cls( None, itemD = itemD, content = content )
@@ -338,7 +341,7 @@ class Topic( object ):
         #print 'ReturnNodes:', ReturnNodes
         
         return [self.AtclD[Id] for Id in ReturnNodes], AskBack
-        
+            
     def __len__( self ):
         ""
         return len( self.AtclD )
@@ -347,8 +350,11 @@ class Topic( object ):
     def New( cls, atcl ):
         ""
         print 'Topic.New'
-        cls( atcl ).Save( root = atcl.id, title = atcl.content.split( '\n' )[0][:TitleLength], num = 1, status = 0,
-                        FirstAuthName = atcl.ItemD.get( 'NickName' ), LastAuthName = atcl.ItemD.get( 'NickName' ),
+        if atcl.id not in cls.LiveD:
+            cls.LiveD[atcl.id] = cls( atcl )
+            cls.LiveD[atcl.id].Save( root = atcl.id, title = atcl.content.split( '\n' )[0][:TitleLength],
+                        num = 1, status = 0, labels = atcl.ItemD.get( 'Labels', '' ),
+                        FirstAuthName = atcl.ItemD.get( 'NickName', '' ), LastAuthName = atcl.ItemD.get( 'NickName', '' ),
                         FirstTime = atcl.ItemD.get( 'CreateTime' ), LastTime = atcl.ItemD.get( 'CreateTime' ), )
     
     @classmethod
@@ -362,8 +368,12 @@ class Topic( object ):
         
         for topic in cls.GetMulti( *RootIds ):
             yield topic
-            
     
+    @classmethod
+    def ListById( cls, root ):
+        ""
+        return GetTopicRowById( root )  #root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
+            
     @classmethod
     def GetMulti( cls, *rootIds ):
         "a generator to get multi topic objs from rootIds"
