@@ -13,8 +13,9 @@ import traceback
 
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
-                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels, GetTopicRowById
-from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser
+                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels, GetTopicRowById, \
+                     GetTopicRows
+from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser, TopicNumPerPage
 
 class Article( object ):
     ""
@@ -46,7 +47,6 @@ class Article( object ):
             
         self.content = content
         self.NodeLabels = set( nodeLabels )
-        #self.Children = set()
     
     def Issue( self ):
         ""
@@ -116,6 +116,10 @@ class Article( object ):
         except:
             print traceback.format_exc()
     
+    def Show( self ):
+        "show to ui"
+        return self.ItemD, self.content
+        
     def IsRoot( self ):
         ""
         return not self.ItemD.get( 'RootID' )
@@ -370,10 +374,22 @@ class Topic( object ):
             yield topic
     
     @classmethod
-    def ListById( cls, root ):
+    def ListPage( cls, label, offset, sortCol ):
         ""
-        return GetTopicRowById( root )  #root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
-            
+        return GetTopicRows( label, offset, sortCol, TopicNumPerPage )
+    
+    
+    @classmethod
+    def ListById( cls, rootId ):
+        ""
+        return GetTopicRowById( rootId )  #root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
+    
+    @classmethod
+    def ShowAll( cls, rootId ):
+        "show all articles in this topic."
+        for topic in cls.GetMulti( rootId ):
+            return [rootId, { Id: atcl.Show() for Id, atcl in topic.AtclD.iteritems() }]
+        
     @classmethod
     def GetMulti( cls, *rootIds ):
         "a generator to get multi topic objs from rootIds"

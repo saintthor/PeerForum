@@ -4,24 +4,33 @@
 	<style type="text/css">
 		body { font-size: 14px; font-family: 宋体,Arial,Helvetica,sans-serif; line-height: 18px; }
 		.header { background-color: #65f; padding: 50px; color: white; }
-		table { width: 96%; }
+		table { width: 100%; }
+		table.main { width: 96%; }
 		td#rightarea { width: 240px; border: solid #4a3 1px; }
 		td>div { padding: 5px; margin-top: 2px; }
 		div#logo { height: 160px; }
 		div.title { cursor: pointer; }
 		div.content { max-height: 180px; overflow-y: auto; border-left: solid #4a3 1px; }
 		div#newtpcbtn { padding: 5px; margin-top: 0; background-color: #8f7; cursor: pointer; }
-		span.arrow { padding-left: 4px; padding-right: 4px; }
+		span.arrow { padding-left: 4px; padding-right: 4px; cursor: pointer; }
 		span.newnum { padding-left: 4px; padding-right: 4px; color: red; }
 		div.atcllabel { float: left; padding: 4px; margin-left: 4px; margin-top: 3px; cursor: pointer; border: solid #4a3 1px; }
 		div.alllabelidx { cursor: pointer; }
 		div.alluseridx { cursor: pointer; }
 		div#tpcinput { border: solid #8f7 1px; margin-bottom: 5px; }
 		div.ubbbtn { float: left; padding: 2px; padding-left: 4px; padding-right: 4px; margin-left: 2px; margin-top: 2px; cursor: pointer; border: solid #4a3 1px; }
+		div#returntolist { cursor: pointer; background-color: #8f7; }
 		th { border: solid #4a3 1px; color: #272; }
-		td { border-bottom: solid #4a3 1px; }
-		td.>span { cursor: pointer; margin-right: 3px; }
-		span.tpclabel { font-size: 0.7em; color: #272; }
+		th#firstth, th#lastth { cursor: pointer; }
+		tr.new { background-color: #ffd; }
+		td { border-bottom: solid #4a3 1px; vertical-align: top; }
+		td.num { text-align: center; }
+		td.atclleft { width: 180px; border: solid #4a3 1px; }
+		span.title { cursor: pointer; margin-left: 3px; }
+		span.lasttime { cursor: pointer; font-size: 0.9em; }
+		span.tpclabel { font-size: 0.7em; color: #272; cursor: pointer; margin-left: 3px; }
+		span.firsttime { color: #777; font-size: 0.9em; }
+		div.randomart { font-family: Courier; padding-left: 8px; color: #c2d; font-size: 12px; line-height: 10px; }
 	</style>
 	<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
 	<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
@@ -33,6 +42,7 @@
     <script language="javascript" src="inc/forum.js" type="text/javascript"></script>
     <script language="javascript" src="inc/set.js" type="text/javascript"></script>
     <script language="javascript" src="inc/msg.js" type="text/javascript"></script>
+    <script language="javascript" src="inc/md5.js" type="text/javascript"></script>
   </head>
  <body>
 	<script language="javascript">
@@ -97,7 +107,7 @@ var PeerForum = function()
 {
 	var pf = this;
 	this.Info = { warning: [], error: [], info: [] };
-
+//console.log( str_md5( 'ssssssssssssseeeeeeeeeee' ));
 	this.Init = function()
 	{
 		//this.Info = { warning: [], error: [], info: [] };
@@ -134,13 +144,7 @@ var PeerForum = function()
 	this.InitForumPg = function()
 	{
 		this.Forum = new Forum( this );
-		return
-
-		$( '#newtpcbtn' ).click( function()
-		{
-			$( '#tpcinput' ).toggle( 350 );
-		} );
-
+		this.Forum.GetNextPage();
 	}
 
 	this.InitMsgPg = function(){};
@@ -224,13 +228,29 @@ var PeerForum = function()
 	this.ShowNewTopic = function( topic )
 	{
 		console.log( topic );
-		/*var TR = $( '<tr><td class="title"></td><td class="first"></td><td class="num">1</td><td class="last"></td></tr>' );
-		TR.children( 'td:eq(0)' ).html( topic[1] )
-		TR.children( 'td:eq(1)' ).html( topic[5] + '<br>' + topic[6] );
-		TR.children( 'td:eq(2)' ).html( topic[4] )
-		TR.children( 'td:eq(3)' ).html( topic[8] + '<br>' + topic[7] );*/
-
 		$( '#tpclist>table>tbody>tr:eq(0)' ).after( this.Forum.TopicTR( topic ));
+	};
+
+	this.ShowAtclPg = function( treeData )
+	{
+		console.log( treeData );
+		var AtclPg = $( '#atclpg' );
+		$( '#forumpg' ).hide( 200 );
+		AtclPg.show( 300 );
+		AtclPg.data( 'root', treeData[0] );
+		this.Forum.ShowAtcls( treeData );
+	};
+
+	this.AppendTopics = function( topics )
+	{
+		console.log( topics );
+		var TBody = $( '#tpclist>table>tbody' );
+		topics.forEach( function( topic )
+		{
+			TBody.append( pf.Forum.TopicTR( topic ));
+		} );
+
+		this.Forum.SetAttr( TBody.children( 'tr.new' ));
 	};
 
 	this.GetResult = function( rslt )
@@ -244,9 +264,12 @@ var PeerForum = function()
 			 'Labels': 'SetAtclLabels',
 			 'Follows': 'SetFollowUsers',
 			 'NewTopic': 'ShowNewTopic',
+			 'PageTopics': 'AppendTopics',
+			 'AtclTree': 'ShowAtclPg',
+
 			} ).chain().pairs().each( function( p )
 		{
-			console.log( p );
+			//console.log( p );
 			if( p[0] in rslt )
 			{
 				var v = pf[p[0]] = rslt[p[0]];
@@ -258,7 +281,7 @@ var PeerForum = function()
 		} );
 
 		this.ShowInfo();
-		console.log( pf.CurUser, pf.CurNode );
+		//console.log( pf.CurUser, pf.CurNode );
 	};
 
 	this.ChkInfo = function()
@@ -353,15 +376,17 @@ $( function()
 										<tbody>
 											<tr>
 												<th>标题</th>
-												<th width='150px'>首发</th>
+												<th width='90px' id="firstth" title='排序'>首发</th>
 												<th width='50px'>帖数</th>
-												<th width='150px'>末发</th>
+												<th width='150px' id="lastth" title='排序'><span>↓↓↓</span>末发</th>
 											</tr>
 										</tbody>
 									</table>
 								</div>
-								<div id='dispbbs'>
-								</div>
+							</div>
+							<div id='atclpg' class='page'>
+								<div id='returntolist'>返回话题列表</div>
+								<div id='atclarea'></div>
 							</div>
 							<div id='msgpg' class='page'>msgpage</div>
 							<div id='timelinepg' class='page'>timelinepg</div>

@@ -307,13 +307,21 @@ def GetTopicRowById( rootId ):
                                 ).fetchall():
             return row
             
-def GetTopics( where, order ):  #for list. todo
+def GetTopicRows( label, offset, sortCol, limit ):
     ""
-    wcols, wvals = _WhereStr( where )
-#    with SqliteDB() as cursor:
-#        return cursor.execute(
-#            'select root, title, status, FirstAuthName, FirstTime, LastAuthName, LastTime from topic where %s order by %s' % ( wcols, ),
-#            wvals ).fetchall()
+    print 'GetTopicRows', label, offset, sortCol, limit
+    with SqliteDB() as cursor:
+        if label:
+            return cursor.execute(
+                '''select root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
+                    from topic join label on topic.root = label.TopicID where label.name = ? order by ? desc limit ? offset ?''',
+                    ( label, sortCol, limit, offset )
+                                    ).fetchall()
+        else:
+            return cursor.execute(
+                '''select root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
+                    from topic order by ? desc limit ? offset ?''', ( sortCol, limit, offset )
+                                    ).fetchall()
     
 def GetTreeAtcls( *rootIds ):
     ""
@@ -328,11 +336,12 @@ def GetTreeAtcls( *rootIds ):
             #print '-----', root, Id
             d.setdefault( root, {} )[Id] = itemStr, content, status, RLabels, REval, []
     
-        for root, labelName in cursor.execute(
-                    'select TopicID, name from label where type = 1'
+        for root, labels in cursor.execute(
+                    'select root, labels from topic where root in (%s)' % ','.join( ['?'] * len( rootIds )),
+                    tuple( rootIds )
                         ).fetchall():
-            #print root, labelName
-            d[root][root][-1].append( labelName )
+            print root, labels
+            d[root][root][-1].extend( labels )
         
     return d
 

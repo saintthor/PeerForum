@@ -23,5 +23,6 @@ GetTreeInHours = 72
 GetTimeLineInHours = 48
 MaxOfferRootNum = 20
 TitleLength = 30
+TopicNumPerPage = 20
 SeekSelfUser = False
 #MaxTreeNum = 100        #max articles in a tree

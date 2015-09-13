@@ -152,6 +152,11 @@ class PeerForum( object ):
                 print traceback.format_exc()
     
     @classmethod
+    def cmdGetAtclTree( cls, param ):
+        ""
+        return { 'AtclTree': Topic.ShowAll( param['root'] ) }
+    
+    @classmethod
     def cmdNewTopic( cls, topic ):
         ""
         print topic['Labels']
@@ -162,6 +167,16 @@ class PeerForum( object ):
         Root = Article.New( cls.LocalUser, life = life, Labels = Labels, content = content )
         Root.Save()
         return { 'NewTopic': Topic.ListById( Root.id ) }
+    
+    @classmethod
+    def cmdGetTpcList( cls, condi ):
+        ""
+        #print 'cmdGetTpcList', condi['label']
+        SortCol = condi['sortby']
+        Offset = condi['start']
+        Label = condi['label'].decode( 'utf-8' )
+        
+        return { 'PageTopics': Topic.ListPage( Label, Offset, SortCol ) }
         
     @classmethod
     def cmdDida( cls, counter = [0] ):
