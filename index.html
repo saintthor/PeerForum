@@ -25,12 +25,19 @@
 		tr.new { background-color: #ffd; }
 		td { border-bottom: solid #4a3 1px; vertical-align: top; }
 		td.num { text-align: center; }
-		td.atclleft { width: 180px; border: solid #4a3 1px; }
+		td.atclleft { width: 170px; border: solid #4a3 1px; }
+		td.atclright { border-right: solid #4a3 1px; border-top: solid #4a3 1px; border-bottom: solid #4a3 1px; }
 		span.title { cursor: pointer; margin-left: 3px; }
 		span.lasttime { cursor: pointer; font-size: 0.9em; }
 		span.tpclabel { font-size: 0.7em; color: #272; cursor: pointer; margin-left: 3px; }
 		span.firsttime { color: #777; font-size: 0.9em; }
 		div.randomart { font-family: Courier; padding-left: 8px; color: #c2d; font-size: 12px; line-height: 10px; }
+		div.atcltop { font-size: 0.8em; color: #888; border-bottom: solid #4a3 1px; height: 12px; padding-top: 1px; padding-bottom: 3px; }
+		div.atclbody { min-height: 105px; }
+		div.atclfoot { font-size: 0.8em; height: 12px; border-top: solid #4a3 1px; }
+		span.atclid { margin-left: 15px; }
+		span.lineright { float: right; }
+		span.bigger, span.smaller { cursor: pointer; margin-left: 4px;  margin-right: 4px;}
 	</style>
 	<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
 	<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
@@ -177,10 +184,17 @@ var PeerForum = function()
 
 	this.ChkLocalUser = function( lcUser )
 	{
+		this.User = lcUser;
+
 		if( !lcUser[1] )
 		{
 			this.Info.error.push( new PFMessage( 'SetUserName', lcUser ));
 		}
+	};
+
+	this.ChkAuthStatus = function( authPubK )
+	{
+		return 0;
 	};
 
 	this.SetAtclLabels = function( atclLabels )
@@ -235,15 +249,21 @@ var PeerForum = function()
 	{
 		console.log( treeData );
 		var AtclPg = $( '#atclpg' );
-		$( '#forumpg' ).hide( 200 );
+		$( '#listpg' ).hide( 200 );
 		AtclPg.show( 300 );
 		AtclPg.data( 'root', treeData[0] );
 		this.Forum.ShowAtcls( treeData );
 	};
 
+	/*this.SetLike = function( likeData )
+	{
+		console.log( likeData );
+		this.Forum.AddLike( likeData );
+	};*/
+
 	this.AppendTopics = function( topics )
 	{
-		console.log( topics );
+		//console.log( topics );
 		var TBody = $( '#tpclist>table>tbody' );
 		topics.forEach( function( topic )
 		{
@@ -255,8 +275,8 @@ var PeerForum = function()
 
 	this.GetResult = function( rslt )
 	{
-		rslt.Labels = ['帖子', '格行', '禁止', '块', '隐现器'];
-		rslt.Follows = [['带删除', 'iggojojp'], ['下划线', '8g7ff6d'], ['表格行', 'yft7f6d5d'], ['页内跳转', 'ou98767df'], ['选择器选项', 'jhgyfdd']];
+		//rslt.Labels = ['帖子', '格行', '禁止', '块', '隐现器'];
+		//rslt.Follows = [['带删除', 'iggojojp'], ['下划线', '8g7ff6d'], ['表格行', 'yft7f6d5d'], ['页内跳转', 'ou98767df'], ['选择器选项', 'jhgyfdd']];
 		console.log( rslt );
 		_( {
 			 'CurNode': 'ChkLocalNode',
@@ -266,6 +286,7 @@ var PeerForum = function()
 			 'NewTopic': 'ShowNewTopic',
 			 'PageTopics': 'AppendTopics',
 			 'AtclTree': 'ShowAtclPg',
+			 //'Like': 'SetLike',
 
 			} ).chain().pairs().each( function( p )
 		{
@@ -281,7 +302,7 @@ var PeerForum = function()
 		} );
 
 		this.ShowInfo();
-		//console.log( pf.CurUser, pf.CurNode );
+		console.log( pf.CurUser, pf.CurNode );
 	};
 
 	this.ChkInfo = function()
@@ -295,7 +316,6 @@ var PeerForum = function()
 	this.Dida = function()
 	{
 		this.Post( { cmd: 'Dida' }, 'GetResult' );
-
 		setTimeout( this.Dida, 5000 );
 	};
 
@@ -341,52 +361,54 @@ $( function()
 					<tr>
 						<td id='leftarea' valign='top'>
 							<div id='forumpg' class='page'>
-								<div id='newtopic'>
-									<div id='newtpcbtn'>发布新话题</div>
-									<div id='tpcinput' style='display:none'>
-										<table>
+								<div id='listpg'>
+									<div id='newtopic'>
+										<div id='newtpcbtn'>发布新话题</div>
+										<div id='tpcinput' style='display:none'>
+											<table>
+												<tbody>
+													<tr>
+														<td class="editbtns" width="150px">
+															<div class='ubbbtn' title='锚标'>a</div><div class='ubbbtn' title='粗体'>b</div><div class='ubbbtn' title='斜体'>i</div><div class='ubbbtn' title='带下划线'>u</div><div class='ubbbtn' title='带删除线'>s</div><div class='ubbbtn' title='上标'>sup</div><div class='ubbbtn' title='下标'>sub</div><div class='ubbbtn' title='块'>div</div><div class='ubbbtn' title='文字颜色'>color</div><div class='ubbbtn' title='文字尺寸'>size</div><div class='ubbbtn' title='禁止转义'>r</div><div class='ubbbtn' title='水平分隔线'>hr</div><div class='ubbbtn' title='链接'>url</div><div class='ubbbtn' title='帖子链接'>pl</div><div class='ubbbtn' title='图片'>pic</div><div class='ubbbtn' title='隐现器'>toggle</div><div class='ubbbtn' title='表格'>table</div><div class='ubbbtn' title='表格行'>tr</div><div class='ubbbtn' title='表格列'>td</div><div class='ubbbtn' title='选择器'>select</div><div class='ubbbtn' title='选择器选项'>choice</div><div class='ubbbtn' title='页内跳转'>goto</div><div class='ubbbtn' title='表情'>emote</div>
+														</td>
+														<td class="tpctd">
+															<textarea name="article" rows="16" cols="100" style="overflow:auto; width:100%;" placeholder="在此输入帖子内容。第一行为标题。"></textarea>
+															<br/>
+															<select>
+																<option value=0>永久保存</option>
+																<option value=10>保存 10 日</option>
+																<option value=50>保存 50 日</option>
+																<option value=200>保存 200 日</option>
+																<option value=1000>保存 1000 日</option>
+															</select>
+															<input type='text' placeholder="在此输入标签，用逗号分隔。不能为空。"/>
+															<button>　发　布　</button>
+															<div class="note"/>
+														</td>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									</div>
+									<br/><br/>
+									<div id='tpclist'>
+										<div>话题列表</div>
+										<table width='100%'>
 											<tbody>
 												<tr>
-													<td id="editbtn" width="150px">
-														<div class='ubbbtn' title='锚标'>a</div><div class='ubbbtn' title='粗体'>b</div><div class='ubbbtn' title='斜体'>i</div><div class='ubbbtn' title='带下划线'>u</div><div class='ubbbtn' title='带删除线'>s</div><div class='ubbbtn' title='上标'>sup</div><div class='ubbbtn' title='下标'>sub</div><div class='ubbbtn' title='块'>div</div><div class='ubbbtn' title='文字颜色'>color</div><div class='ubbbtn' title='文字尺寸'>size</div><div class='ubbbtn' title='禁止转义'>r</div><div class='ubbbtn' title='水平分隔线'>hr</div><div class='ubbbtn' title='链接'>url</div><div class='ubbbtn' title='帖子链接'>pl</div><div class='ubbbtn' title='图片'>pic</div><div class='ubbbtn' title='隐现器'>toggle</div><div class='ubbbtn' title='表格'>table</div><div class='ubbbtn' title='表格行'>tr</div><div class='ubbbtn' title='表格列'>td</div><div class='ubbbtn' title='选择器'>select</div><div class='ubbbtn' title='选择器选项'>choice</div><div class='ubbbtn' title='页内跳转'>goto</div><div class='ubbbtn' title='表情'>emote</div>
-													</td>
-													<td id="tpctd">
-														<textarea name="article" id="atcl" rows="16" cols="100" style="overflow:auto; width:100%;" placeholder="在此输入帖子内容。第一行为标题。"></textarea>
-														<br/>
-														<select id="live">
-															<option value=0>永久保存</option>
-															<option value=10>保存 10 日</option>
-															<option value=50>保存 50 日</option>
-															<option value=200>保存 200 日</option>
-															<option value=1000>保存 1000 日</option>
-														</select>
-														<input type='text' placeholder="在此输入标签，用逗号分隔。不能为空。" id="setlabels"/>
-														<button>　发　布　</button>
-														<div class="note"/>
-													</td>
+													<th>标题</th>
+													<th width='90px' id="firstth" title='排序'>首发</th>
+													<th width='50px'>帖数</th>
+													<th width='150px' id="lastth" title='排序'><span>↓↓↓</span>末发</th>
 												</tr>
 											</tbody>
 										</table>
 									</div>
 								</div>
-								<br/><br/>
-								<div id='tpclist'>
-									<div>话题列表</div>
-									<table width='100%'>
-										<tbody>
-											<tr>
-												<th>标题</th>
-												<th width='90px' id="firstth" title='排序'>首发</th>
-												<th width='50px'>帖数</th>
-												<th width='150px' id="lastth" title='排序'><span>↓↓↓</span>末发</th>
-											</tr>
-										</tbody>
-									</table>
+								<div id='atclpg' class='page'>
+									<div id='returntolist'>返回话题列表</div>
+									<div id='atclarea'></div>
 								</div>
-							</div>
-							<div id='atclpg' class='page'>
-								<div id='returntolist'>返回话题列表</div>
-								<div id='atclarea'></div>
 							</div>
 							<div id='msgpg' class='page'>msgpage</div>
 							<div id='timelinepg' class='page'>timelinepg</div>

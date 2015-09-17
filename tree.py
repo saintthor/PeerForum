@@ -80,6 +80,7 @@ class Article( object ):
         if self.IsRoot():
             Topic.New( self )
         else:
+            Topic.AddAtcl( self )
             UpdateTopic( self.ItemD['RootID'], **{
                                     'LastAuthName': self.ItemD.get( 'NickName' ),
                                     'LastTime': self.ItemD.get( 'CreateTime' ),
@@ -118,7 +119,7 @@ class Article( object ):
     
     def Show( self ):
         "show to ui"
-        return self.ItemD, self.content
+        return self.ItemD, self.content, self.status
         
     def IsRoot( self ):
         ""
@@ -140,6 +141,7 @@ class Article( object ):
     @classmethod
     def New( cls, user, Type = 0, content = '', life = 0, **kwds ):
         "create from local"
+        assert Type == 0        #remove like to reduce leaf number.
         #SignFunc = ( lambda s: md5( s ).hexdigest() ) if user is None else user.Sign
         itemD = {} if user is None else user.InitItem()         #get AuthPubKeyType, AuthPubKey, NickName
         itemD['Type'] = Type
@@ -165,7 +167,7 @@ class Article( object ):
             itemD[k] = kwds[k]      #all texts should be encoded to utf-8
             if k == 'ParentID':
                 Parent = cls.Get( kwds[k] )
-                itemD['DestroyTime'] = Parent.itemD.get( 'DestroyTime', 9999999999999 )     #only root has destroytime
+                itemD['DestroyTime'] = Parent.ItemD.get( 'DestroyTime', 9999999999999 )     #only root has destroytime
         
         #print 'Article.New', itemD
         Atcl = cls( None, itemD = itemD, content = content )
@@ -190,6 +192,7 @@ class Article( object ):
     @classmethod
     def Get( cls, atclId ):
         ""
+        print 'Article.Get', atclId
         if atclId in cls.LiveD:
             return cls.LiveD[atclId]
         aData = GetOneArticle( 'items', 'content', id = atclId )
@@ -389,7 +392,14 @@ class Topic( object ):
         "show all articles in this topic."
         for topic in cls.GetMulti( rootId ):
             return [rootId, { Id: atcl.Show() for Id, atcl in topic.AtclD.iteritems() }]
-        
+    
+    @classmethod
+    def AddAtcl( cls, atcl ):
+        ""
+        topic = cls.LiveD.get( atcl.ItemD['RootID'] )
+        if topic is not None:
+            topic.AtclD[atcl.id] = atcl
+            
     @classmethod
     def GetMulti( cls, *rootIds ):
         "a generator to get multi topic objs from rootIds"

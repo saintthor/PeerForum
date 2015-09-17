@@ -152,6 +152,13 @@ class PeerForum( object ):
                 print traceback.format_exc()
     
     @classmethod
+    def cmdLike( cls, param ):
+        ""
+        Like = Article.New( cls.LocalUser, Type = 1, ParentID = param['atclId'], RootID = param['root'] )
+        Like.Save()
+        return { 'Like': Like.Show() }
+    
+    @classmethod
     def cmdGetAtclTree( cls, param ):
         ""
         return { 'AtclTree': Topic.ShowAll( param['root'] ) }
@@ -238,7 +245,7 @@ class PeerForum( object ):
         if request.method == 'GET':
             return static_file( 'index.html', root='.' )
         try:
-            print request.POST.keys()
+            print 'cmd:', request.POST['cmd']
             result = getattr( PeerForum, 'cmd' + request.POST['cmd'] )( request.POST )
             #print result
             return dumps( result )
