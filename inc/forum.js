@@ -1,3 +1,88 @@
+var Input = function( tr, parentId, submitFunc )
+{
+	var input = this;
+
+	this.TR = tr;
+	this.IsRoot = !parentId;
+	this.ParentId = parentId;
+	this.SubmitFunc = submitFunc;
+
+	this.Draw = function()
+	{
+		this.TR.html( '<td class="ubbbtns" width="150px"></td><td class="tpctd"> \
+			<textarea name="article" rows="16" cols="100" style="overflow:auto; width:98%;" \
+			 placeholder="在此输入帖子内容。第一行为标题。"></textarea><br/><button> 提 交 </button> \
+			 <div class="note"/></td>' );
+
+		if( this.IsRoot )
+		{
+			$( 'button', this.TR ).before( '<select><option value=0>永久保存</option> \
+				<option value=10>保存 10 日</option><option value=50>保存 50 日</option> \
+				<option value=200>保存 200 日</option><option value=1000>保存 1000 日</option> \
+				</select><input type="text" placeholder="在此输入标签，用逗号分隔。不能为空。"/>' );
+		}
+
+		$( 'button', this.TR ).click( function()
+		{
+			$( '.note', input.TR ).html( '' );
+
+			var Content = $( 'textarea', input.TR ).val();
+			Content = _( Content.split( '\n' )).chain().map( function( ln )
+			{
+				return ln.replace( /^\s+|\s+$/g, '' );
+			} ).filter( function( ln )
+			{
+				return ln > '';
+			} ).value().join( '\n\n' );
+
+			if( input.IsRoot )
+			{
+				if( Content.length < 20 )
+				{
+					$( '.note', input.TR ).html( '根帖内容不能少于 20 字。' );
+					return;
+				}
+
+				var AtclLabels = $( ':text', input.TR ).val()
+
+				//console.log( AtclLabels );
+				if( !AtclLabels )
+				{
+					$( '.note', input.TR ).html( '标签不能为空。' );
+					return;
+				}
+
+				var AtclData = {
+					'cmd': 'NewTopic',
+					'content': Content,
+					'Labels': AtclLabels,
+					'life': 86400000 * $( '.tpctd>select' ).children( 'option:selected' ).val(),
+								};
+			}
+			else
+			{
+				if( Content.length < 1 )
+				{
+					$( '.note', input.TR ).html( '帖子不能为空。' );
+					return;
+				}
+
+				var AtclData = {
+					'cmd': 'Reply',
+					'parent': input.ParentId,
+					'content': Content,
+								};
+			}
+			console.log( AtclData );
+
+			input.SubmitFunc( AtclData );
+		} );
+	};
+
+	this.Draw();
+};
+
+
 var Forum = function( owner )
 {
 	var frm = this;
@@ -7,7 +92,6 @@ var Forum = function( owner )
 	this.ListLabel = '';
 	this.SortCol = 'LastTime';
 	this.TopicObj = {};
-
 
 	this.Init = function()
 	{
@@ -109,9 +193,86 @@ var Forum = function( owner )
 		return c.replace( /\&/g, '&amp;' ).replace( /\>/g, '&gt;' ).replace( /\</g, '&lt;' ).replace( /\n/g, '<br/>' );
 	};
 
+	this.ShowSingleAtcl = function( atclData )
+	{
+		var AtclDiv = $( '<div class="atcl" id="Atcl_' + atclData[0] + '"><table><tbody><tr> \
+			<td class="atclleft"><div class="nickname"></div> \
+			<div class="randomart" title="不同用户可能有相同的用户名，\n可通过 RandomArt 识别用户。"></div> \
+			<div class="manageuser"></div></td><td class="atclright"><div class="atcltop"> \
+			<span class="time"></span><span class="atclid"></span><span class="lineright"> \
+			<span class="bigger" title="放大帖子正文">大</span><span class="smaller" title="缩小帖子正文">小</span> \
+			</span></div><div class="atclbody"></div> \
+			<div class="atclfoot"><span class="manage">zzzzzzzzzzzzz</span><span class="lineright"> \
+			<!--button class="like">赞<span class="likenum"></span></button--> \
+			<button class="reply">回复</button></span></div> \
+			</td></tr></tbody></table><div></div></div>' );
+
+		var AuthPubKey = atclData[1][0].AuthPubKey;
+		var AuthStatus = frm.Owner.ChkAuthStatus( AuthPubKey );
+		var NameDiv = $( '.nickname', AtclDiv );
+
+		NameDiv.html( atclData[1][0].NickName );
+		NameDiv.attr( 'title', '用户公钥：' + AuthPubKey );
+
+		if( AuthStatus >= 0 )
+		{
+			$( '.atclbody', AtclDiv ).html( frm.ShowContent( atclData[1][1] ));
+		}
+		else
+		{
+			$( '.atclbody', AtclDiv ).html( '因用户被屏蔽内容不可见。<button>点此查看</button>' );
+			$( '.atclbody>button', AtclDiv ).click( function()
+			{
+				$( this ).parent().html( frm.ShowContent( atclData[1][1] ));
+			} );
+		}
+		
+		$( '.randomart', AtclDiv ).html( frm.RandomArt( str_md5( AuthPubKey )));
+		$( '.manageuser', AtclDiv ).append( AuthStatus >= 0 ? '<button class="blockbtn">屏蔽</button>' : '<button class="unblockbtn">解除屏蔽</button>' );
+		$( '.manageuser', AtclDiv ).append( AuthStatus <= 0 ? '<button class="followbtn">关注</button>' : '<button class="unfollowbtn">取消关注</button>' );
+		$( '.time', AtclDiv ).html( frm.ShowTime( atclData[1][0].CreateTime ));
+		$( '.atclid', AtclDiv ).html( '&nbsp;' + atclData[0] );
+		//$( '.likenum', AtclDiv ).html(( atclData[1][0].Liked || [] ).length );
+		$( '.atclfoot', AtclDiv ).data( 'atclid', atclData[0] );
+
+		return AtclDiv;
+	};
+
+	var SetSize = function()
+	{
+		var Body = $( this ).closest( 'td' ).children( '.atclbody' );
+		var size = parseFloat( Body.css( "font-size" ), 10 );
+		var diff = $( this ).hasClass( 'bigger' ) ? 2: -2;
+		size += diff;
+		Body.css( "font-size", size + 'px' );
+		Body.css( "line-height", size * 1.5 + "px" );				
+	};
+
+	var EnableReply = function()
+	{
+		var TBody = $( this ).closest( 'tbody' );
+		if( TBody.children( 'tr.input' ).length > 0 )
+		{
+			TBody.children( 'tr.input' ).toggle( 300 );
+			return;
+		}
+		var TR = $( '<tr class="input"></tr>' );
+		console.log( $( this ).closest( '.atclfoot' ).data( 'atclid' ));
+		new Input( TR, $( this ).closest( '.atclfoot' ).data( 'atclid' ), function( data )
+		{
+			data.root = $( '#atclarea' ).data( 'root' );
+			frm.Owner.Post( data, 'GetResult' );
+		} );
+
+		TR.hide();
+		TBody.append( TR );
+		TR.show( 400 );
+	};
+
 	this.ShowAtcls = function( treeData )
 	{
 		$( '#atclarea' ).html( '' );
+		$( '#atclarea' ).data( 'root', treeData[0] );
 		
 		var Tree = this.TopicObj[treeData[0]] = _( treeData[1] ).omit( function( v )
 		{
@@ -136,7 +297,7 @@ var Forum = function( owner )
 			return p[1][0].CreateTime;
 		} ).each( function( p )
 		{
-			console.log( p );
+			/*console.log( p );
 			var AtclDiv = $( '<div class="atcl" id="Atcl_' + p[0] + '"><table><tbody><tr> \
 				<td class="atclleft"><div class="nickname"></div> \
 				<div class="randomart" title="不同用户可能有相同的用户名，\n可通过 RandomArt 识别用户。"></div> \
@@ -176,38 +337,13 @@ var Forum = function( owner )
 			$( '.atclid', AtclDiv ).html( '&nbsp;' + p[0] );
 			//$( '.likenum', AtclDiv ).html(( p[1][0].Liked || [] ).length );
 			$( '.atclfoot', AtclDiv ).data( 'atclid', p[0] );
-
-			$( '#atclarea' ).append( AtclDiv );
+			*/
+			$( '#atclarea' ).append( frm.ShowSingleAtcl( p ));
 		} );
 
-		$( '.atcltop>.lineright>span' ).click( function()
-		{
-			var Body = $( this ).closest( 'td' ).children( '.atclbody' );
-			var size = parseFloat( Body.css( "font-size" ), 10 );
-			var diff = $( this ).hasClass( 'bigger' ) ? 2: -2;
-			size += diff;
-			Body.css( "font-size", size + 'px' );
-			Body.css( "line-height", size * 1.5 + "px" );				
-		} );
+		$( '.atcltop>.lineright>span' ).click( SetSize );
 
-		$( '.reply' ).click( function()
-		{
-			var TBody = $( this ).closest( 'tbody' );
-			if( TBody.children( 'tr.input' ).length > 0 )
-			{
-				TBody.children( 'tr.input' ).toggle( 300 );
-				return;
-			}
-			var TR = $( '<tr class="input"></tr>' );
-			TR.html( $( '#tpcinput tr' ).html());
-			$( 'select', TR ).remove();
-			$( ':text', TR ).remove();
-			$( 'button', TR ).html( '回复' );
-			TR.hide();
-
-			TBody.append( TR );
-			TR.show( 400 );
-		} );
+		$( '.reply' ).click( EnableReply );
 
 		/*$( '.like' ).click( function()
 		{
@@ -238,6 +374,20 @@ var Forum = function( owner )
 		var LikeNum = $( '#' + ParentId + ' .likenum' );
 		LikeNum.html( Number( LikeNum.html()) + 1 );
 	};*/
+
+	this.ReplyOK = function( replyData )
+	{
+		console.log( replyData );
+		var ParentId = 'Atcl_' + replyData[1][0].ParentID;
+		var Parent = $( '#' + ParentId );
+		var NewAtcl = this.ShowSingleAtcl( replyData );
+		$( '.atcltop>.lineright>span', NewAtcl ).click( SetSize );
+		$( '.reply', NewAtcl ).click( EnableReply );
+		NewAtcl.hide();
+		Parent.after( NewAtcl );
+		NewAtcl.show( 400 );
+		$( '.input', Parent ).hide( 300 );
+	}
 
 	this.RandomArt = function( data )
 	{
@@ -297,7 +447,7 @@ var Forum = function( owner )
 		{
 			_( ln ).each( function( n )
 			{
-				s += n >= 0 ? ' .o+=*BOX@%&#/^ES'[n] : 'ES'[n + 2];
+				s += n >= 0 ? ' .o+=*BOX@%&#/^QMZ'[n] : 'ES'[n + 2];
 			} );
 			s += '<br/>'
 		} );

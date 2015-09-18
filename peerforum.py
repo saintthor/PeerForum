@@ -159,6 +159,14 @@ class PeerForum( object ):
         return { 'Like': Like.Show() }
     
     @classmethod
+    def cmdReply( cls, param ):
+        ""
+        Reply = Article.New( cls.LocalUser, ParentID = param['parent'], RootID = param['root'],
+                            content = param['content'].decode( 'utf-8' ))
+        Reply.Save()
+        return { 'Reply': [Reply.id, Reply.Show()] }
+        
+    @classmethod
     def cmdGetAtclTree( cls, param ):
         ""
         return { 'AtclTree': Topic.ShowAll( param['root'] ) }

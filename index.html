@@ -255,6 +255,12 @@ var PeerForum = function()
 		this.Forum.ShowAtcls( treeData );
 	};
 
+	this.ShowReply = function( rplData )
+	{
+		console.log( rplData );
+		this.Forum.ReplyOK( rplData );		
+	};
+	
 	/*this.SetLike = function( likeData )
 	{
 		console.log( likeData );
@@ -287,6 +293,7 @@ var PeerForum = function()
 			 'PageTopics': 'AppendTopics',
 			 'AtclTree': 'ShowAtclPg',
 			 //'Like': 'SetLike',
+			 'Reply': 'ShowReply',
 
 			} ).chain().pairs().each( function( p )
 		{
