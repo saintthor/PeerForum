@@ -13,6 +13,7 @@
 		div.content { max-height: 180px; overflow-y: auto; border-left: solid #4a3 1px; }
 		div#newtpcbtn { padding: 5px; margin-top: 0; background-color: #8f7; cursor: pointer; }
 		span.arrow { padding-left: 4px; padding-right: 4px; cursor: pointer; }
+		td>span.arrow { color: red; }
 		span.newnum { padding-left: 4px; padding-right: 4px; color: red; }
 		div.atcllabel { float: left; padding: 4px; margin-left: 4px; margin-top: 3px; cursor: pointer; border: solid #4a3 1px; }
 		div.alllabelidx { cursor: pointer; }
@@ -33,11 +34,14 @@
 		span.firsttime { color: #777; font-size: 0.9em; }
 		div.randomart { font-family: Courier; padding-left: 8px; color: #c2d; font-size: 12px; line-height: 10px; }
 		div.atcltop { font-size: 0.8em; color: #888; border-bottom: solid #4a3 1px; height: 12px; padding-top: 1px; padding-bottom: 3px; }
+		div#atclarea button { font-size: 0.9em; padding-top: 0px; padding-bottom: 0px; }
 		div.atclbody { min-height: 105px; }
 		div.atclfoot { font-size: 0.8em; height: 12px; border-top: solid #4a3 1px; }
 		span.atclid { margin-left: 15px; }
 		span.lineright { float: right; }
-		span.bigger, span.smaller { cursor: pointer; margin-left: 4px;  margin-right: 4px;}
+		span.bigger, span.smaller { cursor: pointer; margin-left: 4px;  margin-right: 4px; }
+		tr.treeview { font-size: 0.9em; background-color: #f8fff0; }
+		tr.treeview td { padding-left: 4px; padding-right: 4px; }
 	</style>
 	<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
 	<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
@@ -180,16 +184,18 @@ var PeerForum = function()
 		{
 			this.Info.warning.push( new PFMessage( 'SetNodeName', lcNode ));
 		}
+
+		this.CurNode = lcNode;
 	};
 
 	this.ChkLocalUser = function( lcUser )
 	{
-		this.User = lcUser;
-
 		if( !lcUser[1] )
 		{
 			this.Info.error.push( new PFMessage( 'SetUserName', lcUser ));
 		}
+
+		this.CurUser = lcUser;
 	};
 
 	this.ChkAuthStatus = function( authPubK )
@@ -248,11 +254,8 @@ var PeerForum = function()
 	this.ShowAtclPg = function( treeData )
 	{
 		console.log( treeData );
-		var AtclPg = $( '#atclpg' );
-		$( '#listpg' ).hide( 200 );
-		AtclPg.show( 300 );
-		AtclPg.data( 'root', treeData[0] );
-		this.Forum.ShowAtcls( treeData );
+		this.Forum.SetTopicData( treeData );
+		this.Forum.ShowAtcls( treeData[0], this.Forum.FLOWMODE );
 	};
 
 	this.ShowReply = function( rplData )
@@ -266,6 +269,17 @@ var PeerForum = function()
 		console.log( likeData );
 		this.Forum.AddLike( likeData );
 	};*/
+
+	this.ExpendTpcTree = function( treeData )
+	{
+		console.log( treeData );
+		this.Forum.SetTopicData( treeData );
+		var TreeTR = this.Forum.ShowTree( treeData[0] );
+
+		TreeTR.hide();
+		$( '#Topic_' + treeData[0] ).after( TreeTR );
+		TreeTR.show( 400 );
+	}
 
 	this.AppendTopics = function( topics )
 	{
@@ -294,13 +308,14 @@ var PeerForum = function()
 			 'AtclTree': 'ShowAtclPg',
 			 //'Like': 'SetLike',
 			 'Reply': 'ShowReply',
+			 'ShowTree': 'ExpendTpcTree',
 
 			} ).chain().pairs().each( function( p )
 		{
 			//console.log( p );
 			if( p[0] in rslt )
 			{
-				var v = pf[p[0]] = rslt[p[0]];
+				var v = rslt[p[0]];
 				if( p[1] )
 				{
 					pf[p[1]]( v );
@@ -310,14 +325,6 @@ var PeerForum = function()
 
 		this.ShowInfo();
 		console.log( pf.CurUser, pf.CurNode );
-	};
-
-	this.ChkInfo = function()
-	{
-		if( this.Info )
-		{
-			//show info notes.
-		}
 	};
 
 	this.Dida = function()

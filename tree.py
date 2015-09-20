@@ -192,7 +192,7 @@ class Article( object ):
     @classmethod
     def Get( cls, atclId ):
         ""
-        print 'Article.Get', atclId
+        #print 'Article.Get', atclId
         if atclId in cls.LiveD:
             return cls.LiveD[atclId]
         aData = GetOneArticle( 'items', 'content', id = atclId )

@@ -169,7 +169,12 @@ class PeerForum( object ):
     @classmethod
     def cmdGetAtclTree( cls, param ):
         ""
-        return { 'AtclTree': Topic.ShowAll( param['root'] ) }
+        RplCmd = {
+            'flow': 'AtclTree',
+            'last': 'AtclTree',
+            'tree': 'ShowTree',
+                }[param['mode']]
+        return { RplCmd: Topic.ShowAll( param['root'] ) }
     
     @classmethod
     def cmdNewTopic( cls, topic ):

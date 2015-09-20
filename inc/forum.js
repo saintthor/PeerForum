@@ -87,6 +87,10 @@ var Forum = function( owner )
 {
 	var frm = this;
 
+	this.FLOWMODE = 0;
+	this.LINKMODE = 1;
+	this.STARMODE = 2;
+
 	this.Owner = owner;
 	this.StartPos = 0;
 	this.ListLabel = '';
@@ -165,18 +169,41 @@ var Forum = function( owner )
 		{
 			var Root = $( this ).closest( 'tr' ).data( 'root' );
 			//console.log( Root );
-			frm.Owner.Post( { cmd: 'GetAtclTree', root: Root }, 'GetResult' );
+			frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'flow' }, 'GetResult' );
 		} );
 	};
 
 	this.SetClickLastTime = function( dom )
 	{
-
+		$( 'span.lasttime', dom ).click( function()
+		{
+			var Root = $( this ).closest( 'tr' ).data( 'root' );
+			//console.log( Root );
+			frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'last' }, 'GetResult' );
+		} );
 	};
 	
 	this.SetClickArrow = function( dom )
 	{
-
+		$( 'span.arrow', dom ).click( function()
+		{
+			var Root = $( this ).closest( 'tr' ).data( 'root' );
+			if( $( this ).text() == '◣' )
+			{
+				frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'tree' }, 'GetResult' );
+				$( this ).html( '◤' );
+				$( this ).attr( 'title', '降维' );
+			}
+			else
+			{
+				$( '#Tree_' + Root ).hide( 400, function()
+					{
+						$( this ).remove();
+					} );
+				$( this ).html( '◣' );
+				$( this ).attr( 'title', '升维' );
+			}
+		} );
 	};
 
 	this.SetAttr = function( dom )
@@ -195,6 +222,7 @@ var Forum = function( owner )
 
 	this.ShowSingleAtcl = function( atclData )
 	{
+		console.log( atclData );
 		var AtclDiv = $( '<div class="atcl" id="Atcl_' + atclData[0] + '"><table><tbody><tr> \
 			<td class="atclleft"><div class="nickname"></div> \
 			<div class="randomart" title="不同用户可能有相同的用户名，\n可通过 RandomArt 识别用户。"></div> \
@@ -269,11 +297,8 @@ var Forum = function( owner )
 		TR.show( 400 );
 	};
 
-	this.ShowAtcls = function( treeData )
+	this.SetTopicData = function( treeData )
 	{
-		$( '#atclarea' ).html( '' );
-		$( '#atclarea' ).data( 'root', treeData[0] );
-		
 		var Tree = this.TopicObj[treeData[0]] = _( treeData[1] ).omit( function( v )
 		{
 			return v[0].Type == 1;
@@ -290,60 +315,106 @@ var Forum = function( owner )
 			return false;*/
 		} );
 
-		//console.log( Tree );
+		var Roots = [treeData[0]];
 
 		_( Tree ).chain().pairs().sortBy( function( p )
 		{
 			return p[1][0].CreateTime;
 		} ).each( function( p )
 		{
-			/*console.log( p );
-			var AtclDiv = $( '<div class="atcl" id="Atcl_' + p[0] + '"><table><tbody><tr> \
-				<td class="atclleft"><div class="nickname"></div> \
-				<div class="randomart" title="不同用户可能有相同的用户名，\n可通过 RandomArt 识别用户。"></div> \
-				<div class="manageuser"></div></td><td class="atclright"><div class="atcltop"> \
-				<span class="time"></span><span class="atclid"></span><span class="lineright"> \
-				<span class="bigger" title="放大帖子正文">大</span><span class="smaller" title="缩小帖子正文">小</span> \
-				</span></div><div class="atclbody"></div> \
-				<div class="atclfoot"><span class="manage">zzzzzzzzzzzzz</span><span class="lineright"> \
-				<!--button class="like">赞<span class="likenum"></span></button--> \
-				<button class="reply">回复</button></span></div> \
-				</td></tr></tbody></table><div></div></div>' );
-
-			var AuthPubKey = p[1][0].AuthPubKey;
-			var AuthStatus = frm.Owner.ChkAuthStatus( AuthPubKey );
-			var NameDiv = $( '.nickname', AtclDiv );
-
-			NameDiv.html( p[1][0].NickName );
-			NameDiv.attr( 'title', '用户公钥：' + AuthPubKey );
-
-			if( AuthStatus >= 0 )
+			var ParentId = p[1][0].ParentID;
+			if( !ParentId )
 			{
-				$( '.atclbody', AtclDiv ).html( frm.ShowContent( p[1][1] ));
+				return;
+			}
+			var Parent = Tree[ParentId]
+			if( Parent )
+			{
+				Parent[0].Children = Parent[0].Children || [];
+				Parent[0].Children.push( p[0] );
 			}
 			else
 			{
-				$( '.atclbody', AtclDiv ).html( '因用户被屏蔽内容不可见。<button>点此查看</button>' );
-				$( '.atclbody>button', AtclDiv ).click( function()
-				{
-					$( this ).parent().html( frm.ShowContent( p[1][1] ));
-				} );
+				Roots.push( ParentId );
 			}
-			
-			$( '.randomart', AtclDiv ).html( frm.RandomArt( str_md5( AuthPubKey )));
-			$( '.manageuser', AtclDiv ).append( AuthStatus >= 0 ? '<button class="blockbtn">屏蔽</button>' : '<button class="unblockbtn">解除屏蔽</button>' );
-			$( '.manageuser', AtclDiv ).append( AuthStatus <= 0 ? '<button class="followbtn">关注</button>' : '<button class="unfollowbtn">取消关注</button>' );
-			$( '.time', AtclDiv ).html( frm.ShowTime( p[1][0].CreateTime ));
-			$( '.atclid', AtclDiv ).html( '&nbsp;' + p[0] );
-			//$( '.likenum', AtclDiv ).html(( p[1][0].Liked || [] ).length );
-			$( '.atclfoot', AtclDiv ).data( 'atclid', p[0] );
-			*/
+		} );
+
+		Tree.Roots = Roots;
+	};
+
+	this.FlowModeAtcls = function( rootId )
+	{
+		return _( this.TopicObj[rootId] ).chain().pairs().sortBy( function( p )
+				{
+					return p[1][0].CreateTime;
+				} );
+	};
+
+	this.LinkModeAtcls = function( rootId, atclId )
+	{
+		var Topic = this.TopicObj[rootId];
+		var Atcl = Topic[atclId]
+		var Atcls = [];
+
+		while( Atcl )
+		{
+			Atcls.push( [atclId, Atcl] );
+			atclId = Atcl[0].ParentID;
+			Atcl = Topic[atclId]
+		}
+
+		return _( Atcls ).chain().reverse();
+	};
+
+	this.StarModeAtcls = function( rootId, atclId )
+	{
+		var Topic = this.TopicObj[rootId];
+		var Atcls = [[atclId, Topic[atclId]]];
+		var start = 0;
+		var end = 1;
+
+		while( start < end )
+		{
+			console.log( start, end );
+			_( Atcls.slice( start, end )).each( function( parent )
+			{
+				_( parent[1][0].Children || [] ).each( function( ch )
+				{
+					var Child = Topic[ch];
+					if( Child )
+					{
+						Atcls.push( [ch, Child] );
+					}
+				} );
+			} );
+			start = end;
+			end = Atcls.length;
+		}
+		return _( Atcls );
+	};
+
+	this.ShowAtcls = function( rootId, mode, atclId )
+	{
+		$( '#listpg' ).hide( 200 );
+		$( '#atclpg' ).show( 300 );
+		$( '#atclarea' ).html( '' );
+		$( '#atclarea' ).data( 'root', rootId );
+		
+		var Atcls = this[[
+				'FlowModeAtcls', 
+				'LinkModeAtcls', 
+				'StarModeAtcls',
+					][mode]]( rootId, atclId );
+
+		Atcls.each( function( p )
+		{
+			console.log( p );
 			$( '#atclarea' ).append( frm.ShowSingleAtcl( p ));
 		} );
 
-		$( '.atcltop>.lineright>span' ).click( SetSize );
+		$( '#atclarea .atcltop>.lineright>span' ).click( SetSize );
 
-		$( '.reply' ).click( EnableReply );
+		$( '#atclarea .reply' ).click( EnableReply );
 
 		/*$( '.like' ).click( function()
 		{
@@ -374,6 +445,107 @@ var Forum = function( owner )
 		var LikeNum = $( '#' + ParentId + ' .likenum' );
 		LikeNum.html( Number( LikeNum.html()) + 1 );
 	};*/
+
+	this.SetClickTreeTitle = function( root, TR )
+	{
+		console.log( 'SetClickTreeTitle' );
+		var AtclId = TR.data( 'atclid' );
+		$( '.title', TR ).click( function()
+		{
+			frm.ShowAtcls( root, frm.STARMODE, AtclId );
+		} );
+	};
+
+	this.SetClickTreeLastTime = function( root, TR )
+	{
+		console.log( 'SetClickTreeLastTime' );
+		var AtclId = TR.data( 'atclid' );
+		$( 'td:eq(4)', TR ).click( function()
+		{
+			frm.ShowAtcls( root, frm.LINKMODE, AtclId );
+		} );
+	};
+
+	this.SetClickTreeArrow = function( root, TR )
+	{
+		console.log( 'SetClickTreeArrow' );
+		var AtclId = TR.data( 'atclid' );
+		var Atcl = this.TopicObj[root][AtclId];
+
+		$( '.arrow', TR ).click( function()
+		{
+			if( $( this ).text() == '◣' )
+			{
+				var AppendAtcl = $( '<tr id="Append_' + AtclId + '"><td colspan=5></td></tr>' );
+
+				AppendAtcl.children( 'td' ).append( frm.ShowSingleAtcl( [AtclId, Atcl] ));
+				$( '.atcltop>.lineright>span', AppendAtcl ).click( SetSize );
+				$( '.reply', AppendAtcl ).click( EnableReply );
+
+				TR.after( AppendAtcl );
+				$( this ).html( '◤' );
+				$( this ).attr( 'title', '降维' );
+			}
+			else
+			{
+				$( '#Append_' + AtclId ).hide( 400, function()
+					{
+						$( this ).remove();
+					} );
+				$( this ).html( '◣' );
+				$( this ).attr( 'title', '升维' );
+			}
+		} );
+	};
+
+	this.SetTreeLineAttr = function( root, trLnTR )
+	{
+		this.SetClickTreeTitle( root, trLnTR );
+		this.SetClickTreeLastTime( root, trLnTR );
+		this.SetClickTreeArrow( root, trLnTR );		
+	};
+
+	this.ShowTree = function( rootId )
+	{
+		console.log( 'ShowTree' );
+		var TR = $( '<tr id="Tree_' + rootId + '"><td colspan=4><table><tbody></tbody></table></td></tr>' );
+
+		_( this.TopicObj[rootId].Roots ).each( function( r )
+		{
+			frm.DrawTreeLine( rootId, r, $( 'tbody', TR ), 0 );
+		} );
+
+		$( 'tr', TR ).each( function()
+		{
+			frm.SetTreeLineAttr( rootId, $( this ));
+		} );
+
+		return TR;
+	};
+
+	this.DrawTreeLine = function( rootId, parentId, tbody, layer )
+	{
+		//console.log( rootId, parentId, layer );
+		var Parent = this.TopicObj[rootId][parentId];
+		if( !Parent )
+		{
+			return;
+		}
+		//console.log( Parent );
+		var TreeLine = $( '<tr class="treeview"><td><span class="arrow">◣</span></td><td></td><td></td><td></td><td></td></tr>' );
+		TreeLine.data( 'atclid', parentId );
+		TreeLine.children( 'td:eq(1)' ).css( 'padding-left', ( layer * 7 ) + 'px' );
+		var Prefix = rootId == parentId ? '●' : layer == 0 ? '◇' : '◆';
+		TreeLine.children( 'td:eq(1)' ).html( Prefix + '<span class="title">' + Parent[1].slice( 0, 99 ) + '</span>' );
+		TreeLine.children( 'td:eq(2)' ).html( Parent[0].NickName );
+		TreeLine.children( 'td:eq(3)' ).html( Parent[1].length + '字' );
+		TreeLine.children( 'td:eq(4)' ).html( this.ShowTime( Parent[0].CreateTime ));
+		tbody.append( TreeLine );
+		_( Parent[0].Children || [] ).chain().reverse().each( function( childId )
+		{
+			frm.DrawTreeLine( rootId, childId, tbody, layer + 1 );
+		} );
+	};
 
 	this.ReplyOK = function( replyData )
 	{
@@ -492,18 +664,18 @@ var Forum = function( owner )
 
 	this.TopicTR = function( tpcdata )
 	{
-		var TR = $( '<tr class="new" title="展开话题"><td class="title" title="进入话题"></td> \
-			<td class="first"></td><td class="num">1</td><td class="last" title="查看更新"></td></tr>' );
+		var TR = $( '<tr class="new" id="Topic_' + tpcdata[0] + '"><td class="title"></td> \
+			<td class="first"></td><td class="num">1</td><td class="last"></td></tr>' );
 		var LabelSpans = _( tpcdata[2].split( ',' )).chain().map( function( lb )
 			{
 				return '<span class="tpclabel">' + lb + '</span>';
 			} ).value().join( '' );
 		//console.log( LabelSpans );
-		var Title = '<span class="arrow">◣</span><span class="title">' + tpcdata[1] + '</span>' + LabelSpans;
+		var Title = '<span class="arrow" title="升维">◣</span><span class="title" title="进入话题">' + tpcdata[1] + '</span>' + LabelSpans;
 		TR.children( 'td:eq(0)' ).html( Title )
 		TR.children( 'td:eq(1)' ).html( tpcdata[5] + '<br><span class="firsttime">' + this.ShowTime( tpcdata[6], true ) + '</span>' );
 		TR.children( 'td:eq(2)' ).html( tpcdata[4] )
-		TR.children( 'td:eq(3)' ).html( '<span class="lasttime">' + this.ShowTime( tpcdata[8] ) + '</span><br>' + tpcdata[7] );
+		TR.children( 'td:eq(3)' ).html( '<span class="lasttime" title="查看更新">' + this.ShowTime( tpcdata[8] ) + '</span><br>' + tpcdata[7] );
 		TR.data( 'root', tpcdata[0] );
 
 		return TR;
