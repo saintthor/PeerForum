@@ -314,13 +314,13 @@ def GetTopicRows( label, offset, sortCol, limit ):
         if label:
             return cursor.execute(
                 '''select root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
-                    from topic join label on topic.root = label.TopicID where label.name = ? order by ? desc limit ? offset ?''',
-                    ( label, sortCol, limit, offset )
+                    from topic join label on topic.root = label.TopicID where label.name = ? 
+                    order by %s desc limit ? offset ?''' % sortCol, ( label, limit, offset )
                                     ).fetchall()
         else:
             return cursor.execute(
                 '''select root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
-                    from topic order by ? desc limit ? offset ?''', ( sortCol, limit, offset )
+                    from topic order by %s desc limit ? offset ?''' % sortCol, ( limit, offset )
                                     ).fetchall()
     
 def GetTreeAtcls( *rootIds ):

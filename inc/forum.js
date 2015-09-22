@@ -95,7 +95,7 @@ var Forum = function( owner )
 	this.StartPos = 0;
 	this.ListLabel = '';
 	this.SortCol = 'LastTime';
-	this.TopicObj = {};
+	this.TopicObj = { 'TreeRoots': {} };
 
 	this.Init = function()
 	{
@@ -227,10 +227,13 @@ var Forum = function( owner )
 			<td class="atclleft"><div class="nickname"></div> \
 			<div class="randomart" title="不同用户可能有相同的用户名，\n可通过 RandomArt 识别用户。"></div> \
 			<div class="manageuser"></div></td><td class="atclright"><div class="atcltop"> \
-			<span class="time"></span><span class="atclid"></span><span class="lineright"> \
+			<span class="time"></span><span class="linemiddle"> \
 			<span class="bigger" title="放大帖子正文">大</span><span class="smaller" title="缩小帖子正文">小</span> \
-			</span></div><div class="atclbody"></div> \
-			<div class="atclfoot"><span class="manage">zzzzzzzzzzzzz</span><span class="lineright"> \
+			</span><span class="lineright"><span class="flow" title="流视图">流</span> \
+			<span class="link" title="链视图">链</span> \
+			<span class="star" title="星视图">星</span> \
+			</span></div><div class="atclid"></div><div class="atclbody"></div> \
+			<div class="atclfoot"><span class="manage"></span><span class="lineright"> \
 			<!--button class="like">赞<span class="likenum"></span></button--> \
 			<button class="reply">回复</button></span></div> \
 			</td></tr></tbody></table><div></div></div>' );
@@ -254,7 +257,9 @@ var Forum = function( owner )
 				$( this ).parent().html( frm.ShowContent( atclData[1][1] ));
 			} );
 		}
-		
+
+		this.SetManageBtns( $( '.manage', AtclDiv ), atclData[1][2] );
+
 		$( '.randomart', AtclDiv ).html( frm.RandomArt( str_md5( AuthPubKey )));
 		$( '.manageuser', AtclDiv ).append( AuthStatus >= 0 ? '<button class="blockbtn">屏蔽</button>' : '<button class="unblockbtn">解除屏蔽</button>' );
 		$( '.manageuser', AtclDiv ).append( AuthStatus <= 0 ? '<button class="followbtn">关注</button>' : '<button class="unfollowbtn">取消关注</button>' );
@@ -264,6 +269,54 @@ var Forum = function( owner )
 		$( '.atclfoot', AtclDiv ).data( 'atclid', atclData[0] );
 
 		return AtclDiv;
+	};
+
+	this.GetSetStatusBtns = function( status )
+	{
+		return {
+			0: '<button class="pass">放行</button><button class="commend">推荐</button>',
+			1: '<button class="block">阻断</button><button class="pass passing">放行</button><button class="commend">推荐</button>',
+			2: '<button class="block">阻断</button><button class="commend">推荐</button>',
+			3: '<button class="block">阻断</button><button class="uncommend">取消推荐</button>',
+				}[status + 1];
+	};
+
+	this.SetManageBtns = function( dom, status )
+	{
+		console.log( dom, status );
+		dom.html( this.GetSetStatusBtns( status ));
+		dom.append( '<span class="query" title="">？</span>' );
+		dom.children( '.query' ).mouseover( function()
+		{
+			$( this ).append( '<div class="pop">在飘上，没有管理员。每一位用户都是自己节点的管理员，可以决定自己的节点上有哪些帖子可以被其它节点读取。<br>每个帖子的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种操作。<br>只有已放行或已推荐的帖子可以被其它节点读取，未裁处和已阻断的帖子不能被读取。<br>其它节点可以选择只读取经过推荐的帖子。<br>已阻断、已通过、已推荐的帖子也可以重置到另外的状态，但不能恢复到未裁处状态。<br>当其它节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断了来自你的帖子，它对你的评级会下降。评级决定了它会更多还是更少地从你的节点获取内容。<br>飘的和谐与自由仰赖每一位用户对帖子的公正裁处。阻断那些含有<b>攻击谩骂、粗话、挑衅、恐吓、欺诈、诅咒、歧视</b>的内容，阻断那些你不相信的内容，阻断那些无聊灌水的内容，放行及推荐优质的帖子，将好的传递给他人。<br>你为他人所做，也是他人为你所做的。</div>' );
+		} );
+
+		dom.children( '.query' ).mouseout( function()
+		{
+			$( this ).children( '.pop' ).remove();
+		} );
+
+		[
+			['.commend', '推荐这个帖子，以使其他节点优先读取。'],
+			['.uncommend', '取消推荐，将帖子置为放行状态。'],
+			['.block', '阻断这个帖子，禁止其他节点读取。' ],
+			['.pass', '放行这个帖子，以使其他节点能够读取。'],
+		].forEach( function( btnTitle )
+		{
+			dom.children( btnTitle[0] ).attr( 'title', btnTitle[1] );
+		} );
+	};
+
+	var SetView = function()
+	{
+		var AtclId = $( this ).closest( 'td' ).children( '.atclfoot' ).data( 'atclid' );
+		var RootId = $( this ).closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
+		var Mode = {
+			'flow': frm.FLOWMODE,
+			'link': frm.LINKMODE,
+			'star': frm.STARMODE,
+					}[$( this ).attr( 'class' )];
+		frm.ShowAtcls( RootId, Mode, AtclId)
 	};
 
 	var SetSize = function()
@@ -285,10 +338,13 @@ var Forum = function( owner )
 			return;
 		}
 		var TR = $( '<tr class="input"></tr>' );
+		//console.log( )
+		var RootId = $( this ).closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
+
 		console.log( $( this ).closest( '.atclfoot' ).data( 'atclid' ));
 		new Input( TR, $( this ).closest( '.atclfoot' ).data( 'atclid' ), function( data )
 		{
-			data.root = $( '#atclarea' ).data( 'root' );
+			data.root = RootId;
 			frm.Owner.Post( data, 'GetResult' );
 		} );
 
@@ -339,7 +395,7 @@ var Forum = function( owner )
 			}
 		} );
 
-		Tree.Roots = Roots;
+		this.TopicObj.TreeRoots[treeData[0]] = Roots;
 	};
 
 	this.FlowModeAtcls = function( rootId )
@@ -412,7 +468,8 @@ var Forum = function( owner )
 			$( '#atclarea' ).append( frm.ShowSingleAtcl( p ));
 		} );
 
-		$( '#atclarea .atcltop>.lineright>span' ).click( SetSize );
+		$( '#atclarea .atcltop>.linemiddle>span' ).click( SetSize );
+		$( '#atclarea .atcltop>.lineright>span' ).click( SetView );
 
 		$( '#atclarea .reply' ).click( EnableReply );
 
@@ -479,7 +536,7 @@ var Forum = function( owner )
 				var AppendAtcl = $( '<tr id="Append_' + AtclId + '"><td colspan=5></td></tr>' );
 
 				AppendAtcl.children( 'td' ).append( frm.ShowSingleAtcl( [AtclId, Atcl] ));
-				$( '.atcltop>.lineright>span', AppendAtcl ).click( SetSize );
+				$( '.atcltop>.lineright>span', AppendAtcl ).click( SetView );
 				$( '.reply', AppendAtcl ).click( EnableReply );
 
 				TR.after( AppendAtcl );
@@ -498,22 +555,76 @@ var Forum = function( owner )
 		} );
 	};
 
+	this.SetClickTreePrefix = function( root, TR )
+	{
+		console.log( 'SetClickTreePrefix' );
+		var AtclId = TR.data( 'atclid' );
+		var Atcl = this.TopicObj[root][AtclId];
+
+		$( 'td:eq(1)>span:eq(0)', TR ).click( function()
+		{
+			if( $( this ).parent().children( '.setstatus' ).length > 0 )
+			{
+				$( this ).parent().children( '.setstatus' ).remove();
+			}
+			else
+			{
+				var SetStatus = $( '<div class="setstatus"></div>' );
+				frm.SetManageBtns( SetStatus, Atcl[2] );
+				SetStatus.append( '<span class="remove" title="取消">×</span>' );
+				SetStatus.children( '.remove' ).click( function()
+				{
+					SetStatus.remove();
+				} );
+				frm.SetClickManage( SetStatus, Atcl );
+				$( this ).after( SetStatus );
+			}
+		} );
+	};
+
 	this.SetTreeLineAttr = function( root, trLnTR )
 	{
 		this.SetClickTreeTitle( root, trLnTR );
 		this.SetClickTreeLastTime( root, trLnTR );
 		this.SetClickTreeArrow( root, trLnTR );		
+		this.SetClickTreePrefix( root, trLnTR );		
+	};
+
+	this.SetClickManage = function( dom, atcl )
+	{
+		$( 'button', dom ).click( function()
+		{
+			if( !atcl )
+			{
+
+			}
+			atcl[2] = {
+				'pass': 1,
+				'commend': 2,
+				'block': -1,
+				'uncommend': 1,
+					}[$( this ).attr( 'class' )];
+
+			frm.ReDrawAtcl( $( this ).closest( 'td' ));
+		} );
+	};
+
+	this.ReDrawAtcl = function( TD )
+	{
+
 	};
 
 	this.ShowTree = function( rootId )
 	{
 		console.log( 'ShowTree' );
-		var TR = $( '<tr id="Tree_' + rootId + '"><td colspan=4><table><tbody></tbody></table></td></tr>' );
+		var TR = $( '<tr class="tree" id="Tree_' + rootId + '"><td colspan=4><table><tbody></tbody></table></td></tr>' );
 
-		_( this.TopicObj[rootId].Roots ).each( function( r )
+		_( this.TopicObj.TreeRoots[rootId] ).each( function( r )
 		{
 			frm.DrawTreeLine( rootId, r, $( 'tbody', TR ), 0 );
 		} );
+
+		TR.data( 'root', rootId );
 
 		$( 'tr', TR ).each( function()
 		{
@@ -531,15 +642,27 @@ var Forum = function( owner )
 		{
 			return;
 		}
-		//console.log( Parent );
-		var TreeLine = $( '<tr class="treeview"><td><span class="arrow">◣</span></td><td></td><td></td><td></td><td></td></tr>' );
+		console.log( Parent );
+		var TreeLine = $( '<tr class="treeview"><td><span class="arrow">◣</span></td> \
+			<td title="进入本帖星视图"></td><td></td><td></td><td title="进入本帖链视图"><span class="lasttime"></span></td></tr>' );
 		TreeLine.data( 'atclid', parentId );
 		TreeLine.children( 'td:eq(1)' ).css( 'padding-left', ( layer * 7 ) + 'px' );
-		var Prefix = rootId == parentId ? '●' : layer == 0 ? '◇' : '◆';
-		TreeLine.children( 'td:eq(1)' ).html( Prefix + '<span class="title">' + Parent[1].slice( 0, 99 ) + '</span>' );
+		var Prefix = $( '<span>' + ( rootId == parentId ? '●' : layer == 0 ? '◇' : '◆' ) + '</span>' );
+		var PrfInfo = {
+				0: ['prfblocked', '已阻断'],
+				1: ['prfunread', '未裁处'],
+				2: ['prfpassed', '已通过'],
+				3: ['prfcommended', '已推荐'],
+						}[Parent[2] + 1];
+		Prefix.addClass( PrfInfo[0] );
+		Prefix.attr( 'title', PrfInfo[1] );
+
+		TreeLine.children( 'td:eq(1)' ).html( '</span><span class="title">' + Parent[1].slice( 0, 99 ) + '</span>' );
+		TreeLine.children( 'td:eq(1)' ).prepend( Prefix );
 		TreeLine.children( 'td:eq(2)' ).html( Parent[0].NickName );
+		TreeLine.children( 'td:eq(2)' ).css( 'min-width', '68px' );
 		TreeLine.children( 'td:eq(3)' ).html( Parent[1].length + '字' );
-		TreeLine.children( 'td:eq(4)' ).html( this.ShowTime( Parent[0].CreateTime ));
+		TreeLine.children( 'td:eq(4)' ).children( 'span' ).html( this.ShowTime( Parent[0].CreateTime ));
 		tbody.append( TreeLine );
 		_( Parent[0].Children || [] ).chain().reverse().each( function( childId )
 		{
@@ -553,7 +676,7 @@ var Forum = function( owner )
 		var ParentId = 'Atcl_' + replyData[1][0].ParentID;
 		var Parent = $( '#' + ParentId );
 		var NewAtcl = this.ShowSingleAtcl( replyData );
-		$( '.atcltop>.lineright>span', NewAtcl ).click( SetSize );
+		$( '.atcltop>.lineright>span', NewAtcl ).click( SetView );
 		$( '.reply', NewAtcl ).click( EnableReply );
 		NewAtcl.hide();
 		Parent.after( NewAtcl );
