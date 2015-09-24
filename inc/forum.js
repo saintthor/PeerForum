@@ -220,6 +220,23 @@ var Forum = function( owner )
 		return c.replace( /\&/g, '&amp;' ).replace( /\>/g, '&gt;' ).replace( /\</g, '&lt;' ).replace( /\n/g, '<br/>' );
 	};
 
+	this.ChkContentVisible = function( atclbody, authStatus, atcl )
+	{
+		if( authStatus >= 0 && atcl[2] >= 0 )
+		{
+			atclbody.html( frm.ShowContent( atcl[1] ));
+		}
+		else
+		{
+			var info = atcl[2] < 0 ? '因被阻断内容不可见。' : '因用户被屏蔽内容不可见。';
+			atclbody.html( info + '<button>点此查看</button>' );
+			atclbody.children( 'button' ).click( function()
+			{
+				$( this ).parent().html( frm.ShowContent( atcl[1] ));
+			} );
+		}
+	};
+
 	this.ShowSingleAtcl = function( atclData )
 	{
 		console.log( atclData );
@@ -234,8 +251,7 @@ var Forum = function( owner )
 			<span class="star" title="星视图">星</span> \
 			</span></div><div class="atclid"></div><div class="atclbody"></div> \
 			<div class="atclfoot"><span class="manage"></span><span class="lineright"> \
-			<!--button class="like">赞<span class="likenum"></span></button--> \
-			<button class="reply">回复</button></span></div> \
+			<button class="edit">编辑</span></button><button class="reply">回复</button></span></div> \
 			</td></tr></tbody></table><div></div></div>' );
 
 		var AuthPubKey = atclData[1][0].AuthPubKey;
@@ -245,28 +261,21 @@ var Forum = function( owner )
 		NameDiv.html( atclData[1][0].NickName );
 		NameDiv.attr( 'title', '用户公钥：' + AuthPubKey );
 
-		if( AuthStatus >= 0 )
-		{
-			$( '.atclbody', AtclDiv ).html( frm.ShowContent( atclData[1][1] ));
-		}
-		else
-		{
-			$( '.atclbody', AtclDiv ).html( '因用户被屏蔽内容不可见。<button>点此查看</button>' );
-			$( '.atclbody>button', AtclDiv ).click( function()
-			{
-				$( this ).parent().html( frm.ShowContent( atclData[1][1] ));
-			} );
-		}
-
+		this.ChkContentVisible( $( '.atclbody', AtclDiv ), AuthStatus, atclData[1] );
 		this.SetManageBtns( $( '.manage', AtclDiv ), atclData[1][2] );
 
 		$( '.randomart', AtclDiv ).html( frm.RandomArt( str_md5( AuthPubKey )));
-		$( '.manageuser', AtclDiv ).append( AuthStatus >= 0 ? '<button class="blockbtn">屏蔽</button>' : '<button class="unblockbtn">解除屏蔽</button>' );
-		$( '.manageuser', AtclDiv ).append( AuthStatus <= 0 ? '<button class="followbtn">关注</button>' : '<button class="unfollowbtn">取消关注</button>' );
 		$( '.time', AtclDiv ).html( frm.ShowTime( atclData[1][0].CreateTime ));
 		$( '.atclid', AtclDiv ).html( '&nbsp;' + atclData[0] );
 		//$( '.likenum', AtclDiv ).html(( atclData[1][0].Liked || [] ).length );
 		$( '.atclfoot', AtclDiv ).data( 'atclid', atclData[0] );
+
+		if( AuthPubKey != frm.Owner.CurUser[0] )
+		{
+			$( '.edit', AtclDiv ).remove();
+			$( '.manageuser', AtclDiv ).append( AuthStatus >= 0 ? '<button class="blockbtn">屏蔽</button>' : '<button class="unblockbtn">解除屏蔽</button>' );
+			$( '.manageuser', AtclDiv ).append( AuthStatus <= 0 ? '<button class="followbtn">关注</button>' : '<button class="unfollowbtn">取消关注</button>' );
+		}
 
 		return AtclDiv;
 	};
@@ -275,7 +284,7 @@ var Forum = function( owner )
 	{
 		return {
 			0: '<button class="pass">放行</button><button class="commend">推荐</button>',
-			1: '<button class="block">阻断</button><button class="pass passing">放行</button><button class="commend">推荐</button>',
+			1: '<button class="block">阻断</button><button class="pass">放行</button><button class="commend">推荐</button>',
 			2: '<button class="block">阻断</button><button class="commend">推荐</button>',
 			3: '<button class="block">阻断</button><button class="uncommend">取消推荐</button>',
 				}[status + 1];
@@ -288,7 +297,7 @@ var Forum = function( owner )
 		dom.append( '<span class="query" title="">？</span>' );
 		dom.children( '.query' ).mouseover( function()
 		{
-			$( this ).append( '<div class="pop">在飘上，没有管理员。每一位用户都是自己节点的管理员，可以决定自己的节点上有哪些帖子可以被其它节点读取。<br>每个帖子的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种操作。<br>只有已放行或已推荐的帖子可以被其它节点读取，未裁处和已阻断的帖子不能被读取。<br>其它节点可以选择只读取经过推荐的帖子。<br>已阻断、已通过、已推荐的帖子也可以重置到另外的状态，但不能恢复到未裁处状态。<br>当其它节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断了来自你的帖子，它对你的评级会下降。评级决定了它会更多还是更少地从你的节点获取内容。<br>飘的和谐与自由仰赖每一位用户对帖子的公正裁处。阻断那些含有<b>攻击谩骂、粗话、挑衅、恐吓、欺诈、诅咒、歧视</b>的内容，阻断那些你不相信的内容，阻断那些无聊灌水的内容，放行及推荐优质的帖子，将好的传递给他人。<br>你为他人所做，也是他人为你所做的。</div>' );
+			$( this ).append( '<div class="pop">在飘上，没有管理员。每一位用户都是自己节点的管理员，可以决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可以被邻节点读取，未裁处和已阻断的帖子不能被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点及用户的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。</div>' );
 		} );
 
 		dom.children( '.query' ).mouseout( function()
@@ -355,8 +364,9 @@ var Forum = function( owner )
 
 	this.SetTopicData = function( treeData )
 	{
-		var Tree = this.TopicObj[treeData[0]] = _( treeData[1] ).omit( function( v )
+		var Tree = this.TopicObj[treeData[0]] = _( treeData[1] ).omit( function( v, k )
 		{
+			v[0].Id = k;
 			return v[0].Type == 1;
 			/*if( v[0].Type == 1 )
 			{
@@ -470,8 +480,9 @@ var Forum = function( owner )
 
 		$( '#atclarea .atcltop>.linemiddle>span' ).click( SetSize );
 		$( '#atclarea .atcltop>.lineright>span' ).click( SetView );
-
 		$( '#atclarea .reply' ).click( EnableReply );
+
+		this.SetClickManage( $( '#atclarea .manage' ));
 
 		/*$( '.like' ).click( function()
 		{
@@ -596,7 +607,10 @@ var Forum = function( owner )
 		{
 			if( !atcl )
 			{
-
+				var RootId = $( this ).closest( '#atclarea' ).data( 'root' );
+				var AtclId = $( this ).closest( '.atclfoot' ).data( 'atclid' );
+				console.log( RootId, AtclId );
+				atcl = frm.TopicObj[RootId][AtclId];
 			}
 			atcl[2] = {
 				'pass': 1,
@@ -605,13 +619,37 @@ var Forum = function( owner )
 				'uncommend': 1,
 					}[$( this ).attr( 'class' )];
 
-			frm.ReDrawAtcl( $( this ).closest( 'td' ));
+			frm.ReDrawAtcl( $( this ).closest( 'td' ), atcl );
+			frm.Owner.Post( {
+					cmd: 'SetStatus',
+					atclId: atcl[0].Id,
+					status: atcl[2]
+							}, 'GetResult' );
 		} );
 	};
 
-	this.ReDrawAtcl = function( TD )
+	this.ReDrawAtcl = function( TD, atcl )
 	{
+		if( TD.parent().hasClass( 'treeview' ))
+		{
+			var PrfInfo = {
+					0: ['prfblocked', '已阻断'],
+					1: ['prfunread', '未裁处'],
+					2: ['prfpassed', '已通过'],
+					3: ['prfcommended', '已推荐'],
+							}[atcl[2] + 1];
 
+			var Prefix = TD.children( 'span:eq(0)' );
+			Prefix.removeClass();
+			Prefix.addClass( PrfInfo[0] );
+			Prefix.attr( 'title', PrfInfo[1] );
+			$( '.setstatus', TD ).remove();
+		}
+		else
+		{
+			this.SetManageBtns( $( '.manage', TD ), atcl[2] );
+			this.SetClickManage( $( '.manage', TD ), atcl );
+		}
 	};
 
 	this.ShowTree = function( rootId )

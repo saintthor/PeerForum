@@ -159,6 +159,13 @@ class PeerForum( object ):
         return { 'Like': Like.Show() }
     
     @classmethod
+    def cmdSetStatus( cls, param ):
+        ""
+        Atcl = Article.Get( param['atclId'] )
+        Atcl.SetStatus( param['status'] )
+        return { 'SetStatus': 'ok' }
+    
+    @classmethod
     def cmdReply( cls, param ):
         ""
         Reply = Article.New( cls.LocalUser, ParentID = param['parent'], RootID = param['root'],

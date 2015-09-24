@@ -243,6 +243,11 @@ def SaveArticle( **param ):
         print sql
         cursor.execute( sql, vals )
 
+def SetAtclStatus( atclId, status ):
+    ""
+    with SqliteDB() as cursor:
+        cursor.execute( 'update article set status = ? where id = ?', ( status, atclId ))
+        
 def UpdateArticles():
     "check destroy, del FromNode"
     t = int( time() * 1000 )

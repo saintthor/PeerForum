@@ -14,7 +14,7 @@ import traceback
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
                      GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels, GetTopicRowById, \
-                     GetTopicRows
+                     GetTopicRows, SetAtclStatus
 from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser, TopicNumPerPage
 
 class Article( object ):
@@ -137,6 +137,17 @@ class Article( object ):
         ""
         return self.ItemD.get( 'Labels' ).replace( u'，', ',' ).split( ',' )
         
+    def SetStatus( self, status ):
+        ""
+        self.status = status
+        SetAtclStatus( self.id, status )
+        self.Uncache()
+    
+    def Uncache( self ):
+        "del from cache."
+        self.LiveD.pop( self.id )
+        RootId = self.ItemD.get( 'RootID', self.id )
+        Topic.LiveD.pop( RootId )
         
     @classmethod
     def New( cls, user, Type = 0, content = '', life = 0, **kwds ):
