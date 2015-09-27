@@ -7,6 +7,7 @@
 		.header { background-color: #65f; padding: 50px; color: white; }
 		table { width: 100%; }
 		table.main { width: 96%; }
+		td#leftarea>div { overflow-y: auto; }
 		td#rightarea { width: 240px; border: solid #4a3 1px; }
 		td>div { padding: 5px; margin-top: 2px; }
 		div#logo { height: 160px; }
@@ -33,10 +34,11 @@
 		span.lasttime { cursor: pointer; font-size: 0.9em; }
 		span.tpclabel { font-size: 0.7em; color: #272; cursor: pointer; margin-left: 3px; }
 		span.firsttime { color: #777; font-size: 0.9em; }
+		span.eof { color: #99b; font-size: 0.8em; }
 		div.randomart { font-family: Courier; padding-left: 8px; color: #c2d; font-size: 12px; line-height: 10px; }
 		div.atcltop { font-size: 0.8em; border-bottom: solid #4a3 1px; height: 12px; padding-top: 1px; padding-bottom: 3px; }
 		div#atclarea button { font-size: 0.9em; padding-top: 0px; padding-bottom: 0px; }
-		div.atclbody { min-height: 85px; }
+		div.atclbody { min-height: 85px;  padding-bottom: 20px;}
 		div.atclfoot { font-size: 0.8em; height: 12px; border-top: solid #4a3 1px; }
 		div.atclid { font-size: 0.7em; margin-bottom: 5px; color: #999; padding: 0; margin-top:  0; }
 		span.lineright { float: right; }
@@ -52,7 +54,8 @@
 		span.remove { color: gray; cursor: pointer; font-size: 1.5em; padding-left: 4px; padding-right: 4px; text-align: top; background-color: white; }
 		span.query { color: #0c0; cursor: pointer; font-size: 1.2em; padding-left: 4px; padding-right: 4px; text-align: top; background-color: white; margin: 0; }
 		div.pop { position: absolute; background-color: white; width: 400px; color: #120; font-size: 14px; line-height: 18px; padding: 8px; border: solid #4a3 1px; }
-		div.setstatus { position: absolute; };
+		div.setstatus { position: absolute; }
+		span.timer { margin-left: 5px; color: red; }
 	</style>
 	<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
 	<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
@@ -129,12 +132,19 @@ var PeerForum = function()
 {
 	var pf = this;
 	this.Info = { warning: [], error: [], info: [] };
-//console.log( str_md5( 'ssssssssssssseeeeeeeeeee' ));
+
 	this.Init = function()
 	{
-		//this.Info = { warning: [], error: [], info: [] };
-		//this.Forum = new Forum();
 		this.PageIdx = {};
+		this.Height = document.documentElement.clientHeight;
+  		$( 'td#leftarea>div' ).css( 'height', pf.Height - 35 + 'px' );
+
+		$( window ).resize( function()
+		{
+  			pf.Height = document.documentElement.clientHeight;
+  			//console.log( pf.Height );
+  			$( 'td#leftarea>div' ).css( 'height', pf.Height - 35 + 'px' );
+		} );
 
 		var ItemBox = $( '#itembox' );
 		[
@@ -361,6 +371,7 @@ var PeerForum = function()
 
 	this.Post = function( params, dataFunc, errFunc )
 	{
+		console.log( 'Post', params );
 		$.post( '/', params, function( data )
 		{
 			var Result = JSON.parse( data );

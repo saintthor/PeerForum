@@ -119,7 +119,13 @@ class Article( object ):
     
     def Show( self ):
         "show to ui"
-        return self.ItemD, self.content, self.status
+        ShowData = {
+                'atclId': self.id,
+                'content': self.content,
+                'status': self.status,
+                    }
+        ShowData.update( self.ItemD )
+        return ShowData
         
     def IsRoot( self ):
         ""
@@ -145,9 +151,10 @@ class Article( object ):
     
     def Uncache( self ):
         "del from cache."
-        self.LiveD.pop( self.id )
+        if self.id in self.LiveD:
+            self.LiveD.pop( self.id )
         RootId = self.ItemD.get( 'RootID', self.id )
-        Topic.LiveD.pop( RootId )
+        Topic.Uncache( RootId )
         
     @classmethod
     def New( cls, user, Type = 0, content = '', life = 0, **kwds ):
@@ -386,6 +393,12 @@ class Topic( object ):
         
         for topic in cls.GetMulti( *RootIds ):
             yield topic
+    
+    @classmethod
+    def Uncache( cls, rootId ):
+        ""
+        if rootId in cls.LiveD:
+            cls.LiveD.pop( rootId )
     
     @classmethod
     def ListPage( cls, label, offset, sortCol ):
