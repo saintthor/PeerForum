@@ -1,18 +1,21 @@
-var Input = function( tr, parentId, submitFunc )
+var Input = function( tr, parentId, protoId, submitFunc )
 {
 	var input = this;
 
 	this.TR = tr;
 	this.IsRoot = !parentId;
+	this.IsEdit = !!protoId;
 	this.ParentId = parentId;
+	this.ProtoId = protoId;
 	this.SubmitFunc = submitFunc;
 
 	this.Draw = function()
 	{
 		this.TR.html( '<td class="ubbbtns" width="150px"></td><td class="tpctd"> \
 			<textarea name="article" rows="16" cols="100" style="overflow:auto; width:98%;" \
-			 placeholder="在此输入帖子内容。第一行为标题。"></textarea><br/><button> 提 交 </button> \
-			 <div class="note"/></td>' );
+			 placeholder="在此输入帖子内容。第一行为标题。"></textarea><br/> \
+			 <input type="checkbox" checked=true/>自动排版<span class="query" title="">？</span> \
+			 <button> 提 交 </button><div class="note"/></td>' );
 
 		if( this.IsRoot )
 		{
@@ -22,20 +25,52 @@ var Input = function( tr, parentId, submitFunc )
 				</select><input type="text" placeholder="在此输入标签，用逗号分隔。不能为空。"/>' );
 		}
 
+		QueryPop( this.TR.children( 'td' ).children( '.query' ), 'autoedit' );
+		this.UBB = new UBBObj( this.TR.children( 'td.ubbbtns' ), $( 'textarea', this.TR ));
+
 		$( 'button', this.TR ).click( function()
 		{
 			$( '.note', input.TR ).html( '' );
 
 			var Content = $( 'textarea', input.TR ).val();
-			Content = _( Content.split( '\n' )).chain().map( function( ln )
+			try
 			{
-				return ln.replace( /^\s+|\s+$/g, '' );
-			} ).filter( function( ln )
+				input.UBB.Check( Content );
+			}
+			catch( e )
 			{
-				return ln > '';
-			} ).value().join( '\n\n' );
+				alert( 'UBB　标签错误，请改正后再提交。' );
+				return;
+			}
 
-			if( input.IsRoot )
+			if( $( ':checkbox', input.TR ).prop( 'checked' ))
+			{
+				Content = _( Content.split( '\n' )).chain().map( function( ln )
+				{
+					return ln.replace( /^\s+|\s+$/g, '' );
+				} ).filter( function( ln )
+				{
+					return ln > '';
+				} ).value().join( '\n\n' );
+			}
+
+			if( Content.length < 1 )
+			{
+				$( '.note', input.TR ).html( '帖子不能为空。' );
+				return;
+			}
+
+			if( input.IsEdit )
+			{
+				var AtclData = {
+					'cmd': 'Edit',
+					'proto': input.ProtoId,
+					'parent': input.ParentId,
+					'content': Content,
+								};
+
+			}
+			else if( input.IsRoot )
 			{
 				if( Content.length < 20 )
 				{
@@ -59,14 +94,8 @@ var Input = function( tr, parentId, submitFunc )
 					'life': 86400000 * $( '.tpctd>select' ).children( 'option:selected' ).val(),
 								};
 			}
-			else
+			else	//is reply
 			{
-				if( Content.length < 1 )
-				{
-					$( '.note', input.TR ).html( '帖子不能为空。' );
-					return;
-				}
-
 				var AtclData = {
 					'cmd': 'Reply',
 					'parent': input.ParentId,
@@ -81,6 +110,36 @@ var Input = function( tr, parentId, submitFunc )
 
 	this.Draw();
 };
+
+function QueryPop( dom, k )
+{
+	dom.mouseover( function()
+	{
+		var html = {
+			'views': '三种视图，是在一个话题里排列帖子的三种不同方式。<br>流视图是像一般的论坛那样，将话题里的所有帖子按时间排列显示，不表达帖子间的回复关系。<br>链视图与星视图分别选取话题中与当前帖子相关的上级或下级帖子，用于在庞大的帖子树里，快速呈现自己关心的部分。<br>一个帖子的链视图是此帖的所有上级帖子的集合，是从这个帖子向上追溯到根帖的回复路径。当前帖子在最下，根帖在最上。<br>一个帖子的星视图是此帖的所有下级帖子的集合，当前帖子在最上，下面是直接回复它的帖子，再下面是回复那些回复帖的帖子，逐层排列。',
+			'manage': '在飘上，没有管理员。每一位用户都是自己节点的管理员，有权决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的倒计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可被邻节点读取，未裁处和已阻断的帖子不可被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点及用户的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。',
+			'userpubk': '飘没有用户系统，不同的用户可能有相同的用户名，因此，需要以用户公钥来区分用户。用鼠标指向用户名可见用户公钥，公钥很长，不好认，从公钥生成一个 RandomArt，就是下面这个字符组成的小图，就容易识别了。用户公钥（RandomArt）相同就是同一个人，用户名是随时可以改的。',
+			'autoedit': '选中自动排版，会在提交时去掉内容中每一段前后的空格，并在段与段之间插入一个空行。<br/>如果帖子里含有程序代码之类对格式要求严格的内容，不应选中自动排版。',
+		}[k];
+
+		var PopDiv = $( '<div class="pop">' + html + '</div>' );
+		$( this ).append( PopDiv );
+		PopDiv.css( 'top', $( this ).offset().top + parseInt( $( this ).css( 'height' )) + 'px' );
+
+		var WndRight = $( window ).width();
+		//console.log( WndRight, PopDiv.offset().left, parseInt( PopDiv.css( 'width' )));
+		if( PopDiv.offset().left + parseInt( PopDiv.css( 'width' )) > WndRight )
+		{
+			//console.log( WndRight - parseInt( PopDiv.css( 'width' )) + 'px' );
+			PopDiv.css( 'left', WndRight - parseInt( PopDiv.css( 'width' )) - 40 + 'px' );
+		}
+	} );
+
+	dom.mouseleave( function()
+	{
+		$( this ).children( '.pop' ).remove();
+	} );
+}
 
 var Passer = function( bodyDiv, passFunc )
 {
@@ -114,7 +173,7 @@ var Passer = function( bodyDiv, passFunc )
 	{
 		var top = $( window ).scrollTop();
 		var bottom = top + $( window ).height();
-		console.log( y, top, bottom );
+		//console.log( y, top, bottom );
 		return y >= top && y <= bottom;
 	};
 
@@ -156,39 +215,13 @@ var Forum = function( owner )
 		{
 			//alert( 'ssssss' );
 			$( '#tpcinput' ).toggle( 350 );
-		} );
-
-		$( '.tpctd>button' ).click( function()
-		{
-			//console.log( 'newtopic' );
-			var Content = $( '.tpctd>textarea' ).val()
-			if( Content.length < 20 )
+			if( $( '#tpcinput td' ).length == 0 )
 			{
-				$( '.tpctd>.note' ).html( '帖子内容不能少于 20 字。' );
-				return;
+				new Input( $( '#tpcinput tr' ), null, null, function( data )
+				{
+					frm.Owner.Post( data, 'GetResult' );
+				} );
 			}
-
-			var AtclLabels = $( '.tpctd>:text' ).val()
-
-			//console.log( AtclLabels );
-			if( !AtclLabels )
-			{
-				$( '.tpctd>.note' ).html( '标签不能为空。' );
-				return;
-			}
-
-			$( '.tpctd>.note' ).html( '' );
-
-			var TopicData = {
-				'cmd': 'NewTopic',
-				'content': Content,
-				'Labels': AtclLabels,
-				'life': 86400000 * $( '.tpctd>select' ).children( 'option:selected' ).val(),
-			};
-
-			console.log( TopicData );
-
-			frm.Owner.Post( TopicData, 'GetResult' );
 		} );
 
 		$( '#firstth' ).click( function()
@@ -276,7 +309,7 @@ var Forum = function( owner )
 	
 	this.ShowContent = function( c )
 	{
-		return c.replace( /\&/g, '&amp;' ).replace( /\>/g, '&gt;' ).replace( /\</g, '&lt;' ).replace( /\n/g, '<br/>' );
+		return c.replace( /\&/g, '&amp;' ).replace( / /g, '&nbsp;&nbsp;' ).replace( /\>/g, '&gt;' ).replace( /\</g, '&lt;' ).replace( /\n/g, '<br/>' );
 	};
 
 	this.ChkContentVisible = function( atclbody, authStatus, atcl )
@@ -284,14 +317,18 @@ var Forum = function( owner )
 		if( authStatus >= 0 && atcl.status >= 0 )
 		{
 			atclbody.html( frm.ShowContent( atcl.content ));
+			var UBB = new UBBObj();
+			UBB.Show( atclbody );
 		}
 		else
 		{
-			var info = atcl.status < 0 ? '因被阻断内容不可见。' : '因用户被屏蔽内容不可见。';
+			var info = atcl.status < 0 ? '因帖子被阻断内容不可见。' : '因用户被屏蔽内容不可见。';
 			atclbody.html( info + '<button>点此查看</button>' );
 			atclbody.children( 'button' ).click( function()
 			{
 				$( this ).parent().html( frm.ShowContent( atcl.content ));
+				var UBB = new UBBObj();
+				UBB.Show( atclbody );
 			} );
 		}
 	};
@@ -300,17 +337,17 @@ var Forum = function( owner )
 	{
 		console.log( atclData );
 		var AtclDiv = $( '<div class="atcl" id="Atcl_' + atclData[0] + '"><table><tbody><tr> \
-			<td class="atclleft"><div class="nickname"></div> \
+			<td class="atclleft"><div class="nickname"/><span class="query" title="">？</span>\
 			<div class="randomart" title="不同用户可能有相同的用户名，\n可通过 RandomArt 识别用户。"></div> \
 			<div class="manageuser"></div></td><td class="atclright"><div class="atcltop"> \
 			<span class="time"></span><span class="linemiddle"> \
 			<span class="bigger" title="放大帖子正文">大</span><span class="smaller" title="缩小帖子正文">小</span> \
 			</span><span class="lineright"><span class="flow" title="流视图">流</span> \
 			<span class="link" title="链视图">链</span> \
-			<span class="star" title="星视图">星</span> \
+			<span class="star" title="星视图">星</span><span class="query" title="">？</span> \
 			</span></div><div class="atclid"></div><div class="atclbody"></div> \
 			<div class="atclfoot"><span class="manage"></span><span class="lineright"> \
-			<button class="edit">编辑</span></button><button class="reply">回复</button></span></div> \
+			<!--button class="edit">编辑</button--><button class="reply">回复</button></span></div> \
 			</td></tr></tbody></table><div></div></div>' );
 
 		var AuthPubKey = atclData[1].AuthPubKey;
@@ -333,6 +370,11 @@ var Forum = function( owner )
 
 		$( '.randomart', AtclDiv ).html( frm.RandomArt( str_md5( AuthPubKey )));
 		$( '.time', AtclDiv ).html( frm.ShowTime( atclData[1].CreateTime ));
+		if( atclData[1].DestroyTime < atclData[1].CreateTime + 10000 * 1000 * 86400 )
+		{
+			var DestroyTime = $( '<div class="destroytime" title="失效时间">~' + this.ShowTime( atclData[1].DestroyTime ) + '</div>' );
+			$( '.atclbody', AtclDiv ).after( DestroyTime );
+		}
 		$( '.atclid', AtclDiv ).html( atclData[0] );
 		//$( '.likenum', AtclDiv ).html(( atclData[1][0].Liked || [] ).length );
 		$( '.atclfoot', AtclDiv ).data( 'atclid', atclData[0] );
@@ -362,15 +404,7 @@ var Forum = function( owner )
 		console.log( dom, status );
 		dom.html( this.GetSetStatusBtns( status ));
 		dom.append( '<span class="query" title="">？</span>' );
-		dom.children( '.query' ).mouseover( function()
-		{
-			$( this ).append( '<div class="pop">在飘上，没有管理员。每一位用户都是自己节点的管理员，可以决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可以被邻节点读取，未裁处和已阻断的帖子不能被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点及用户的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。</div>' );
-		} );
-
-		dom.children( '.query' ).mouseleave( function()
-		{
-			$( this ).children( '.pop' ).remove();
-		} );
+		QueryPop( dom.children( '.query' ), 'manage' );
 
 		[
 			['.commend', '推荐这个帖子，以使其他节点优先读取。'],
@@ -418,7 +452,7 @@ var Forum = function( owner )
 		var RootId = $( this ).closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
 
 		console.log( $( this ).closest( '.atclfoot' ).data( 'atclid' ));
-		new Input( TR, $( this ).closest( '.atclfoot' ).data( 'atclid' ), function( data )
+		new Input( TR, $( this ).closest( '.atclfoot' ).data( 'atclid' ), null, function( data )
 		{
 			data.root = RootId;
 			frm.Owner.Post( data, 'GetResult' );
@@ -547,6 +581,9 @@ var Forum = function( owner )
 			$( 'body' ).animate( { scrollTop: 2000 }, 1000 );
 		}
 
+		QueryPop( $( '#atclarea .atclleft .query' ), 'userpubk' );
+		QueryPop( $( '#atclarea .atcltop .query' ), 'views' );
+
 		$( '#atclarea .atcltop>.linemiddle>span' ).click( SetSize );
 		$( '#atclarea .atcltop>.lineright>span' ).click( SetView );
 		$( '#atclarea .reply' ).click( EnableReply );
@@ -597,6 +634,7 @@ var Forum = function( owner )
 				var AppendAtcl = $( '<tr id="Append_' + AtclId + '"><td colspan=5></td></tr>' );
 
 				AppendAtcl.children( 'td' ).append( frm.ShowSingleAtcl( [AtclId, Atcl] ));
+				QueryPop( $( '.atclleft .query', AppendAtcl ), 'userpubk' );
 				$( '.atcltop>.lineright>span', AppendAtcl ).click( SetView );
 				$( '.reply', AppendAtcl ).click( EnableReply );
 
@@ -778,6 +816,7 @@ var Forum = function( owner )
 		var NewAtcl = this.ShowSingleAtcl( replyData );
 		$( '.atcltop>.lineright>span', NewAtcl ).click( SetView );
 		$( '.reply', NewAtcl ).click( EnableReply );
+		QueryPop( $( '.atclleft .query', NewAtcl ), 'userpubk' );
 		NewAtcl.hide();
 		Parent.after( NewAtcl );
 		NewAtcl.show( 400 );
@@ -883,6 +922,14 @@ var Forum = function( owner )
 		}
 		return d.getFullYear() + '-' + this.FillZero( d.getMonth() + 1 ) + '-' + this.FillZero( d.getDate()) + ' '
 				+ this.FillZero( d.getHours()) + ':' + this.FillZero( d.getMinutes()) + ':' + this.FillZero( d.getSeconds());
+	};
+
+	this.ResetNewTpcInput = function()
+	{
+		$( '#tpcinput' ).hide( 300, function()
+		{
+			$( '#tpcinput td' ).remove();
+		} );
 	};
 
 	this.TopicTR = function( tpcdata )

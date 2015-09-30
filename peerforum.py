@@ -186,12 +186,12 @@ class PeerForum( object ):
     @classmethod
     def cmdNewTopic( cls, topic ):
         ""
-        print topic['Labels']
+        print topic['Labels'], topic['life']
         life = int( topic['life'] )
         Labels = topic['Labels'].decode( 'utf-8' )
         content = topic['content'].decode( 'utf-8' )
         
-        Root = Article.New( cls.LocalUser, life = life, Labels = Labels, content = content )
+        Root = Article.New( cls.LocalUser, content = content, life = life, Labels = Labels )
         Root.Save()
         return { 'NewTopic': Topic.ListById( Root.id ) }
     

@@ -36,7 +36,7 @@ class Article( object ):
         ""
         if Id is None:                  #create
             self.ItemD = itemD
-            self.status = 1
+            self.status = 0
             self.ItemStr = dumps( itemD )
             self.id = sha1( self.ItemStr ).hexdigest()
         else:                           #receive or load from local
@@ -67,6 +67,7 @@ class Article( object ):
                 'content': self.content,
                 'Type': self.ItemD['Type'],
                 'CreateTime': self.ItemD['CreateTime'],
+                'DestroyTime': self.ItemD.get( 'DestroyTime', 9999999999999 ),
                 'AuthPubKey': self.ItemD['AuthPubKey'],
                     } )
         
@@ -183,11 +184,11 @@ class Article( object ):
 
         for k in kwds.viewkeys() & { 'RootID', 'ParentID', 'ProtoID', 'Labels' }:
             itemD[k] = kwds[k]      #all texts should be encoded to utf-8
-            if k == 'ParentID':
+            if k == 'ParentID' and 'DestroyTime' in itemD:
                 Parent = cls.Get( kwds[k] )
                 itemD['DestroyTime'] = Parent.ItemD.get( 'DestroyTime', 9999999999999 )     #only root has destroytime
         
-        #print 'Article.New', itemD
+        print 'Article.New', life, itemD
         Atcl = cls( None, itemD = itemD, content = content )
         
         if Atcl.IsRoot():

@@ -1,73 +1,19 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-CN" lang="zh-CN">
   <head>
-	<style type="text/css">
-		body { font-size: 14px; font-family: 宋体,Arial,Helvetica,sans-serif; line-height: 18px; }
-		button { cursor: pointer; }
-		.header { background-color: #65f; padding: 50px; color: white; }
-		table { width: 100%; }
-		table.main { width: 96%; }
-		td#leftarea>div { overflow-y: auto; }
-		td#rightarea { width: 240px; border: solid #4a3 1px; }
-		td>div { padding: 5px; margin-top: 2px; }
-		div#logo { height: 160px; }
-		div.title { cursor: pointer; }
-		div.content { max-height: 180px; overflow-y: auto; border-left: solid #4a3 1px; }
-		div#newtpcbtn { padding: 5px; margin-top: 0; background-color: #8f7; cursor: pointer; }
-		span.arrow { padding-left: 4px; padding-right: 4px; cursor: pointer; }
-		td>span.arrow { color: red; }
-		span.newnum { padding-left: 4px; padding-right: 4px; color: red; }
-		div.atcllabel { float: left; padding: 4px; margin-left: 4px; margin-top: 3px; cursor: pointer; border: solid #4a3 1px; }
-		div.alllabelidx { cursor: pointer; }
-		div.alluseridx { cursor: pointer; }
-		div#tpcinput { border: solid #8f7 1px; margin-bottom: 5px; }
-		div.ubbbtn { float: left; padding: 2px; padding-left: 4px; padding-right: 4px; margin-left: 2px; margin-top: 2px; cursor: pointer; border: solid #4a3 1px; }
-		div#returntolist { cursor: pointer; background-color: #8f7; }
-		th { border: solid #4a3 1px; color: #272; }
-		th#firstth, th#lastth { cursor: pointer; }
-		tr.new { background-color: #ffd; }
-		td { border-bottom: solid #4a3 1px; vertical-align: top; }
-		td.num { text-align: center; }
-		td.atclleft { width: 170px; border: solid #4a3 1px; }
-		td.atclright { border-right: solid #4a3 1px; border-top: solid #4a3 1px; border-bottom: solid #4a3 1px; }
-		span.title { cursor: pointer; margin-left: 3px; }
-		span.lasttime { cursor: pointer; font-size: 0.9em; }
-		span.tpclabel { font-size: 0.7em; color: #272; cursor: pointer; margin-left: 3px; }
-		span.firsttime { color: #777; font-size: 0.9em; }
-		span.eof { color: #99b; font-size: 0.8em; }
-		div.randomart { font-family: Courier; padding-left: 8px; color: #c2d; font-size: 12px; line-height: 10px; }
-		div.atcltop { font-size: 0.8em; border-bottom: solid #4a3 1px; height: 12px; padding-top: 1px; padding-bottom: 3px; }
-		div#atclarea button { font-size: 0.9em; padding-top: 0px; padding-bottom: 0px; }
-		div.atclbody { min-height: 85px;  padding-bottom: 20px;}
-		div.atclfoot { font-size: 0.8em; height: 12px; border-top: solid #4a3 1px; }
-		div.atclid { font-size: 0.7em; margin-bottom: 5px; color: #999; padding: 0; margin-top:  0; }
-		span.lineright { float: right; }
-		.lineright>span { margin-left: 5px; cursor: pointer; }
-		span.linemiddle { margin-left: 15px; margin-right: 15px; }
-		span.bigger, span.smaller { cursor: pointer; margin-left: 4px; margin-right: 4px; }
-		tr.treeview { font-size: 0.9em; background-color: #f8f8f8; }
-		tr.treeview td { padding-left: 4px; padding-right: 4px; }
-		span.prfblocked { color: gray; cursor: pointer; font-size: 1.5em; }
-		span.prfunread { color: #00e; cursor: pointer; font-size: 1.5em; }
-		span.prfpassed { color: #2c0; cursor: pointer; font-size: 1.5em; }
-		span.prfcommended { color: #ec0; cursor: pointer; font-size: 1.5em; }
-		span.remove { color: gray; cursor: pointer; font-size: 1.5em; padding-left: 4px; padding-right: 4px; text-align: top; background-color: white; }
-		span.query { color: #0c0; cursor: pointer; font-size: 1.2em; padding-left: 4px; padding-right: 4px; text-align: top; background-color: white; margin: 0; }
-		div.pop { position: absolute; background-color: white; width: 400px; color: #120; font-size: 14px; line-height: 18px; padding: 8px; border: solid #4a3 1px; }
-		div.setstatus { position: absolute; }
-		span.timer { margin-left: 5px; color: red; }
-	</style>
 	<META HTTP-EQUIV="Pragma" CONTENT="no-cache">
 	<META HTTP-EQUIV="Cache-Control" CONTENT="no-cache">
 	<META HTTP-EQUIV="Expires" CONTENT="0">
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>飘</title>
+	<link rel="stylesheet" type="text/css" href="inc/all.css">
     <script language="javascript" src="inc/jq_1_11_1.js" type="text/javascript"></script>
     <script language="javascript" src="inc/underscore.js" type="text/javascript"></script>
     <script language="javascript" src="inc/forum.js" type="text/javascript"></script>
     <script language="javascript" src="inc/set.js" type="text/javascript"></script>
     <script language="javascript" src="inc/msg.js" type="text/javascript"></script>
     <script language="javascript" src="inc/md5.js" type="text/javascript"></script>
+    <script language="javascript" src="inc/ubb.js" type="text/javascript"></script>
   </head>
  <body>
 	<script language="javascript">
@@ -270,6 +216,15 @@ var PeerForum = function()
 	{
 		console.log( topic );
 		$( '#tpclist>table>tbody>tr:eq(0)' ).after( this.Forum.TopicTR( topic ));
+		var NewTR = $( '#tpclist>table>tbody>tr.new' );
+		this.Forum.SetAttr( NewTR );
+		$( 'span.arrow', NewTR ).click();
+		setTimeout( function()
+		{
+			pf.Forum.ResetNewTpcInput();
+			var TreeTR = NewTR.next( 'tr.tree' );
+			$( 'span.arrow', TreeTR ).click();
+		}, 500 );
 	};
 
 	this.ShowAtclPg = function( treeData )
@@ -404,7 +359,7 @@ $( function()
 											<table>
 												<tbody>
 													<tr>
-														<td class="editbtns" width="150px">
+														<!--td class="editbtns" width="150px">
 															<div class='ubbbtn' title='锚标'>a</div><div class='ubbbtn' title='粗体'>b</div><div class='ubbbtn' title='斜体'>i</div><div class='ubbbtn' title='带下划线'>u</div><div class='ubbbtn' title='带删除线'>s</div><div class='ubbbtn' title='上标'>sup</div><div class='ubbbtn' title='下标'>sub</div><div class='ubbbtn' title='块'>div</div><div class='ubbbtn' title='文字颜色'>color</div><div class='ubbbtn' title='文字尺寸'>size</div><div class='ubbbtn' title='禁止转义'>r</div><div class='ubbbtn' title='水平分隔线'>hr</div><div class='ubbbtn' title='链接'>url</div><div class='ubbbtn' title='帖子链接'>pl</div><div class='ubbbtn' title='图片'>pic</div><div class='ubbbtn' title='隐现器'>toggle</div><div class='ubbbtn' title='表格'>table</div><div class='ubbbtn' title='表格行'>tr</div><div class='ubbbtn' title='表格列'>td</div><div class='ubbbtn' title='选择器'>select</div><div class='ubbbtn' title='选择器选项'>choice</div><div class='ubbbtn' title='页内跳转'>goto</div><div class='ubbbtn' title='表情'>emote</div>
 														</td>
 														<td class="tpctd">
@@ -420,7 +375,7 @@ $( function()
 															<input type='text' placeholder="在此输入标签，用逗号分隔。不能为空。"/>
 															<button>　发　布　</button>
 															<div class="note"/>
-														</td>
+														</td-->
 													</tr>
 												</tbody>
 											</table>
