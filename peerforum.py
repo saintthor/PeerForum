@@ -174,6 +174,18 @@ class PeerForum( object ):
         return { 'Reply': [Reply.id, Reply.Show()] }
         
     @classmethod
+    def cmdAddLabel( cls, param ):
+        ""
+        NewLabelStr = Topic.EditLabel( param['rootId'], param['label'].decode( 'utf-8' ), '+' )
+        return { 'UpdateLabel': { param['rootId']: NewLabelStr }}
+        
+    @classmethod
+    def cmdDelLabel( cls, param ):
+        ""
+        NewLabelStr = Topic.EditLabel( param['rootId'], param['label'].decode( 'utf-8' ), '-' )
+        return { 'UpdateLabel': { param['rootId']: NewLabelStr }}
+        
+    @classmethod
     def cmdGetAtclTree( cls, param ):
         ""
         RplCmd = {

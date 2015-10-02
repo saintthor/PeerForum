@@ -35,10 +35,17 @@ span.eof { color: #99b; font-size: 0.8em; }
 div.randomart { font-family: Courier; padding-left: 8px; color: #c2d; font-size: 12px; line-height: 10px; }
 div.atcltop { font-size: 0.8em; border-bottom: solid #4a3 1px; height: 12px; padding-top: 1px; padding-bottom: 3px; }
 div#atclarea button { font-size: 0.9em; padding-top: 0px; padding-bottom: 0px; }
-div.atclbody { min-height: 85px;  padding-bottom: 20px;}
+div.atclbody { min-height: 85px;  padding-bottom: 20px; margin-top: 8px; }
 div.atclfoot { font-size: 0.8em; height: 12px; border-top: solid #4a3 1px; }
-div.atclid { font-size: 0.7em; margin-bottom: 5px; color: #999; padding-top: 0; margin-top:  0; }
-span.lineright { float: right; }
+div.atclneck { padding-top: 0; margin-top: 0; }
+div.atclid { font-size: 0.7em; margin-bottom: 0; padding-bottom: 0; color: #999; padding-top: 0; margin-top: 0; }
+span.lineright { float: right; max-width: 150px; }
+span.labels { font-size: 0.8em; width: 120px; text-align: right; }
+span.labels>span>span { font-size: 1.2em; padding-left: 3px; padding-right: 2px; color: blue; }
+span.staticlabel { float: right; margin-left: 4px; background-color: #dfd; padding-left: 2px; padding-right: 2px; }
+span.nodelabel { float: right; margin-left: 4px; background-color: #d0fad0; padding-left: 2px; padding-right: 2px; }
+div.addlabel { display: none; }
+span.labels input[type="text"] { width: 85px; }
 .lineright>span { margin-left: 5px; cursor: pointer; }
 span.linemiddle { margin-left: 15px; margin-right: 15px; }
 span.bigger, span.smaller { cursor: pointer; margin-left: 4px; margin-right: 4px; }
@@ -49,7 +56,7 @@ span.prfunread { color: #00e; cursor: pointer; font-size: 1.5em; }
 span.prfpassed { color: #2c0; cursor: pointer; font-size: 1.5em; }
 span.prfcommended { color: #ec0; cursor: pointer; font-size: 1.5em; }
 span.remove { color: gray; cursor: pointer; font-size: 1.5em; padding-left: 4px; padding-right: 4px; text-align: top; background-color: white; }
-span.query { color: #0c0; cursor: pointer; font-size: 12px; padding-left: 4px; padding-right: 4px; text-align: top; background-color: white; margin: 0; }
+span.query { color: #0c0; cursor: pointer; padding-left: 4px; padding-right: 4px; text-align: top; background-color: white; margin: 0; }
 div.pop { position: absolute; background-color: white; width: 400px; color: #120; font-size: 12px; line-height: 16px; padding: 8px; border: solid #4a3 1px; }
 div.setstatus { position: absolute; }
 div.destroytime { font-size: 0.7em; color: #999; margin-top: 10px; }
@@ -68,3 +75,4 @@ span.selkey { cursor: pointer; padding-left: 7px; padding-right: 7px; padding-to
 div.emarea { position: absolute; height: 240px; width:240px; overflow-y: auto; background-color: #ffd }
 div.head { padding-top: 2px; padding-bottom: 2px; line-height: 32px; }
 a.goto { cursor: pointer; }
+span.target { padding-right: 6px; color: #f33; }

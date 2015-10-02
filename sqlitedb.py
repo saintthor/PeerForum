@@ -8,6 +8,8 @@ Created on Sun Jun 14 17:20:40 2015
 import os
 import sqlite3
 import traceback
+import re
+
 from rsa1 import PrivateKey, PublicKey
 from time import time
 from json import loads
@@ -271,7 +273,7 @@ def DelTopicLabels( topicId, labels ):
     NOTE:
     use this api to delete both static labels and node labels in this node.
     when sending to other nodes, the deleted static labels will also be sent.
-    because the static labels can be changed only by the author's edition.
+    because the static labels can not be changed after creation.
     """
     with SqliteDB() as cursor:
         cursor.execute( 'delete from label where TopicID = ? and name in (%s)' % ','.join( ['?'] * len( labels )),
@@ -379,6 +381,30 @@ def SetAtclsWithoutTopic():
             
     return len( d )
 
+def SetLabel( rootId, labelName, act ):
+    "add or remove one label at one time"
+    with SqliteDB() as cursor:
+        LabelStr = cursor.execute( 'select labels from topic where root = ?', ( rootId, )).fetchone()[0]
+        StaticLStr, LastLStr, ThisLStr = ( LabelStr + '||' ).split( '|' )[:3]
+        StaticLabels = StaticLStr.split( ',' )
+        ThisLabels = ThisLStr.split( ',' )
+
+        if act == '+' and labelName not in ( StaticLabels + ThisLabels ):
+            cursor.execute( 'insert into label (name, type, TopicID) values(?,?,?)', ( labelName, 1, rootId ))
+            LabelStr += ( '|' * ( 2 - LabelStr.count( '|' )) or ',' ) + labelName
+            cursor.execute( 'update topic set labels = ? where root = ?', ( LabelStr, rootId ))
+        elif labelName in ( StaticLabels + ThisLabels ):
+            cursor.execute( 'delete from label where name = ? and TopicID = ?', ( labelName, rootId ))
+            if labelName in StaticLabels:
+                StaticLabels.remove( labelName )
+                StaticLStr = u','.join( StaticLabels )
+            elif labelName in ThisLabels:
+                ThisLabels.remove( labelName )
+                ThisLStr = u','.join( ThisLabels )
+            LabelStr = u'|'.join( [StaticLStr, LastLStr, ThisLStr] )
+            cursor.execute( 'update topic set labels = ? where root = ?', ( LabelStr, rootId ))
+        return LabelStr
+    
 def GetAtclIdByUser( uPubK, From, To ):
     ""
     with SqliteDB() as cursor:
@@ -393,11 +419,11 @@ def GetAtclByUser( uPubK, From, To, exist = () ):
     with SqliteDB() as cursor:                                            #for testing check status condition availible
         sql = '''select id, items, content from article where AuthPubKey = ? and status > 0 
                 and CreateTime >= ? and CreateTime <= ? and id not in (%s)''' % ','.join( ['?'] * len( exist ))
-        #print sql
         return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
     
 def test():
-    print GetSelfNode( False )
+    SetLabel( '156b07aeb87f35cd7be30eeee8196bbea443c11c', u'testing', '-' )
+    #print GetSelfNode( False )
     #DelTopicLabels( '1fb5381c3200bb03561cb9b79c40bed50eda8515', ( u'诗', u'经', u'体', ))
     return
     transD = {
@@ -461,7 +487,7 @@ def InitDB( path = '' ):
                     AuthPubKey varchar(1024), Type int(2) default 0, CreateTime int(13),
                     DestroyTime int(13) default 9999999999999, GetTime int(13), FromNode varchar(1024),
                     RemoteLabels varchar(256), RemoteEval int(2));""" )      #GetTime and FromNode should be deleted in hours.
-        #话题
+        #话题         labels = staticLabel,staticLabel|nodeLabel,nodeLabel
         c.execute( """create table topic (root varchar(256) unique,
                     title varchar(128) not null, num int(4), status int(2) default 0,
                     labels varchar(256), FirstAuthName  varchar(32), FirstTime int(13),

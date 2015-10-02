@@ -689,18 +689,85 @@ function UBBObj( BtnArea, TextArea )
         return Tree.Show();
     };
     
+    this.GotoTarget = function( Dom, Anch )
+    {
+        var ObjA = $( 'a[name="' + Anch + '"]', Dom );
+        if( ObjA.parent().is( ":visible" ))
+        {
+            if( ObjA.parent().hasClass( 'selkey' ))    //a 标签放在 selkey 上，触发点击
+            {
+                ObjA.click();
+            }
+            else if( ObjA.parent().hasClass( 'title' ) && ObjA.parent().children( 'span' ).html() === '◣' )    //a 标签放在 title 上，触发点击
+            {
+                ObjA.click();
+            }
+        }
+        else
+        {
+            ObjA.parents().each( function()
+            {
+                if( $( this ).hasClass( 'toggle' ))
+                {
+                    //alert( $( this ).children( '.title' ).children( 'span' ).html());
+                    if( $( this ).children( '.title' ).children( 'span' ).html() === '◣' )
+                    {
+                        $( this ).children( '.title' ).click();
+                    }
+                }
+                else if( $( this ).hasClass( 'choice' ))
+                {
+                    var i = $( this ).index();
+                    $( this ).parent().parent().children( '.head' ).children( '.selkey:eq(' + i + ')' ).click();
+                    //alert( $( this ).children( '.title' ).children( 'span' ).html() );
+                    if( $( this ).children( '.title' ).children( 'span' ).html() === '◣' )
+                    {
+                        $( this ).children( '.title' ).click();
+                    }
+                }
+            } );
+            //setTimeout( function(){ location.hash = ''; location.hash = Anch; }, 550 );
+        }
+
+        $( '#forumpg' ).animate( { scrollTop: Anch.offset().top - 50 }, 600 );
+    };
+    
     this.Show = function( Dom )
     {
         var Tree = new LabelTree( LabelType, Dom.html());
         Dom.html( Tree.Show());
         
-        $( 'a.goto', Dom ).click( function()
+        $( 'a.goto', Dom ).mouseover( function()
         {
             var Anch = $( this ).data( 'anchor' );
-            location.hash = Anch; 
-            setTimeout( function(){ location.hash = Anch; }, 1000 );
-            $( 'a[name="' + Anch + '"]' ).click();
+            var ObjA = $( 'a[name="' + Anch + '"]', Dom );
+            console.log( 'mouseover' );
+            ObjA.html( '<span class="target">▶</span>' );
+            //ObjA.parent().wrapInner( '<div class="gotoobj"></div>' );
         } );
+        
+        $( 'a.goto', Dom ).mouseout( function()
+        {
+            var Anch = $( this ).data( 'anchor' );
+            var ObjA = $( 'a[name="' + Anch + '"]', Dom );
+            
+            ObjA.html( '' );
+            //setTimeout( function(){ ObjA.unwrap(); }, 700 );
+        } );
+        
+        $( 'a.goto', Dom ).click( function()            //对跳转目标上级 dom 的处理
+        {
+            var Anch = $( this ).data( 'anchor' );
+            ubb.GotoTarget( Dom, Anch );
+        } );
+        
+        /*$( 'a.goto', Dom ).click( function()
+        {
+            var Anch = $( this ).data( 'anchor' );
+            //location.hash = Anch; 
+            //setTimeout( function(){ location.hash = Anch; }, 1000 );
+            $( 'a[name="' + Anch + '"]' ).click();
+        } );*/
         
         $( 'div.toggle>.title', Dom ).prepend( '<span class="trigger">◤</span>' );
         $( 'div.toggle>.title', Dom ).click( function()

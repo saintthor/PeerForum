@@ -269,6 +269,11 @@ var PeerForum = function()
 		this.Forum.SetAttr( TBody.children( 'tr.new' ));
 	};
 
+	this.UpdateLabelStr = function( labelData )
+	{
+		this.Forum.SetLabelStr( labelData );
+	};
+
 	this.GetResult = function( rslt )
 	{
 		//rslt.Labels = ['帖子', '格行', '禁止', '块', '隐现器'];
@@ -282,7 +287,7 @@ var PeerForum = function()
 			 'NewTopic': 'ShowNewTopic',
 			 'PageTopics': 'AppendTopics',
 			 'AtclTree': 'ShowAtclPg',
-			 //'Like': 'SetLike',
+			 'UpdateLabel': 'UpdateLabelStr',
 			 'Reply': 'ShowReply',
 			 'ShowTree': 'ExpendTpcTree',
 

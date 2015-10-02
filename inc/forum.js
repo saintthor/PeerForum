@@ -156,10 +156,10 @@ var Passer = function( bodyDiv, passFunc )
 		//console.log( this.BodyDiv.offset().top, $( window ).scrollTop(), this.BodyDiv.offset().height );
 		this.HeadShowed = this.HeadShowed || this.Inscreen( this.BodyDiv.offset().top );
 		this.FootShowed = this.FootShowed || this.Inscreen( this.BodyDiv.offset().top + parseInt( this.BodyDiv.css( 'height' )));
-
+		console.log( this.BodyDiv.offset().top, this.HeadShowed, this.FootShowed );
 		if( this.HeadShowed && this.FootShowed )
 		{
-			var Btn = $( 'button.pass', this.BodyDiv.next( 'div.atclfoot' ));
+			var Btn = $( 'button.pass', this.BodyDiv.siblings( 'div.atclfoot' ));
 			if( Btn.children( 'span' ).length == 0 )
 			{
 				var TimerSpan = $( '<span class="timer"></span>' );
@@ -167,6 +167,11 @@ var Passer = function( bodyDiv, passFunc )
 				this.Timeing( TimerSpan );
 			}
 		}
+	};
+
+	this.Finished = function()
+	{
+		return this.Second <= 0;
 	};
 
 	this.Inscreen = function( y )
@@ -333,19 +338,44 @@ var Forum = function( owner )
 		}
 	};
 
+	this.SetLabelStr = function( labelData )
+	{
+		_( labelData ).chain().pairs().each( function( p )
+		{
+			frm.TopicObj[p[0]].Labels = p[1];
+		} );
+	};
+
+	var DelLabelFunc = function()
+	{
+		var LabelSpan = $( this ).parent();
+		var RootId = $( this ).closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
+		$( this ).remove();
+		frm.Owner.Post( {
+				cmd: 'DelLabel',
+				rootId: RootId,
+				label: LabelSpan.html(),
+						}, 'GetResult' )
+		LabelSpan.hide( 400, function()
+		{
+			LabelSpan.remove();
+		} );
+	};
+
 	this.ShowSingleAtcl = function( atclData )
 	{
 		console.log( atclData );
 		var AtclDiv = $( '<div class="atcl" id="Atcl_' + atclData[0] + '"><table><tbody><tr> \
 			<td class="atclleft"><div class="nickname"/><span class="query" title="">？</span>\
-			<div class="randomart" title="不同用户可能有相同的用户名，\n可通过 RandomArt 识别用户。"></div> \
+			<div class="randomart"></div> \
 			<div class="manageuser"></div></td><td class="atclright"><div class="atcltop"> \
+			<span class="lineright"><span class="flow" title="流视图">流</span> \
+			<span class="link" title="链视图">链</span> \
+			<span class="star" title="星视图">星</span><span class="query" title="">？</span></span> \
 			<span class="time"></span><span class="linemiddle"> \
 			<span class="bigger" title="放大帖子正文">大</span><span class="smaller" title="缩小帖子正文">小</span> \
-			</span><span class="lineright"><span class="flow" title="流视图">流</span> \
-			<span class="link" title="链视图">链</span> \
-			<span class="star" title="星视图">星</span><span class="query" title="">？</span> \
-			</span></div><div class="atclid"></div><div class="atclbody"></div> \
+			</span></div><div class="atclid"></div> \
+			<span class="labels lineright"></span><div class="atclbody"></div> \
 			<div class="atclfoot"><span class="manage"></span><span class="lineright"> \
 			<!--button class="edit">编辑</button--><button class="reply">回复</button></span></div> \
 			</td></tr></tbody></table><div></div></div>' );
@@ -378,6 +408,53 @@ var Forum = function( owner )
 		$( '.atclid', AtclDiv ).html( atclData[0] );
 		//$( '.likenum', AtclDiv ).html(( atclData[1][0].Liked || [] ).length );
 		$( '.atclfoot', AtclDiv ).data( 'atclid', atclData[0] );
+
+		if( atclData[1].Labels )
+		{
+			//console.log( atclData[1].Labels )
+			//console.log( atclData[1].NodeLabels );
+			var LabelDiv = $( '.labels', AtclDiv );
+			var RootId = LabelDiv.closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
+			var StaticLabels = atclData[1].Labels.split( ',' );
+			_( StaticLabels ).each( function( sl )
+			{
+				LabelDiv.append( '<span class="staticlabel">' + sl 
+								+ '<span title="屏蔽固有标签">×</span></span>' );
+			} );
+			_( atclData[1].NodeLabels ).each( function( nl )
+			{
+				LabelDiv.append( '<span class="nodelabel">' + nl 
+								+ '<span title="删除节点标签">×</span></span>' );
+			} );
+			LabelDiv.append( '<div class="addlabel"><input type="text" placeholder="添加节点标签" width=30px;/><button>+</button></div>' );
+			LabelDiv.mouseover( function()
+			{
+				LabelDiv.children( '.addlabel' ).show();
+			} );
+			LabelDiv.mouseleave( function()
+			{
+				LabelDiv.children( '.addlabel' ).hide();
+			} );
+			LabelDiv.children( 'span' ).children( 'span' ).click( DelLabelFunc );
+
+			$( 'button', LabelDiv ).click( function()
+			{
+				var NewLabel = $( this ).siblings( ':text' ).val();
+				console.log( NewLabel );
+				if( NewLabel )
+				{
+					frm.Owner.Post( {
+							cmd: 'AddLabel',
+							rootId: RootId,
+							label: NewLabel,
+									}, 'GetResult' )
+					var NewLabelSpan = $( '<span class="nodelabel">' + NewLabel 
+								+ '<span title="删除节点标签">×</span></span>' );
+					$( this ).parent().before( NewLabelSpan );
+					NewLabelSpan.children( 'span' ).click( DelLabelFunc );
+				}
+			} );
+		}
 
 		if( AuthPubKey != frm.Owner.CurUser[0] )
 		{
@@ -578,7 +655,7 @@ var Forum = function( owner )
 		*/
 		if( mode == 1 )
 		{
-			$( 'body' ).animate( { scrollTop: 2000 }, 1000 );
+			$( '#forumpg' ).animate( { scrollTop: 2000 }, 1000 );
 		}
 
 		QueryPop( $( '#atclarea .atclleft .query' ), 'userpubk' );
@@ -595,9 +672,16 @@ var Forum = function( owner )
 	this.ChkPass = function()
 	{
 		console.log( this.TopicObj.AutoPasser );
-		_( this.TopicObj.AutoPasser ).chain().values().each( function( ap )
+		_( this.TopicObj.AutoPasser ).chain().pairs().each( function( p )
 		{
-			ap.Check();
+			if( p[1].Finished())
+			{
+				delete this.TopicObj.AutoPasser[p[0]];
+			}
+			else
+			{
+				p[1].Check();
+			}
 		} );
 	};
 
@@ -936,7 +1020,7 @@ var Forum = function( owner )
 	{
 		var TR = $( '<tr class="new" id="Topic_' + tpcdata[0] + '"><td class="title"></td> \
 			<td class="first"></td><td class="num">1</td><td class="last"></td></tr>' );
-		var LabelSpans = _( tpcdata[2].split( ',' )).chain().map( function( lb )
+		var LabelSpans = _( tpcdata[2].replace( /\|/g, ',' ).split( ',' )).chain().map( function( lb )
 			{
 				return '<span class="tpclabel">' + lb + '</span>';
 			} ).value().join( '' );

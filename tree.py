@@ -14,7 +14,7 @@ import traceback
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
                      GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels, GetTopicRowById, \
-                     GetTopicRows, SetAtclStatus
+                     GetTopicRows, SetAtclStatus, SetLabel
 from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser, TopicNumPerPage
 
 class Article( object ):
@@ -124,6 +124,7 @@ class Article( object ):
                 'atclId': self.id,
                 'content': self.content,
                 'status': self.status,
+                'NodeLabels': list( self.NodeLabels ),
                     }
         ShowData.update( self.ItemD )
         return ShowData
@@ -412,6 +413,13 @@ class Topic( object ):
         ""
         return GetTopicRowById( rootId )  #root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
     
+    @classmethod
+    def EditLabel( cls, rootId, label, act ):
+        ""
+        if rootId in cls.LiveD:
+            cls.LiveD.pop( rootId )
+        return SetLabel( rootId, label, act )
+        
     @classmethod
     def ShowAll( cls, rootId ):
         "show all articles in this topic."
