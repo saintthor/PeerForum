@@ -26,16 +26,9 @@ def CBCDecrypt( s, k ):
     
 #if __name__ == '__main__':
 #    import binascii
+#    from random import randint
 #    from base64 import encodestring
 #    s = 'oejf0wjf09r092u04u088urf009ur-2[riq[[-23r][wfjf'
-#    key = "(8FGII!9N'xE4MIGF1gTcQT$*7ME*3bk"
-#    print s
-#    from time import time
-#    t0 = time()
-#    s2 = CBCEncrypt( s, key )
-#    print s2
-#    print 'b2a_hex', binascii.b2a_hex( s2 )
-#    print 'b2a_hqx', binascii.b2a_hqx( s2 )
-#    print 'b2a_qp', binascii.b2a_qp( s2 )
-#    print 'b2a_base64', binascii.b2a_base64( s2 ), encodestring( s2 )
-#    print time() - t0
+#    k = randint( 0, 2**256 - 1 )
+#    print k
+    

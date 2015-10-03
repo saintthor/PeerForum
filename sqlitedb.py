@@ -341,14 +341,14 @@ def GetTreeAtcls( *rootIds ):
                     tuple( rootIds )
                         ).fetchall():
             #print '-----', root, Id
-            d.setdefault( root, {} )[Id] = itemStr, content, status, RLabels, REval, []
+            d.setdefault( root, {} )[Id] = [itemStr, content, status, RLabels, REval, '']
     
         for root, labels in cursor.execute(
                     'select root, labels from topic where root in (%s)' % ','.join( ['?'] * len( rootIds )),
                     tuple( rootIds )
                         ).fetchall():
             print root, labels
-            d[root][root][-1].extend( labels )
+            d[root][root][-1] = labels
         
     return d
 
@@ -385,13 +385,14 @@ def SetLabel( rootId, labelName, act ):
     "add or remove one label at one time"
     with SqliteDB() as cursor:
         LabelStr = cursor.execute( 'select labels from topic where root = ?', ( rootId, )).fetchone()[0]
-        StaticLStr, LastLStr, ThisLStr = ( LabelStr + '||' ).split( '|' )[:3]
+        print 'SetLabel', LabelStr
+        StaticLStr, ThisLStr = ( LabelStr + '|' ).split( '|' )[:2]
         StaticLabels = StaticLStr.split( ',' )
         ThisLabels = ThisLStr.split( ',' )
 
         if act == '+' and labelName not in ( StaticLabels + ThisLabels ):
             cursor.execute( 'insert into label (name, type, TopicID) values(?,?,?)', ( labelName, 1, rootId ))
-            LabelStr += ( '|' * ( 2 - LabelStr.count( '|' )) or ',' ) + labelName
+            LabelStr += ( ',' if '|' in LabelStr else '|' ) + labelName
             cursor.execute( 'update topic set labels = ? where root = ?', ( LabelStr, rootId ))
         elif labelName in ( StaticLabels + ThisLabels ):
             cursor.execute( 'delete from label where name = ? and TopicID = ?', ( labelName, rootId ))
@@ -401,7 +402,9 @@ def SetLabel( rootId, labelName, act ):
             elif labelName in ThisLabels:
                 ThisLabels.remove( labelName )
                 ThisLStr = u','.join( ThisLabels )
-            LabelStr = u'|'.join( [StaticLStr, LastLStr, ThisLStr] )
+            LabelStr = u'|'.join( [StaticLStr, ThisLStr] )
+            if LabelStr == '|':
+                LabelStr = ''
             cursor.execute( 'update topic set labels = ? where root = ?', ( LabelStr, rootId ))
         return LabelStr
     

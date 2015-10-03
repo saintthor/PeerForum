@@ -9,75 +9,96 @@ var Input = function( tr, parentId, protoId, submitFunc )
 	this.ProtoId = protoId;
 	this.SubmitFunc = submitFunc;
 
+	this.GetInputContent = function()
+	{
+		var Content = $( 'textarea', input.TR ).val();
+		try
+		{
+			input.UBB.Check( Content );
+		}
+		catch( e )
+		{
+			alert( 'UBB　标签错误，请改正后再提交。' );
+			return;
+		}
+
+		if( $( ':checkbox', input.TR ).prop( 'checked' ))
+		{
+			Content = _( Content.split( '\n' )).chain().map( function( ln )
+			{
+				return ln.replace( /^\s+|\s+$/g, '' );
+			} ).filter( function( ln )
+			{
+				return ln > '';
+			} ).value().join( '\n\n' );
+		}
+
+		if( Content.length < 1 )
+		{
+			$( '.note', input.TR ).html( '帖子不能为空。' );
+			return;
+		}
+
+		if( this.IsRoot && Content.length < 20 )
+		{
+			$( '.note', input.TR ).html( '根帖内容不能少于 20 字。' );
+			return;
+		}
+
+		return Content;
+	};
+
 	this.Draw = function()
 	{
 		this.TR.html( '<td class="ubbbtns" width="150px"></td><td class="tpctd"> \
 			<textarea name="article" rows="16" cols="100" style="overflow:auto; width:98%;" \
 			 placeholder="在此输入帖子内容。第一行为标题。"></textarea><br/> \
 			 <input type="checkbox" checked=true/>自动排版<span class="query" title="">？</span> \
-			 <button> 提 交 </button><div class="note"/></td>' );
+			 <span class="vice">先</span><button class="preview"> 预 览 </button><span class="vice">再</span><button class="post"> 提 交 </button> \
+			 <div class="note"/><div class="previewarea"/></td>' );
 
 		if( this.IsRoot )
 		{
-			$( 'button', this.TR ).before( '<select><option value=0>永久保存</option> \
+			$( 'span.vice:first', this.TR ).before( '<select><option value=0>永久保存</option> \
 				<option value=10>保存 10 日</option><option value=50>保存 50 日</option> \
 				<option value=200>保存 200 日</option><option value=1000>保存 1000 日</option> \
-				</select><input type="text" placeholder="在此输入标签，用逗号分隔。不能为空。"/>' );
+				</select><input type="text" style="width:115px" placeholder="固有标签，逗号分隔。"/>' );
 		}
 
 		QueryPop( this.TR.children( 'td' ).children( '.query' ), 'autoedit' );
 		this.UBB = new UBBObj( this.TR.children( 'td.ubbbtns' ), $( 'textarea', this.TR ));
+		//this.TR.children( 'td.ubbbtns' ).append( '<span class="query" title="">？</span>' )
+		//QueryPop( this.TR.children( 'td.ubbbtns' ).children( '.query' ), 'ubb' );
+		this.TR.children( 'td.ubbbtns' ).append( '<div class="ubbnote">通过 UBB 标签为帖子提供一些格式及动态效果。标签功能依照 guideep 的标准实现，详细使用说明请看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。</div>' );
 
-		$( 'button', this.TR ).click( function()
+		$( 'button.preview', this.TR ).click( function()
+		{
+			var Preview = $( '.previewarea', this.TR );
+			if( Preview.html())
+			{
+				Preview.html( '' );
+				Preview.hide( 200 );
+				return;
+			}
+			var Content = input.GetInputContent();
+
+			Preview.html( Content.replace( /\&/g, '&amp;' ).replace( / /g, '&nbsp;&nbsp;' ).replace( /\>/g, '&gt;' ).replace( /\</g, '&lt;' ).replace( /\n/g, '<br/>' ));
+			//atclbody.html( frm.ShowContent( atcl.content ));
+			var UBB = new UBBObj();
+			UBB.Show( Preview );
+			Preview.show( 300 );
+			$( this ).next( 'button' ).attr( 'disabled', false );
+		} );
+
+		$( 'button.post', this.TR ).attr( 'disabled', true );
+
+		$( 'button.post', this.TR ).click( function()
 		{
 			$( '.note', input.TR ).html( '' );
+			var Content = input.GetInputContent();
 
-			var Content = $( 'textarea', input.TR ).val();
-			try
+			if( input.IsRoot )
 			{
-				input.UBB.Check( Content );
-			}
-			catch( e )
-			{
-				alert( 'UBB　标签错误，请改正后再提交。' );
-				return;
-			}
-
-			if( $( ':checkbox', input.TR ).prop( 'checked' ))
-			{
-				Content = _( Content.split( '\n' )).chain().map( function( ln )
-				{
-					return ln.replace( /^\s+|\s+$/g, '' );
-				} ).filter( function( ln )
-				{
-					return ln > '';
-				} ).value().join( '\n\n' );
-			}
-
-			if( Content.length < 1 )
-			{
-				$( '.note', input.TR ).html( '帖子不能为空。' );
-				return;
-			}
-
-			if( input.IsEdit )
-			{
-				var AtclData = {
-					'cmd': 'Edit',
-					'proto': input.ProtoId,
-					'parent': input.ParentId,
-					'content': Content,
-								};
-
-			}
-			else if( input.IsRoot )
-			{
-				if( Content.length < 20 )
-				{
-					$( '.note', input.TR ).html( '根帖内容不能少于 20 字。' );
-					return;
-				}
-
 				var AtclLabels = $( ':text', input.TR ).val()
 
 				//console.log( AtclLabels );
@@ -120,6 +141,8 @@ function QueryPop( dom, k )
 			'manage': '在飘上，没有管理员。每一位用户都是自己节点的管理员，有权决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的倒计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可被邻节点读取，未裁处和已阻断的帖子不可被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点及用户的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。',
 			'userpubk': '飘没有用户系统，不同的用户可能有相同的用户名，因此，需要以用户公钥来区分用户。用鼠标指向用户名可见用户公钥，公钥很长，不好认，从公钥生成一个 RandomArt，就是下面这个字符组成的小图，就容易识别了。用户公钥（RandomArt）相同就是同一个人，用户名是随时可以改的。',
 			'autoedit': '选中自动排版，会在提交时去掉内容中每一段前后的空格，并在段与段之间插入一个空行。<br/>如果帖子里含有程序代码之类对格式要求严格的内容，不应选中自动排版。',
+			//'ubb': 'UBB 标签用于在帖子中实现一些格式和动态效果。这些标签依照 guideep 的标准实现，详细使用说明请看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。',
+			'label': '飘上的话题依照标签划分门类或圈子。标签分为固有标签与节点标签两种。<br>固有标签是作者创建话题时设定的，发布之后不可更改。而每个节点的用户有权对话题增加一些标签，或者屏蔽一些固有标签，新增的就是节点标签。<br>节点标签只在当前节点上有效。如果邻节点按照标签来读取话题，（未屏蔽的）固有标签与节点标签同样有效。但邻节点取得话题之后，前一节点对固有标签的屏蔽不再生效，话题的固有标签仍然完整。',
 		}[k];
 
 		var PopDiv = $( '<div class="pop">' + html + '</div>' );
@@ -133,6 +156,14 @@ function QueryPop( dom, k )
 			//console.log( WndRight - parseInt( PopDiv.css( 'width' )) + 'px' );
 			PopDiv.css( 'left', WndRight - parseInt( PopDiv.css( 'width' )) - 40 + 'px' );
 		}
+		PopDiv.children( 'a' ).click( function()
+		{
+			console.log( 'a clicked.' );
+		} );
+		PopDiv.click( function()
+		{
+			console.log( 'pop clicked.' );
+		} );
 	} );
 
 	dom.mouseleave( function()
@@ -156,7 +187,7 @@ var Passer = function( bodyDiv, passFunc )
 		//console.log( this.BodyDiv.offset().top, $( window ).scrollTop(), this.BodyDiv.offset().height );
 		this.HeadShowed = this.HeadShowed || this.Inscreen( this.BodyDiv.offset().top );
 		this.FootShowed = this.FootShowed || this.Inscreen( this.BodyDiv.offset().top + parseInt( this.BodyDiv.css( 'height' )));
-		console.log( this.BodyDiv.offset().top, this.HeadShowed, this.FootShowed );
+		//console.log( this.BodyDiv.offset().top, this.HeadShowed, this.FootShowed );
 		if( this.HeadShowed && this.FootShowed )
 		{
 			var Btn = $( 'button.pass', this.BodyDiv.siblings( 'div.atclfoot' ));
@@ -409,24 +440,30 @@ var Forum = function( owner )
 		//$( '.likenum', AtclDiv ).html(( atclData[1][0].Liked || [] ).length );
 		$( '.atclfoot', AtclDiv ).data( 'atclid', atclData[0] );
 
-		if( atclData[1].Labels )
+		if( atclData[1].LabelStr )
 		{
-			//console.log( atclData[1].Labels )
-			//console.log( atclData[1].NodeLabels );
+			console.log( atclData[1].LabelStr );
 			var LabelDiv = $( '.labels', AtclDiv );
 			var RootId = LabelDiv.closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
-			var StaticLabels = atclData[1].Labels.split( ',' );
-			_( StaticLabels ).each( function( sl )
+			_( atclData[1].LabelStr.split( '|' )).each( function( lbstr, i )
 			{
-				LabelDiv.append( '<span class="staticlabel">' + sl 
-								+ '<span title="屏蔽固有标签">×</span></span>' );
+				console.log( lbstr, i );
+				if( lbstr )
+				{
+					_( lbstr.split( ',' )).each( function( label )
+					{
+						if( label )
+						{
+							var LbClass = ['staticlabel', 'nodelabel'][i];
+							var LbTitle = ['屏蔽固有标签', '删除节点标签'][i]
+							LabelDiv.append( '<span class="' + LbClass + '">' + label 
+											+ '<span title="' + LbTitle + '">×</span></span>' );
+						}
+					} );
+				}
 			} );
-			_( atclData[1].NodeLabels ).each( function( nl )
-			{
-				LabelDiv.append( '<span class="nodelabel">' + nl 
-								+ '<span title="删除节点标签">×</span></span>' );
-			} );
-			LabelDiv.append( '<div class="addlabel"><input type="text" placeholder="添加节点标签" width=30px;/><button>+</button></div>' );
+			LabelDiv.append( '<div class="addlabel"><input type="text" placeholder="添加节点标签" width=30px;/> \
+							<button>+</button><span class="query" title="">？</span></div>' );
 			LabelDiv.mouseover( function()
 			{
 				LabelDiv.children( '.addlabel' ).show();
@@ -436,6 +473,8 @@ var Forum = function( owner )
 				LabelDiv.children( '.addlabel' ).hide();
 			} );
 			LabelDiv.children( 'span' ).children( 'span' ).click( DelLabelFunc );
+
+			QueryPop( $( '.query', LabelDiv ), 'label' );
 
 			$( 'button', LabelDiv ).click( function()
 			{
@@ -478,7 +517,7 @@ var Forum = function( owner )
 
 	this.SetManageBtns = function( dom, status )
 	{
-		console.log( dom, status );
+		//console.log( dom, status );
 		dom.html( this.GetSetStatusBtns( status ));
 		dom.append( '<span class="query" title="">？</span>' );
 		QueryPop( dom.children( '.query' ), 'manage' );
@@ -671,12 +710,12 @@ var Forum = function( owner )
 
 	this.ChkPass = function()
 	{
-		console.log( this.TopicObj.AutoPasser );
+		//console.log( this.TopicObj.AutoPasser );
 		_( this.TopicObj.AutoPasser ).chain().pairs().each( function( p )
 		{
 			if( p[1].Finished())
 			{
-				delete this.TopicObj.AutoPasser[p[0]];
+				delete frm.TopicObj.AutoPasser[p[0]];
 			}
 			else
 			{

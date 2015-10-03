@@ -32,7 +32,7 @@ class Article( object ):
     MinTime = 1439596800000     #2015-8-15 00:00:00
     LiveD = {}
     
-    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None, nodeLabels = () ):
+    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None, labelStr = () ):
         ""
         if Id is None:                  #create
             self.ItemD = itemD
@@ -46,7 +46,8 @@ class Article( object ):
             self.ItemD = loads( itemStr )
             
         self.content = content
-        self.NodeLabels = set( nodeLabels )
+        self.LabelStr = labelStr
+        self.NodeLabels = ( labelStr + '|' ).split( '|' )[1].split( ',' )
     
     def Issue( self ):
         ""
@@ -87,16 +88,16 @@ class Article( object ):
                                     'LastTime': self.ItemD.get( 'CreateTime' ),
                                                 } )
 
-    def SetNodeLabels( self, *labels ):
-        ""
-        labels = set( labels ) - self.NodeLabels
-        self.NodeLabels += labels
-        SaveTopicLabels( self.id, labels )
-    
-    def DelNodeLabels( self, *labels ):
-        ""
-        self.NodeLabels -= set( labels )
-        DelTopicLabels( self.id, labels )
+#    def SetNodeLabels( self, *labels ):
+#        ""
+#        labels = set( labels ) - self.NodeLabels
+#        self.NodeLabels += labels
+#        SaveTopicLabels( self.id, labels )
+#    
+#    def DelNodeLabels( self, *labels ):
+#        ""
+#        self.NodeLabels -= set( labels )
+#        DelTopicLabels( self.id, labels )
 
     def Check( self ):
         "do not check destroy time here"
@@ -124,7 +125,7 @@ class Article( object ):
                 'atclId': self.id,
                 'content': self.content,
                 'status': self.status,
-                'NodeLabels': list( self.NodeLabels ),
+                'LabelStr': self.LabelStr,
                     }
         ShowData.update( self.ItemD )
         return ShowData
@@ -231,10 +232,10 @@ class Article( object ):
     @classmethod
     def Cache( cls, d ):    #d = { atclId: ( itemStr, content ) }
         ""
-        for atclId, ( itemStr, content, status, RmtLabels, RmtEval, NodeLabels ) in d.iteritems():
+        for atclId, ( itemStr, content, status, RmtLabels, RmtEval, LabelStr ) in d.iteritems():
             if atclId not in cls.LiveD:
                 cls.LiveD[atclId] = cls( atclId, itemStr = itemStr, content = content,
-                                         status = status, nodeLabels = NodeLabels )
+                                         status = status, labelStr = LabelStr )
                 
 class TreeStruct( object ):
     ""
