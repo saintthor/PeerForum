@@ -172,6 +172,7 @@ var PeerForum = function()
 
 	this.SetAtclLabels = function( atclLabels )
 	{
+		//console.log( 'SetAtclLabels' );
 		var LabelArea = $( '#forum>.content' );
 		LabelArea.html( '<div id="alllabelidx">所有话题</div>' );
 
@@ -187,7 +188,7 @@ var PeerForum = function()
 
 		LabelArea.children( '.atcllabel' ).click( function()
 		{
-			pf.Post( { cmd: 'GetTpcByLabel', label: this.html() }, 'GetResult' );
+			pf.Forum.LabelTopic( $( this ).html());
 		} );
 	};
 
@@ -263,10 +264,11 @@ var PeerForum = function()
 		var TBody = $( '#tpclist>table>tbody' );
 		topics.forEach( function( topic )
 		{
-			TBody.append( pf.Forum.TopicTR( topic ));
+			try	{ TBody.append( pf.Forum.TopicTR( topic ));	} catch( e ) {};
 		} );
 
 		this.Forum.SetAttr( TBody.children( 'tr.new' ));
+		this.Forum.ChkNextPage();
 	};
 
 	this.UpdateLabelStr = function( labelData )
@@ -282,7 +284,7 @@ var PeerForum = function()
 		_( {
 			 'CurNode': 'ChkLocalNode',
 			 'CurUser': 'ChkLocalUser',
-			 'Labels': 'SetAtclLabels',
+			 'AllLabels': 'SetAtclLabels',
 			 'Follows': 'SetFollowUsers',
 			 'NewTopic': 'ShowNewTopic',
 			 'PageTopics': 'AppendTopics',
@@ -364,23 +366,6 @@ $( function()
 											<table>
 												<tbody>
 													<tr>
-														<!--td class="editbtns" width="150px">
-															<div class='ubbbtn' title='锚标'>a</div><div class='ubbbtn' title='粗体'>b</div><div class='ubbbtn' title='斜体'>i</div><div class='ubbbtn' title='带下划线'>u</div><div class='ubbbtn' title='带删除线'>s</div><div class='ubbbtn' title='上标'>sup</div><div class='ubbbtn' title='下标'>sub</div><div class='ubbbtn' title='块'>div</div><div class='ubbbtn' title='文字颜色'>color</div><div class='ubbbtn' title='文字尺寸'>size</div><div class='ubbbtn' title='禁止转义'>r</div><div class='ubbbtn' title='水平分隔线'>hr</div><div class='ubbbtn' title='链接'>url</div><div class='ubbbtn' title='帖子链接'>pl</div><div class='ubbbtn' title='图片'>pic</div><div class='ubbbtn' title='隐现器'>toggle</div><div class='ubbbtn' title='表格'>table</div><div class='ubbbtn' title='表格行'>tr</div><div class='ubbbtn' title='表格列'>td</div><div class='ubbbtn' title='选择器'>select</div><div class='ubbbtn' title='选择器选项'>choice</div><div class='ubbbtn' title='页内跳转'>goto</div><div class='ubbbtn' title='表情'>emote</div>
-														</td>
-														<td class="tpctd">
-															<textarea name="article" rows="16" cols="100" style="overflow:auto; width:100%;" placeholder="在此输入帖子内容。第一行为标题。"></textarea>
-															<br/>
-															<select>
-																<option value=0>永久保存</option>
-																<option value=10>保存 10 日</option>
-																<option value=50>保存 50 日</option>
-																<option value=200>保存 200 日</option>
-																<option value=1000>保存 1000 日</option>
-															</select>
-															<input type='text' placeholder="在此输入标签，用逗号分隔。不能为空。"/>
-															<button>　发　布　</button>
-															<div class="note"/>
-														</td-->
 													</tr>
 												</tbody>
 											</table>
@@ -395,7 +380,7 @@ $( function()
 													<th>标题</th>
 													<th width='90px' id="firstth" title='排序'>首发</th>
 													<th width='50px'>帖数</th>
-													<th width='150px' id="lastth" title='排序'><span>↓↓↓</span>末发</th>
+													<th width='150px' id="lastth" title='排序'><span>↓↓↓</span>最新<span class="query" title="">？</span></th>
 												</tr>
 											</tbody>
 										</table>

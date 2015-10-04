@@ -13,6 +13,7 @@ import re
 from rsa1 import PrivateKey, PublicKey
 from time import time
 from json import loads
+from random import randint
 
 from const import DB_FILE, DelFromNodeHours
 from exception import *
@@ -236,7 +237,6 @@ def GetOneArticle( *cols, **filterd ):
 
 def SaveArticle( **param ):
     ""
-    param['GetTime'] = int( time() * 1000 )
     param.setdefault( 'DestroyTime', 9999999999999 )
     print 'SaveArticle', param
     with SqliteDB() as cursor:
@@ -255,7 +255,7 @@ def UpdateArticles():
     t = int( time() * 1000 )
     with SqliteDB() as cursor:
         cursor.execute( 'update article set status = -2 where DestroyTime < ?', ( t, ))
-        cursor.execute( 'update article set FromNode = '', GetTime = 9999999999999 where GetTime < ?',
+        cursor.execute( 'update article set FromNode = '', RemoteLabels = '', RemoteEval = 1 where GetTime < ?',
                         (( t - DelFromNodeHours * 3600000 ),))
     
 def SaveTopicLabels( topicId, labels, Type = 0 ):
@@ -314,21 +314,26 @@ def GetTopicRowById( rootId ):
                                 ).fetchall():
             return row
             
-def GetTopicRows( label, offset, sortCol, limit ):
+def GetTopicRows( label, before, sortCol, limit ):
     ""
-    print 'GetTopicRows', label, offset, sortCol, limit
+    print 'GetTopicRows', label, before, sortCol, limit
     with SqliteDB() as cursor:
         if label:
             return cursor.execute(
                 '''select root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
-                    from topic join label on topic.root = label.TopicID where label.name = ? 
-                    order by %s desc limit ? offset ?''' % sortCol, ( label, limit, offset )
+                    from topic join label on topic.root = label.TopicID where label.name = ? and %s <= ?
+                    order by %s desc limit ?''' % ( sortCol, sortCol ), ( label, before, limit )
                                     ).fetchall()
         else:
             return cursor.execute(
                 '''select root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
-                    from topic order by %s desc limit ? offset ?''' % sortCol, ( limit, offset )
+                    from topic where %s <= ? order by %s desc limit ?''' % ( sortCol, sortCol ), ( before, limit )
                                     ).fetchall()
+
+def GetAllLabels():
+    ""
+    with SqliteDB() as cursor:
+        return [c[0] for c in cursor.execute( 'select distinct name from label' ).fetchall()]
     
 def GetTreeAtcls( *rootIds ):
     ""
@@ -376,7 +381,7 @@ def SetAtclsWithoutTopic():
             
             SaveTopic( root = root, title = titleLine[:30], num = len( atclD ), status = 0,
                         FirstAuthName = first[1], LastAuthName = last[1],
-                        FirstTime = first[0], LastTime = last[0] )
+                        FirstTime = first[0], LastTime = last[0] )      #LastTime should be the last GetTime
             SaveTopicLabels( root, labels )
             
     return len( d )
@@ -425,7 +430,7 @@ def GetAtclByUser( uPubK, From, To, exist = () ):
         return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
     
 def test():
-    SetLabel( '156b07aeb87f35cd7be30eeee8196bbea443c11c', u'testing', '-' )
+    print GetAllLabels()
     #print GetSelfNode( False )
     #DelTopicLabels( '1fb5381c3200bb03561cb9b79c40bed50eda8515', ( u'诗', u'经', u'体', ))
     return
@@ -489,7 +494,7 @@ def InitDB( path = '' ):
                     items varchar(8192), root varchar(256), status int(2) default 0,
                     AuthPubKey varchar(1024), Type int(2) default 0, CreateTime int(13),
                     DestroyTime int(13) default 9999999999999, GetTime int(13), FromNode varchar(1024),
-                    RemoteLabels varchar(256), RemoteEval int(2));""" )      #GetTime and FromNode should be deleted in hours.
+                    RemoteLabels varchar(256), RemoteEval int(2) default 1);""" )      #FromNode, RemoteLabels, RemoteEval should be deleted in hours.
         #话题         labels = staticLabel,staticLabel|nodeLabel,nodeLabel
         c.execute( """create table topic (root varchar(256) unique,
                     title varchar(128) not null, num int(4), status int(2) default 0,

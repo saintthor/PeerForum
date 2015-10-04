@@ -69,7 +69,7 @@ var Input = function( tr, parentId, protoId, submitFunc )
 		this.UBB = new UBBObj( this.TR.children( 'td.ubbbtns' ), $( 'textarea', this.TR ));
 		//this.TR.children( 'td.ubbbtns' ).append( '<span class="query" title="">？</span>' )
 		//QueryPop( this.TR.children( 'td.ubbbtns' ).children( '.query' ), 'ubb' );
-		this.TR.children( 'td.ubbbtns' ).append( '<div class="ubbnote">通过 UBB 标签为帖子提供一些格式及动态效果。标签功能依照 guideep 的标准实现，详细使用说明请看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。</div>' );
+		this.TR.children( 'td.ubbbtns' ).append( '<div class="ubbnote">通过 UBB 标签为帖子提供一些格式及动态效果。标签功能依照 guideep 的标准实现，详细使用说明可参看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。</div>' );
 
 		$( 'button.preview', this.TR ).click( function()
 		{
@@ -141,6 +141,7 @@ function QueryPop( dom, k )
 			'manage': '在飘上，没有管理员。每一位用户都是自己节点的管理员，有权决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的倒计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可被邻节点读取，未裁处和已阻断的帖子不可被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点及用户的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。',
 			'userpubk': '飘没有用户系统，不同的用户可能有相同的用户名，因此，需要以用户公钥来区分用户。用鼠标指向用户名可见用户公钥，公钥很长，不好认，从公钥生成一个 RandomArt，就是下面这个字符组成的小图，就容易识别了。用户公钥（RandomArt）相同就是同一个人，用户名是随时可以改的。',
 			'autoedit': '选中自动排版，会在提交时去掉内容中每一段前后的空格，并在段与段之间插入一个空行。<br/>如果帖子里含有程序代码之类对格式要求严格的内容，不应选中自动排版。',
+			'lastupdate': '这一栏显示的时间不是话题里最新一个帖子的发布时间，而是当前节点最后一次收到帖子的时间。接收的时序与帖子发布的时序无关。<br>如果最新帖子是在本地发布的，为了安全，最新时间显示为发布时间之后几分钟里的某个时间。',
 			//'ubb': 'UBB 标签用于在帖子中实现一些格式和动态效果。这些标签依照 guideep 的标准实现，详细使用说明请看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。',
 			'label': '飘上的话题依照标签划分门类或圈子。标签分为固有标签与节点标签两种。<br>固有标签是作者创建话题时设定的，发布之后不可更改。而每个节点的用户有权对话题增加一些标签，或者屏蔽一些固有标签，新增的就是节点标签。<br>节点标签只在当前节点上有效。如果邻节点按照标签来读取话题，（未屏蔽的）固有标签与节点标签同样有效。但邻节点取得话题之后，前一节点对固有标签的屏蔽不再生效，话题的固有标签仍然完整。',
 		}[k];
@@ -238,9 +239,12 @@ var Forum = function( owner )
 
 	this.TITLELEN = 99;
 	this.PASSTIME = 60;
+	this.MAXTIME = 9999999999999;
 
 	this.Owner = owner;
 	this.StartPos = 0;
+	this.Before = this.MAXTIME;
+	this.AppendTime = 0;
 	this.ListLabel = '';
 	this.SortCol = 'LastTime';
 	this.TopicObj = { 'TreeRoots': {}, 'AutoPasser': {} };
@@ -263,8 +267,9 @@ var Forum = function( owner )
 		$( '#firstth' ).click( function()
 		{
 			frm.SortCol = 'FirstTime';
-			frm.StartPos = 0;
-			$( '#lastth>span' ).prependTo( $( this ));
+			frm.Before = frm.MAXTIME;
+			$( '#lastth>span:first' ).prependTo( $( this ));
+			$( '#tpclist>table>tbody>tr:gt(0)' ).remove();
 
 			frm.GetNextPage();
 		} );
@@ -272,8 +277,9 @@ var Forum = function( owner )
 		$( '#lastth' ).click( function()
 		{
 			frm.SortCol = 'LastTime';
-			frm.StartPos = 0;
+			frm.Before = frm.MAXTIME;
 			$( '#firstth>span' ).prependTo( $( this ));
+			$( '#tpclist>table>tbody>tr:gt(0)' ).remove();
 
 			frm.GetNextPage();
 		} );
@@ -288,7 +294,26 @@ var Forum = function( owner )
 		$( '#forumpg' ).scroll( function()
 		{
 			frm.ChkPass();
+			frm.ChkNextPage();
 		} );
+
+		QueryPop( $( '#lastth>span.query' ) , 'lastupdate' );
+	};
+
+	this.ChkNextPage = function()
+	{
+		console.log( this.AppendTime );
+		var d = new Date();
+		if( d.getTime() - this.AppendTime > 5000 )
+		{
+			var top = $( window ).scrollTop();
+			var bottom = top + $( window ).height();
+			if( $( '#tpclist>table>tbody>tr:last' ).offset().top < bottom )
+			{
+				this.GetNextPage();
+				this.AppendTime = d.getTime();
+			}
+		}
 	};
 
 	this.SetClickTitle = function( dom )
@@ -334,11 +359,40 @@ var Forum = function( owner )
 		} );
 	};
 
+	this.LabelTopic = function( label )
+	{
+		this.ListLabel = label;
+		this.Before = this.MAXTIME;
+		$( '#tpclist>table>tbody>tr:gt(0)' ).remove();
+		var LabelBox = $( '#forum>.content' );
+		LabelBox.children( '.atcllabel' ).removeClass( 'sel' );
+		LabelBox.children( '.atcllabel' ).filter( function()
+		{
+			console.log( $( this ).text(), label );
+			if( $( this ).text() == label )
+			{
+				console.log( 'sssssssssssss' );
+				$( this ).addClass( 'sel' );
+			}
+		} );
+
+		frm.GetNextPage()
+	};
+
+	this.SetClickLabel = function( dom )
+	{
+		$( 'span.tpclabel', dom ).click( function()
+		{
+			frm.LabelTopic( $( this ).html());
+		} );
+	};
+
 	this.SetAttr = function( dom )
 	{
 		this.SetClickTitle( dom );
 		this.SetClickLastTime( dom );
 		this.SetClickArrow( dom );
+		this.SetClickLabel( dom );
 
 		setTimeout( function(){ dom.removeClass( 'new' ); }, 2000 );
 	};
@@ -1016,16 +1070,12 @@ var Forum = function( owner )
 	{
 		var Param = {
 			'cmd': 'GetTpcList',
-			'start': this.StartPos,
+			//'start': this.StartPos,
+			'before': this.Before,
 			'label': this.ListLabel,
 			'sortby': this.SortCol,
 					};
 		//console.log( Param );
-
-		if( this.StartPos == 0 )
-		{
-			$( '#tpclist>table>tbody>tr:gt(0)' ).remove();
-		}
 
 		frm.Owner.Post( Param, 'GetResult' );
 	};
@@ -1057,6 +1107,10 @@ var Forum = function( owner )
 
 	this.TopicTR = function( tpcdata )
 	{
+		if( $( 'tr#Topic_' + tpcdata[0] ).length > 0 )
+		{
+			throw 'topic exist';
+		}
 		var TR = $( '<tr class="new" id="Topic_' + tpcdata[0] + '"><td class="title"></td> \
 			<td class="first"></td><td class="num">1</td><td class="last"></td></tr>' );
 		var LabelSpans = _( tpcdata[2].replace( /\|/g, ',' ).split( ',' )).chain().map( function( lb )
@@ -1071,6 +1125,7 @@ var Forum = function( owner )
 		TR.children( 'td:eq(3)' ).html( '<span class="lasttime" title="查看更新">' + this.ShowTime( tpcdata[8] ) + '</span><br>' + tpcdata[7] );
 		TR.data( 'root', tpcdata[0] );
 
+		this.Before = tpcdata[8];
 		return TR;
 	};
 

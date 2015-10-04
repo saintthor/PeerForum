@@ -69,6 +69,7 @@ class Article( object ):
                 'Type': self.ItemD['Type'],
                 'CreateTime': self.ItemD['CreateTime'],
                 'DestroyTime': self.ItemD.get( 'DestroyTime', 9999999999999 ),
+                'GetTime': int( time() * 1000 ),
                 'AuthPubKey': self.ItemD['AuthPubKey'],
                     } )
         
@@ -76,6 +77,7 @@ class Article( object ):
             kwds['RemoteLabels'] = self.RemoteLabels
         if hasattr( self, 'RemoteEval' ):
             kwds['RemoteEval'] = self.RemoteEval
+            kwds['GetTime'] += randint( 100000, 300000 )   #the GetTime for local creating shouldn't be exact.
             
         SaveArticle( **kwds )
         
@@ -85,7 +87,7 @@ class Article( object ):
             Topic.AddAtcl( self )
             UpdateTopic( self.ItemD['RootID'], **{
                                     'LastAuthName': self.ItemD.get( 'NickName' ),
-                                    'LastTime': self.ItemD.get( 'CreateTime' ),
+                                    'LastTime': kwds['GetTime'],
                                                 } )
 
 #    def SetNodeLabels( self, *labels ):
@@ -166,17 +168,17 @@ class Article( object ):
         #SignFunc = ( lambda s: md5( s ).hexdigest() ) if user is None else user.Sign
         itemD = {} if user is None else user.InitItem()         #get AuthPubKeyType, AuthPubKey, NickName
         itemD['Type'] = Type
-        if Type == Article.NORMAL:
-            assert content
-            itemD['Sign'] = user.Sign( content.encode( 'utf-8' ) )
-        elif Type == Article.LIKE:
-            content = ''        #LIKE has no content, life, ProtoID, Labels
-            life = 0
-            for k in kwds.viewkeys() & { 'ProtoID', 'Labels' }:
-                del kwds[k]
-            itemD['Sign'] = user.Sign( kwds['ParentID'] )
-        else:
-            raise       #for chat here
+#        if Type == Article.NORMAL:
+        assert content
+        itemD['Sign'] = user.Sign( content.encode( 'utf-8' ) )
+#        elif Type == Article.LIKE:
+#            content = ''        #LIKE has no content, life, ProtoID, Labels
+#            life = 0
+#            for k in kwds.viewkeys() & { 'ProtoID', 'Labels' }:
+#                del kwds[k]
+#            itemD['Sign'] = user.Sign( kwds['ParentID'] )
+#        else:
+#            raise       #for chat here
         
         itemD['CreateTime'] = int( time() * 1000 )
         if life > 0:
@@ -404,9 +406,9 @@ class Topic( object ):
             cls.LiveD.pop( rootId )
     
     @classmethod
-    def ListPage( cls, label, offset, sortCol ):
+    def ListPage( cls, label, before, sortCol ):
         ""
-        return GetTopicRows( label, offset, sortCol, TopicNumPerPage )
+        return GetTopicRows( label, before, sortCol, TopicNumPerPage )
     
     
     @classmethod

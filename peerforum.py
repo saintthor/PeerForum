@@ -22,7 +22,7 @@ from node import NeighborNode, SelfNode
 from tree import Article, Topic
 from protocol import PFPMessage, GetTimeLineMsg
 from const import LOG_FILE, CommunicateCycle, GetTimeLineInHours
-from sqlitedb import SqliteDB, InitDB, GetAtclIdByUser
+from sqlitedb import SqliteDB, InitDB, GetAtclIdByUser, GetAllLabels
 from exception import *
 
 
@@ -42,7 +42,8 @@ class PeerForum( object ):
             result['CurUser'] = cls.LocalUser.Issue()
         except NoAvailableNodeErr:
             result.setdefault( 'error', [] ).append( 'no availabel self node.' )
-            
+        result['AllLabels'] = GetAllLabels()
+        
         return result
     
     @staticmethod
@@ -212,10 +213,10 @@ class PeerForum( object ):
         ""
         #print 'cmdGetTpcList', condi['label']
         SortCol = condi['sortby']
-        Offset = condi['start']
+        Before = condi['before']
         Label = condi['label'].decode( 'utf-8' )
         
-        return { 'PageTopics': Topic.ListPage( Label, Offset, SortCol ) }
+        return { 'PageTopics': Topic.ListPage( Label, Before, SortCol ) }
         
     @classmethod
     def cmdDida( cls, counter = [0] ):
