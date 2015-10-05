@@ -22,7 +22,7 @@ from node import NeighborNode, SelfNode
 from tree import Article, Topic
 from protocol import PFPMessage, GetTimeLineMsg
 from const import LOG_FILE, CommunicateCycle, GetTimeLineInHours
-from sqlitedb import SqliteDB, InitDB, GetAtclIdByUser, GetAllLabels
+from sqlitedb import SqliteDB, InitDB, GetAtclIdByUser, GetAllLabels, RecordUser, GetAllUsers
 from exception import *
 
 
@@ -42,7 +42,9 @@ class PeerForum( object ):
             result['CurUser'] = cls.LocalUser.Issue()
         except NoAvailableNodeErr:
             result.setdefault( 'error', [] ).append( 'no availabel self node.' )
+            
         result['AllLabels'] = GetAllLabels()
+        result['AllUsers'] = GetAllUsers()
         
         return result
     
@@ -89,7 +91,6 @@ class PeerForum( object ):
             if not ReplyStr:
                 break
             remote = cls.Reply( ReplyStr.split( '\n' ))        
-        
     
     @classmethod
     def Send( cls, addrs, msgs ):
@@ -158,6 +159,14 @@ class PeerForum( object ):
         Like = Article.New( cls.LocalUser, Type = 1, ParentID = param['atclId'], RootID = param['root'] )
         Like.Save()
         return { 'Like': Like.Show() }
+    
+    @classmethod
+    def cmdSetUserStatus( cls, param ):
+        ""
+        PubKey, Name, Status = param['PubKey'], param['Name'], int( param['Status'] )
+        RecordUser( PubKey, Name, Status )
+        return { 'UserStatus': [PubKey, Name, Status] }
+        
     
     @classmethod
     def cmdSetStatus( cls, param ):

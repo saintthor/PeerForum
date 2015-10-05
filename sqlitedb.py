@@ -428,7 +428,20 @@ def GetAtclByUser( uPubK, From, To, exist = () ):
         sql = '''select id, items, content from article where AuthPubKey = ? and status > 0 
                 and CreateTime >= ? and CreateTime <= ? and id not in (%s)''' % ','.join( ['?'] * len( exist ))
         return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
-    
+
+def GetAllUsers():
+    ""
+    with SqliteDB() as cursor:
+        return cursor.execute( 'select PubKey, NickName, status from user' ).fetchall()
+
+def RecordUser( pubK, nickName, status = 1 ):
+    "follow or block"
+    print 'RecordUser', pubK, nickName, repr( status )
+    with SqliteDB() as cursor:
+        cursor.execute( 'delete from user where PubKey = ?', ( pubK, ))
+        if status != 0:
+            cursor.execute( 'insert into user (PubKey, NickName, status) values(?, ?, ?)', ( pubK, nickName, status ))
+
 def test():
     print GetAllLabels()
     #print GetSelfNode( False )

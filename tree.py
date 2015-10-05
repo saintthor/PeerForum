@@ -32,7 +32,7 @@ class Article( object ):
     MinTime = 1439596800000     #2015-8-15 00:00:00
     LiveD = {}
     
-    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None, labelStr = () ):
+    def __init__( self, Id = None, itemD = None, itemStr = '', content = '', status = None, labelStr = '' ):
         ""
         if Id is None:                  #create
             self.ItemD = itemD
@@ -77,6 +77,7 @@ class Article( object ):
             kwds['RemoteLabels'] = self.RemoteLabels
         if hasattr( self, 'RemoteEval' ):
             kwds['RemoteEval'] = self.RemoteEval
+        else:
             kwds['GetTime'] += randint( 100000, 300000 )   #the GetTime for local creating shouldn't be exact.
             
         SaveArticle( **kwds )

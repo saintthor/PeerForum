@@ -78,6 +78,7 @@ var PeerForum = function()
 {
 	var pf = this;
 	this.Info = { warning: [], error: [], info: [] };
+	this.UserSet = {};
 
 	this.Init = function()
 	{
@@ -167,7 +168,8 @@ var PeerForum = function()
 
 	this.ChkAuthStatus = function( authPubK )
 	{
-		return 0;
+		//console.log( authPubK );
+		return ( this.UserSet[authPubK] || [0, 0] )[1];
 	};
 
 	this.SetAtclLabels = function( atclLabels )
@@ -178,7 +180,7 @@ var PeerForum = function()
 
 		$( '#alllabelidx' ).click( function()
 		{
-			pf.Post( { cmd: 'GetAllTopic' }, 'GetResult' );
+			pf.Forum.LabelTopic( '' );
 		} );
 
 		atclLabels.forEach( function( lb )
@@ -192,7 +194,7 @@ var PeerForum = function()
 		} );
 	};
 
-	this.SetFollowUsers = function( users )
+	/*this.SetFollowUsers = function( users )
 	{
 		var UserArea = $( '#timeline>.content' );
 		UserArea.html( '<div id="alluseridx">所有关注用户</div>' );
@@ -211,7 +213,7 @@ var PeerForum = function()
 		{
 			pf.Post( { cmd: 'GetTimeLine', user: this.attr( 'title' ) }, 'GetResult' );
 		} );
-	};
+	};*/
 
 	this.ShowNewTopic = function( topic )
 	{
@@ -235,6 +237,95 @@ var PeerForum = function()
 		this.Forum.ShowAtcls( treeData[0], this.Forum.FLOWMODE );
 	};
 
+	this.SetUserAttr = function( dom )
+	{
+		console.log( 'SetUserAttr' );
+		$( '.manageuser>button', dom ).click( function()
+		{
+			var UserPubKey = $( this ).parent().data( 'user' );
+			var NickName = $( this ).parent().siblings( '.nickname' ).text();
+			var Status = $( this ).data( 'status' );
+			pf.Post( {
+					cmd: 'SetUserStatus',
+					PubKey: UserPubKey,
+					Name: NickName,
+					Status: Status,
+						}, 'GetResult' );
+		} );
+	}
+
+	this.SetAllUsers = function( allUserData )
+	{
+		var UserArea = $( '#timeline>.content' );
+		UserArea.html( '<div id="alluseridx">所有关注用户</div>' );
+
+		$( '#alluseridx' ).click( function()
+		{
+			pf.Post( { cmd: 'GetTimeLine', user: '' }, 'GetResult' );
+		} );
+
+		allUserData.forEach( function( user )
+		{
+			pf.UserSet[user[0]] = [user[1], user[2]];
+			if( user[2] > 0 )
+			{
+				var UserLabel = $( '<div class="atcllabel" title="' + user[0] + '">' + user[1] + '</div>' );
+				UserLabel.data( 'user', user[0] );
+				UserArea.append( UserLabel );
+			}
+		} );
+
+		UserArea.children( '.atcllabel' ).click( function()
+		{
+			pf.Post( { cmd: 'GetTimeLine', user: this.attr( 'title' ) }, 'GetResult' );
+		} );
+
+		console.log( pf.UserSet );
+	};
+
+	this.GetUserButtons = function( status )
+	{
+		return ( status >= 0 ? '<button data-status=-1>屏蔽</button>' : '<button data-status=0>解除屏蔽</button>' )
+			+ ( status <= 0 ? '<button data-status=1>关注</button>' : '<button data-status=0>取消关注</button>' );
+	};
+
+	this.SetUserStatus = function( userStatus )
+	{
+		console.log( userStatus[0], pf.UserSet[userStatus[0]] );
+		pf.UserSet[userStatus[0]] = [userStatus[1], userStatus[2]];
+
+		if( userStatus[2] > 0 )
+		{
+			var UserLabel = $( '<div class="atcllabel" title="' + userStatus[0] + '">' + userStatus[1] + '</div>' );
+			UserLabel.data( 'user', userStatus[0] );
+			$( '#timeline>.content' ).append( UserLabel );
+		}
+		else
+		{
+			$( '#timeline>.content>.atcllabel' ).each( function()
+			{
+				if( $( this ).data( 'user' ) == userStatus[0] )
+				{
+					$( this ).remove();
+					return false;
+				}
+			} );
+		}
+
+		$( '.manageuser' ).each( function()
+		{
+			if( $( this ).data( 'user' ) == userStatus[0] )
+			{
+				$( this ).addClass( 'update' );
+			}
+		} );
+		
+		var Update = $( '.manageuser.update' );
+		Update.html( this.GetUserButtons( userStatus[2] ));
+		this.SetUserAttr( Update.parent());
+		Update.removeClass( 'update' );
+	};
+
 	this.ShowReply = function( rplData )
 	{
 		console.log( rplData );
@@ -249,7 +340,7 @@ var PeerForum = function()
 
 	this.ExpendTpcTree = function( treeData )
 	{
-		console.log( treeData );
+		//console.log( treeData );
 		this.Forum.SetTopicData( treeData );
 		var TreeTR = this.Forum.ShowTree( treeData[0] );
 
@@ -285,13 +376,15 @@ var PeerForum = function()
 			 'CurNode': 'ChkLocalNode',
 			 'CurUser': 'ChkLocalUser',
 			 'AllLabels': 'SetAtclLabels',
-			 'Follows': 'SetFollowUsers',
+			 'AllUsers': 'SetAllUsers',
+			 //'Follows': 'SetFollowUsers',
 			 'NewTopic': 'ShowNewTopic',
 			 'PageTopics': 'AppendTopics',
 			 'AtclTree': 'ShowAtclPg',
 			 'UpdateLabel': 'UpdateLabelStr',
 			 'Reply': 'ShowReply',
 			 'ShowTree': 'ExpendTpcTree',
+			 'UserStatus': 'SetUserStatus',
 
 			} ).chain().pairs().each( function( p )
 		{
@@ -389,6 +482,7 @@ $( function()
 								<div id='atclpg' class='page'>
 									<div id='returntolist'>返回话题列表</div>
 									<div id='atclarea'></div>
+									<div id='treearea'></div>
 								</div>
 							</div>
 							<div id='msgpg' class='page'>msgpage</div>

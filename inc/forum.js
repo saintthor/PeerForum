@@ -87,7 +87,7 @@ var Input = function( tr, parentId, protoId, submitFunc )
 			var UBB = new UBBObj();
 			UBB.Show( Preview );
 			Preview.show( 300 );
-			$( this ).next( 'button' ).attr( 'disabled', false );
+			$( this ).siblings( 'button' ).attr( 'disabled', false );
 		} );
 
 		$( 'button.post', this.TR ).attr( 'disabled', true );
@@ -139,7 +139,7 @@ function QueryPop( dom, k )
 		var html = {
 			'views': '三种视图，是在一个话题里排列帖子的三种不同方式。<br>流视图是像一般的论坛那样，将话题里的所有帖子按时间排列显示，不表达帖子间的回复关系。<br>链视图与星视图分别选取话题中与当前帖子相关的上级或下级帖子，用于在庞大的帖子树里，快速呈现自己关心的部分。<br>一个帖子的链视图是此帖的所有上级帖子的集合，是从这个帖子向上追溯到根帖的回复路径。当前帖子在最下，根帖在最上。<br>一个帖子的星视图是此帖的所有下级帖子的集合，当前帖子在最上，下面是直接回复它的帖子，再下面是回复那些回复帖的帖子，逐层排列。',
 			'manage': '在飘上，没有管理员。每一位用户都是自己节点的管理员，有权决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的倒计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可被邻节点读取，未裁处和已阻断的帖子不可被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点及用户的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。',
-			'userpubk': '飘没有用户系统，不同的用户可能有相同的用户名，因此，需要以用户公钥来区分用户。用鼠标指向用户名可见用户公钥，公钥很长，不好认，从公钥生成一个 RandomArt，就是下面这个字符组成的小图，就容易识别了。用户公钥（RandomArt）相同就是同一个人，用户名是随时可以改的。',
+			'userpubk': '飘没有用户系统，不同的用户可能有相同的用户名，因此，需要以用户公钥来区分用户。用鼠标指向用户名可见用户公钥，公钥很长，不好认，从公钥生成一个 RandomArt，就是下面这个字符组成的小图，就容易识别了。用户公钥（RandomArt）相同就是同一个人，用户名是可以改的。',
 			'autoedit': '选中自动排版，会在提交时去掉内容中每一段前后的空格，并在段与段之间插入一个空行。<br/>如果帖子里含有程序代码之类对格式要求严格的内容，不应选中自动排版。',
 			'lastupdate': '这一栏显示的时间不是话题里最新一个帖子的发布时间，而是当前节点最后一次收到帖子的时间。接收的时序与帖子发布的时序无关。<br>如果最新帖子是在本地发布的，为了安全，最新时间显示为发布时间之后几分钟里的某个时间。',
 			//'ubb': 'UBB 标签用于在帖子中实现一些格式和动态效果。这些标签依照 guideep 的标准实现，详细使用说明请看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。',
@@ -286,23 +286,31 @@ var Forum = function( owner )
 
 		$( '#returntolist' ).click( function()
 		{
-			$( '#atclpg' ).hide( 200 );
-			$( '#listpg' ).show( 300 );
-			$( '#listpg' ).after( $( '#atclpg' ));
+			frm.CloseAtclPg();
 		} );
 
 		$( '#forumpg' ).scroll( function()
 		{
 			frm.ChkPass();
-			frm.ChkNextPage();
+			if( $( '#listpg:visible' ).length > 0 )
+			{
+				frm.ChkNextPage();				
+			}
 		} );
 
 		QueryPop( $( '#lastth>span.query' ) , 'lastupdate' );
 	};
 
+	this.CloseAtclPg = function()
+	{
+		$( '#atclpg' ).hide( 200 );
+		$( '#listpg' ).show( 300 );
+		$( '#listpg' ).after( $( '#atclpg' ));
+	};
+
 	this.ChkNextPage = function()
 	{
-		console.log( this.AppendTime );
+		//console.log( this.AppendTime );
 		var d = new Date();
 		if( d.getTime() - this.AppendTime > 5000 )
 		{
@@ -389,6 +397,8 @@ var Forum = function( owner )
 
 	this.SetAttr = function( dom )
 	{
+		this.CloseAtclPg();
+
 		this.SetClickTitle( dom );
 		this.SetClickLastTime( dom );
 		this.SetClickArrow( dom );
@@ -551,9 +561,11 @@ var Forum = function( owner )
 
 		if( AuthPubKey != frm.Owner.CurUser[0] )
 		{
-			$( '.edit', AtclDiv ).remove();
-			$( '.manageuser', AtclDiv ).append( AuthStatus >= 0 ? '<button class="blockbtn">屏蔽</button>' : '<button class="unblockbtn">解除屏蔽</button>' );
-			$( '.manageuser', AtclDiv ).append( AuthStatus <= 0 ? '<button class="followbtn">关注</button>' : '<button class="unfollowbtn">取消关注</button>' );
+			var ManageUser = $( '.manageuser', AtclDiv );
+			ManageUser.html( this.Owner.GetUserButtons( AuthStatus ))
+			//ManageUser.append( AuthStatus >= 0 ? '<button data-status=-1>屏蔽</button>' : '<button data-status=0>解除屏蔽</button>' );
+			//ManageUser.append( AuthStatus <= 0 ? '<button data-status=1>关注</button>' : '<button data-status=0>取消关注</button>' );
+			ManageUser.data( 'user', AuthPubKey );
 		}
 
 		return AtclDiv;
@@ -596,7 +608,7 @@ var Forum = function( owner )
 			'link': frm.LINKMODE,
 			'star': frm.STARMODE,
 					}[$( this ).attr( 'class' )];
-		frm.ShowAtcls( RootId, Mode, AtclId)
+		frm.ShowAtcls( RootId, Mode, AtclId );
 	};
 
 	var SetSize = function()
@@ -738,6 +750,8 @@ var Forum = function( owner )
 			$( '#atclarea' ).append( frm.ShowSingleAtcl( p ));
 		} );
 
+		$( '#treearea' ).html( this.ShowTree( rootId, $( '<table><tbody></tbody></table>' )));
+
 		//var ScrTop = $( '#shapestep' ).scrollTop();
 		//$( '#atclarea' ).animate( { scrollTop: 2000 }, 200 );
         /*    var Width = $( '#likebtn' ).closest( '.col-lg-2' ).outerWidth() + 13 + 'px';
@@ -759,6 +773,7 @@ var Forum = function( owner )
 		$( '#atclarea .reply' ).click( EnableReply );
 
 		this.SetClickManage( $( '#atclarea .manage' ));
+		this.Owner.SetUserAttr( $( '#atclarea' ));
 		this.ChkPass();
 	};
 
@@ -859,12 +874,19 @@ var Forum = function( owner )
 		} );
 	};
 
-	this.SetTreeLineAttr = function( root, trLnTR )
+	this.SetTreeLineAttr = function( root, trLnTR, mayExpend )
 	{
 		this.SetClickTreeTitle( root, trLnTR );
 		this.SetClickTreeLastTime( root, trLnTR );
-		this.SetClickTreeArrow( root, trLnTR );		
-		this.SetClickTreePrefix( root, trLnTR );		
+		if( mayExpend )
+		{
+			this.SetClickTreeArrow( root, trLnTR );
+			this.SetClickTreePrefix( root, trLnTR );		
+		}
+		else
+		{
+			$( '.arrow', trLnTR ).remove();
+		}
 	};
 
 	this.SetClickManage = function( dom, atcl )
@@ -924,24 +946,25 @@ var Forum = function( owner )
 		}
 	};
 
-	this.ShowTree = function( rootId )
+	this.ShowTree = function( rootId, TreeBox )
 	{
 		console.log( 'ShowTree' );
-		var TR = $( '<tr class="tree" id="Tree_' + rootId + '"><td colspan=4><table><tbody></tbody></table></td></tr>' );
+		var MayExpend = !TreeBox;
+		TreeBox = TreeBox || $( '<tr class="tree" id="Tree_' + rootId + '"><td colspan=4><table><tbody></tbody></table></td></tr>' );
 
 		_( this.TopicObj.TreeRoots[rootId] ).each( function( r )
 		{
-			frm.DrawTreeLine( rootId, r, $( 'tbody', TR ), 0 );
+			frm.DrawTreeLine( rootId, r, $( 'tbody', TreeBox ), 0 );
 		} );
 
-		TR.data( 'root', rootId );
+		TreeBox.data( 'root', rootId );
 
-		$( 'tr', TR ).each( function()
+		$( 'tr', TreeBox ).each( function()
 		{
-			frm.SetTreeLineAttr( rootId, $( this ));
+			frm.SetTreeLineAttr( rootId, $( this ), MayExpend );
 		} );
 
-		return TR;
+		return TreeBox;
 	};
 
 	this.DrawTreeLine = function( rootId, parentId, tbody, layer )
