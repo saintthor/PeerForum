@@ -80,6 +80,9 @@ var PeerForum = function()
 	this.Info = { warning: [], error: [], info: [] };
 	this.UserSet = {};
 
+	this.MAXTIME = 9999999999999;
+	this.Before = this.MAXTIME;		//for timeline
+
 	this.Init = function()
 	{
 		this.PageIdx = {};
@@ -194,27 +197,6 @@ var PeerForum = function()
 		} );
 	};
 
-	/*this.SetFollowUsers = function( users )
-	{
-		var UserArea = $( '#timeline>.content' );
-		UserArea.html( '<div id="alluseridx">所有关注用户</div>' );
-
-		$( '#alluseridx' ).click( function()
-		{
-			pf.Post( { cmd: 'GetAllTimeLine' }, 'GetResult' );
-		} );
-
-		users.forEach( function( u )
-		{
-			UserArea.append( '<div class="atcllabel" title="' + u[1] + '">' + u[0] + '</div>' );
-		} );
-
-		UserArea.children( '.atcllabel' ).click( function()
-		{
-			pf.Post( { cmd: 'GetTimeLine', user: this.attr( 'title' ) }, 'GetResult' );
-		} );
-	};*/
-
 	this.ShowNewTopic = function( topic )
 	{
 		console.log( topic );
@@ -250,7 +232,7 @@ var PeerForum = function()
 					PubKey: UserPubKey,
 					Name: NickName,
 					Status: Status,
-						}, 'GetResult' );
+						} );
 		} );
 	}
 
@@ -261,7 +243,10 @@ var PeerForum = function()
 
 		$( '#alluseridx' ).click( function()
 		{
-			pf.Post( { cmd: 'GetTimeLine', user: '' }, 'GetResult' );
+			$( this ).siblings( 'div' ).removeClass( 'sel' );
+			$( this ).addClass( 'sel' );
+			$( '#timelinepg' ).html( '' );
+			pf.Post( { cmd: 'GetTimeLine', user: '', before: pf.Before } );
 		} );
 
 		allUserData.forEach( function( user )
@@ -277,7 +262,14 @@ var PeerForum = function()
 
 		UserArea.children( '.atcllabel' ).click( function()
 		{
-			pf.Post( { cmd: 'GetTimeLine', user: this.attr( 'title' ) }, 'GetResult' );
+			$( this ).siblings( 'div' ).removeClass( 'sel' );
+			$( this ).addClass( 'sel' );
+			$( '#timelinepg' ).html( '' );
+			pf.Post( { 
+				cmd: 'GetTimeLine', 
+				user: $( this ).data( 'user' ), 
+				before: pf.Before 
+					} );
 		} );
 
 		console.log( pf.UserSet );
@@ -298,6 +290,14 @@ var PeerForum = function()
 		{
 			var UserLabel = $( '<div class="atcllabel" title="' + userStatus[0] + '">' + userStatus[1] + '</div>' );
 			UserLabel.data( 'user', userStatus[0] );
+			UserLabel.click( function()
+			{
+				$( this ).siblings( 'div' ).removeClass( 'sel' );
+				$( this ).addClass( 'sel' );
+				$( '#timelinepg' ).html( '' );
+				pf.Post( { cmd: 'GetTimeLine', user: userStatus[0], before: pf.Before } );
+			} );
+
 			$( '#timeline>.content' ).append( UserLabel );
 		}
 		else
@@ -362,6 +362,11 @@ var PeerForum = function()
 		this.Forum.ChkNextPage();
 	};
 
+	this.AppendTimeLine = function( tls )
+	{
+		pf.Forum.ShowTimeLine( tls );
+	};
+
 	this.UpdateLabelStr = function( labelData )
 	{
 		this.Forum.SetLabelStr( labelData );
@@ -369,8 +374,6 @@ var PeerForum = function()
 
 	this.GetResult = function( rslt )
 	{
-		//rslt.Labels = ['帖子', '格行', '禁止', '块', '隐现器'];
-		//rslt.Follows = [['带删除', 'iggojojp'], ['下划线', '8g7ff6d'], ['表格行', 'yft7f6d5d'], ['页内跳转', 'ou98767df'], ['选择器选项', 'jhgyfdd']];
 		console.log( rslt );
 		_( {
 			 'CurNode': 'ChkLocalNode',
@@ -385,7 +388,7 @@ var PeerForum = function()
 			 'Reply': 'ShowReply',
 			 'ShowTree': 'ExpendTpcTree',
 			 'UserStatus': 'SetUserStatus',
-
+			 'TimeLine': 'AppendTimeLine',
 			} ).chain().pairs().each( function( p )
 		{
 			//console.log( p );
@@ -405,23 +408,23 @@ var PeerForum = function()
 
 	this.Dida = function()
 	{
-		this.Post( { cmd: 'Dida' }, 'GetResult' );
+		this.Post( { cmd: 'Dida' } );
 		setTimeout( this.Dida, 5000 );
 	};
 
 	this.ChkEnv = function()
 	{
-		this.Post( { cmd: 'ChkEnv' }, 'GetResult' );
+		this.Post( { cmd: 'ChkEnv' } );
 	};
 
 	this.GetNode = function()
 	{
-		this.Post( { cmd: 'GetNode' }, 'GetResult' );
+		this.Post( { cmd: 'GetNode' } );
 	};
 
 	this.GetUser = function()
 	{
-		this.Post( { cmd: 'GetUser' }, 'GetResult' );
+		this.Post( { cmd: 'GetUser' } );
 	};
 
 	this.Post = function( params, dataFunc, errFunc )
@@ -434,7 +437,7 @@ var PeerForum = function()
 			{
 				( errFunc || alert )( Result.error );
 			}
-			pf[dataFunc]( Result );
+			( dataFunc || pf.GetResult )( Result );
 		} );
 	};
 

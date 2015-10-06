@@ -166,7 +166,11 @@ class PeerForum( object ):
         PubKey, Name, Status = param['PubKey'], param['Name'], int( param['Status'] )
         RecordUser( PubKey, Name, Status )
         return { 'UserStatus': [PubKey, Name, Status] }
-        
+    
+    @classmethod
+    def cmdGetTimeLine( cls, param ):
+        ""
+        return { 'TimeLine': Article.ShowByUser( param['user'], param['before'] ) }
     
     @classmethod
     def cmdSetStatus( cls, param ):

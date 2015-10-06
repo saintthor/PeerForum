@@ -14,7 +14,7 @@ import traceback
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
                      GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels, GetTopicRowById, \
-                     GetTopicRows, SetAtclStatus, SetLabel
+                     GetTopicRows, SetAtclStatus, SetLabel, GetAtclByUserToShow
 from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser, TopicNumPerPage
 
 class Article( object ):
@@ -122,7 +122,7 @@ class Article( object ):
         except:
             print traceback.format_exc()
     
-    def Show( self ):
+    def Show( self, **addi ):
         "show to ui"
         ShowData = {
                 'atclId': self.id,
@@ -130,6 +130,7 @@ class Article( object ):
                 'status': self.status,
                 'LabelStr': self.LabelStr,
                     }
+        ShowData.update( addi )
         ShowData.update( self.ItemD )
         return ShowData
         
@@ -224,10 +225,17 @@ class Article( object ):
             return cls( Id = atclId, itemStr = aData[0], content = aData[1] )
     
     @classmethod
+    def ShowByUser( cls, uPubK, before ):
+        "timeline for ui"
+        return [cls( Id = data[0], itemStr = data[1], content = data[2], 
+                    status = data[4], labelStr = data[3] or '' ).Show( rootId = data[5] )
+                    for data in GetAtclByUserToShow( uPubK, before, 30 )]
+    
+    @classmethod
     def GetByUser( cls, uPubK, From, To, exist ):
         "timeline"
         print 'Article.GetByUser'
-        if SeekSelfUser or not SelfUser.IsSelf( uPubK ):
+        if SeekSelfUser or not SelfUser.IsSelf( uPubK ):    #set SeekSelfUser to False for high secrety
             for Id, items, content in GetAtclByUser( uPubK, From, To, exist ):
                 print Id, items, content
                 yield cls( Id = Id, itemStr = items, content = content )

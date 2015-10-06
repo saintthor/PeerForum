@@ -422,13 +422,25 @@ def GetAtclIdByUser( uPubK, From, To ):
         return [a[0] for a in atcls]
     
 def GetAtclByUser( uPubK, From, To, exist = () ):
-    ""
+    "to trans"
     exist = tuple( exist ) + ( 'zzz', )
     with SqliteDB() as cursor:                                            #for testing check status condition availible
         sql = '''select id, items, content from article where AuthPubKey = ? and status > 0 
                 and CreateTime >= ? and CreateTime <= ? and id not in (%s)''' % ','.join( ['?'] * len( exist ))
         return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
 
+def GetAtclByUserToShow( uPubK, before, num ):
+    "to show"
+    with SqliteDB() as cursor:
+        if uPubK:
+            return cursor.execute( '''select id, items, content, labels, article.status, article.root from article left outer join topic
+                            on article.id = topic.root where AuthPubKey = ? and GetTime <= ? order by GetTime desc limit ?''',
+                            ( uPubK, before, num )).fetchall()
+        return cursor.execute( '''select id, items, content, labels, article.status, article.root from article join user on 
+                            article.AuthPubKey = user.PubKey left outer join topic on article.id = topic.root 
+                            where user.status > 0 and GetTime <= ? order by GetTime desc limit ?''',
+                            ( before, num )).fetchall()
+    
 def GetAllUsers():
     ""
     with SqliteDB() as cursor:

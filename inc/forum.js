@@ -242,7 +242,7 @@ var Forum = function( owner )
 	this.MAXTIME = 9999999999999;
 
 	this.Owner = owner;
-	this.StartPos = 0;
+	//this.StartPos = 0;
 	this.Before = this.MAXTIME;
 	this.AppendTime = 0;
 	this.ListLabel = '';
@@ -259,7 +259,7 @@ var Forum = function( owner )
 			{
 				new Input( $( '#tpcinput tr' ), null, null, function( data )
 				{
-					frm.Owner.Post( data, 'GetResult' );
+					frm.Owner.Post( data );
 				} );
 			}
 		} );
@@ -330,7 +330,7 @@ var Forum = function( owner )
 		{
 			var Root = $( this ).closest( 'tr' ).data( 'root' );
 			//console.log( Root );
-			frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'flow' }, 'GetResult' );
+			frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'flow' } );
 		} );
 	};
 
@@ -340,7 +340,7 @@ var Forum = function( owner )
 		{
 			var Root = $( this ).closest( 'tr' ).data( 'root' );
 			//console.log( Root );
-			frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'last' }, 'GetResult' );
+			frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'last' } );
 		} );
 	};
 	
@@ -351,7 +351,7 @@ var Forum = function( owner )
 			var Root = $( this ).closest( 'tr' ).data( 'root' );
 			if( $( this ).text() == '◣' )
 			{
-				frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'tree' }, 'GetResult' );
+				frm.Owner.Post( { cmd: 'GetAtclTree', root: Root, mode: 'tree' } );
 				$( this ).html( '◤' );
 				$( this ).attr( 'title', '降维' );
 			}
@@ -444,13 +444,15 @@ var Forum = function( owner )
 	var DelLabelFunc = function()
 	{
 		var LabelSpan = $( this ).parent();
-		var RootId = $( this ).closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
+		var RootId = $( this ).closest( '.tree' ).data( 'root' ) ||
+					 $( this ).closest( '.atclright' ).data( 'root' ) ||
+					 $( '#atclarea' ).data( 'root' );
 		$( this ).remove();
 		frm.Owner.Post( {
 				cmd: 'DelLabel',
 				rootId: RootId,
 				label: LabelSpan.html(),
-						}, 'GetResult' )
+						} )
 		LabelSpan.hide( 400, function()
 		{
 			LabelSpan.remove();
@@ -460,7 +462,7 @@ var Forum = function( owner )
 	this.ShowSingleAtcl = function( atclData )
 	{
 		console.log( atclData );
-		var AtclDiv = $( '<div class="atcl" id="Atcl_' + atclData[0] + '"><table><tbody><tr> \
+		var AtclDiv = $( '<div class="atcl" id="Atcl_' + atclData.atclId + '"><table><tbody><tr> \
 			<td class="atclleft"><div class="nickname"/><span class="query" title="">？</span>\
 			<div class="randomart"></div> \
 			<div class="manageuser"></div></td><td class="atclright"><div class="atcltop"> \
@@ -475,41 +477,49 @@ var Forum = function( owner )
 			<!--button class="edit">编辑</button--><button class="reply">回复</button></span></div> \
 			</td></tr></tbody></table><div></div></div>' );
 
-		var AuthPubKey = atclData[1].AuthPubKey;
+		var AuthPubKey = atclData.AuthPubKey;
 		var AuthStatus = frm.Owner.ChkAuthStatus( AuthPubKey );
 		var NameDiv = $( '.nickname', AtclDiv );
 
-		NameDiv.html( atclData[1].NickName );
+		NameDiv.html( atclData.NickName );
 		NameDiv.attr( 'title', '用户公钥：' + AuthPubKey );
 
-		this.ChkContentVisible( $( '.atclbody', AtclDiv ), AuthStatus, atclData[1] );
-		this.SetManageBtns( $( '.manage', AtclDiv ), atclData[1].status );
+		this.ChkContentVisible( $( '.atclbody', AtclDiv ), AuthStatus, atclData );
+		this.SetManageBtns( $( '.manage', AtclDiv ), atclData.status );
 
-		if( atclData[1].status == 0 )
+		if( atclData.status == 0 )
 		{
-			frm.TopicObj.AutoPasser[atclData[0]] = new Passer( $( '.atclbody', AtclDiv ), function()
+			frm.TopicObj.AutoPasser[atclData.atclId] = new Passer( $( '.atclbody', AtclDiv ), function()
 			{
-				frm.Manage( atclData[1], 'pass' );
+				frm.Manage( atclData, 'pass' );
 			} );
 		}
 
 		$( '.randomart', AtclDiv ).html( frm.RandomArt( str_md5( AuthPubKey )));
-		$( '.time', AtclDiv ).html( frm.ShowTime( atclData[1].CreateTime ));
-		if( atclData[1].DestroyTime < atclData[1].CreateTime + 10000 * 1000 * 86400 )
+		$( '.time', AtclDiv ).html( frm.ShowTime( atclData.CreateTime ));
+		if( atclData.DestroyTime < atclData.CreateTime + 10000 * 1000 * 86400 )
 		{
-			var DestroyTime = $( '<div class="destroytime" title="失效时间">~' + this.ShowTime( atclData[1].DestroyTime ) + '</div>' );
+			var DestroyTime = $( '<div class="destroytime" title="失效时间">~' 
+								+ this.ShowTime( atclData.DestroyTime ) + '</div>' );
 			$( '.atclbody', AtclDiv ).after( DestroyTime );
 		}
-		$( '.atclid', AtclDiv ).html( atclData[0] );
+		$( '.atclid', AtclDiv ).html( atclData.atclId );
 		//$( '.likenum', AtclDiv ).html(( atclData[1][0].Liked || [] ).length );
-		$( '.atclfoot', AtclDiv ).data( 'atclid', atclData[0] );
+		$( '.atclfoot', AtclDiv ).data( 'atclid', atclData.atclId );
 
-		if( atclData[1].LabelStr )
+		if( atclData.rootId )
 		{
-			console.log( atclData[1].LabelStr );
+			$( 'td.atclright', AtclDiv ).data( 'root', atclData.rootId );
+		}
+
+		if( atclData.LabelStr )
+		{
+			console.log( atclData.LabelStr );
 			var LabelDiv = $( '.labels', AtclDiv );
-			var RootId = LabelDiv.closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
-			_( atclData[1].LabelStr.split( '|' )).each( function( lbstr, i )
+			var RootId = LabelDiv.closest( '.tree' ).data( 'root' ) ||
+						 LabelDiv.closest( '.atclright' ).data( 'root' ) ||
+						 $( '#atclarea' ).data( 'root' );
+			_( atclData.LabelStr.split( '|' )).each( function( lbstr, i )
 			{
 				console.log( lbstr, i );
 				if( lbstr )
@@ -550,7 +560,7 @@ var Forum = function( owner )
 							cmd: 'AddLabel',
 							rootId: RootId,
 							label: NewLabel,
-									}, 'GetResult' )
+									} )
 					var NewLabelSpan = $( '<span class="nodelabel">' + NewLabel 
 								+ '<span title="删除节点标签">×</span></span>' );
 					$( this ).parent().before( NewLabelSpan );
@@ -602,13 +612,30 @@ var Forum = function( owner )
 	var SetView = function()
 	{
 		var AtclId = $( this ).closest( 'td' ).children( '.atclfoot' ).data( 'atclid' );
-		var RootId = $( this ).closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
+		var RootId = $( this ).closest( '.tree' ).data( 'root' ) ||
+					 $( this ).closest( '.atclright' ).data( 'root' ) ||
+					 $( '#atclarea' ).data( 'root' );
 		var Mode = {
 			'flow': frm.FLOWMODE,
 			'link': frm.LINKMODE,
 			'star': frm.STARMODE,
 					}[$( this ).attr( 'class' )];
-		frm.ShowAtcls( RootId, Mode, AtclId );
+
+		if( RootId in frm.TopicObj )
+		{
+			frm.ShowAtcls( RootId, Mode, AtclId );
+		}
+		else
+		{
+			frm.Owner.Post( { cmd: 'GetAtclTree', root: RootId, mode: 'flow' },
+			function( rslt )
+			{
+				//console.log( rslt );
+				frm.SetTopicData( rslt.AtclTree );
+				frm.ShowAtcls( RootId, Mode, AtclId );
+				$( '#forum' ).click();
+			} );
+		}
 	};
 
 	var SetSize = function()
@@ -631,13 +658,15 @@ var Forum = function( owner )
 		}
 		var TR = $( '<tr class="input"></tr>' );
 		//console.log( )
-		var RootId = $( this ).closest( '.tree' ).data( 'root' ) || $( '#atclarea' ).data( 'root' );
+		var RootId = $( this ).closest( '.tree' ).data( 'root' ) ||
+					 $( this ).closest( '.atclright' ).data( 'root' ) ||
+					 $( '#atclarea' ).data( 'root' );
 
 		console.log( $( this ).closest( '.atclfoot' ).data( 'atclid' ));
 		new Input( TR, $( this ).closest( '.atclfoot' ).data( 'atclid' ), null, function( data )
 		{
 			data.root = RootId;
-			frm.Owner.Post( data, 'GetResult' );
+			frm.Owner.Post( data );
 		} );
 
 		TR.hide();
@@ -681,9 +710,9 @@ var Forum = function( owner )
 
 	this.FlowModeAtcls = function( rootId )
 	{
-		return _( this.TopicObj[rootId] ).chain().pairs().sortBy( function( p )
+		return _( this.TopicObj[rootId] ).chain().values().sortBy( function( v )
 				{
-					return p[1].CreateTime;
+					return v.CreateTime;
 				} );
 	};
 
@@ -695,7 +724,7 @@ var Forum = function( owner )
 
 		while( Atcl )
 		{
-			Atcls.push( [atclId, Atcl] );
+			Atcls.push( Atcl );
 			atclId = Atcl.ParentID;
 			Atcl = Topic[atclId]
 		}
@@ -706,7 +735,7 @@ var Forum = function( owner )
 	this.StarModeAtcls = function( rootId, atclId )
 	{
 		var Topic = this.TopicObj[rootId];
-		var Atcls = [[atclId, Topic[atclId]]];
+		var Atcls = [Topic[atclId]];
 		var start = 0;
 		var end = 1;
 
@@ -715,12 +744,12 @@ var Forum = function( owner )
 			console.log( start, end );
 			_( Atcls.slice( start, end )).each( function( parent )
 			{
-				_( parent[1].Children || [] ).each( function( ch )
+				_( parent.Children || [] ).each( function( ch )
 				{
 					var Child = Topic[ch];
 					if( Child )
 					{
-						Atcls.push( [ch, Child] );
+						Atcls.push( Child );
 					}
 				} );
 			} );
@@ -744,10 +773,10 @@ var Forum = function( owner )
 				'StarModeAtcls',
 					][mode]]( rootId, atclId );
 
-		Atcls.each( function( p )
+		Atcls.each( function( a )
 		{
 			//console.log( p );
-			$( '#atclarea' ).append( frm.ShowSingleAtcl( p ));
+			$( '#atclarea' ).append( frm.ShowSingleAtcl( a ));
 		} );
 
 		$( '#treearea' ).html( this.ShowTree( rootId, $( '<table><tbody></tbody></table>' )));
@@ -774,6 +803,26 @@ var Forum = function( owner )
 
 		this.SetClickManage( $( '#atclarea .manage' ));
 		this.Owner.SetUserAttr( $( '#atclarea' ));
+		this.ChkPass();
+	};
+
+	this.ShowTimeLine = function( atcls )
+	{		
+		atcls.forEach( function( a )
+		{
+			//console.log( p );
+			$( '#timelinepg' ).append( frm.ShowSingleAtcl( a ));
+		} );
+
+		QueryPop( $( '#timelinepg .atclleft .query' ), 'userpubk' );
+		QueryPop( $( '#timelinepg .atcltop .query' ), 'views' );
+
+		$( '#timelinepg .atcltop>.linemiddle>span' ).click( SetSize );
+		$( '#timelinepg .atcltop>.lineright>span' ).click( SetView );
+		$( '#timelinepg .reply' ).click( EnableReply );
+
+		this.SetClickManage( $( '#timelinepg .manage' ));
+		this.Owner.SetUserAttr( $( '#timelinepg' ));
 		this.ChkPass();
 	};
 
@@ -825,7 +874,7 @@ var Forum = function( owner )
 			{
 				var AppendAtcl = $( '<tr id="Append_' + AtclId + '"><td colspan=5></td></tr>' );
 
-				AppendAtcl.children( 'td' ).append( frm.ShowSingleAtcl( [AtclId, Atcl] ));
+				AppendAtcl.children( 'td' ).append( frm.ShowSingleAtcl( Atcl ));
 				QueryPop( $( '.atclleft .query', AppendAtcl ), 'userpubk' );
 				$( '.atcltop>.lineright>span', AppendAtcl ).click( SetView );
 				$( '.reply', AppendAtcl ).click( EnableReply );
@@ -919,7 +968,7 @@ var Forum = function( owner )
 				cmd: 'SetStatus',
 				atclId: atcl.atclId,
 				status: atcl.status,
-						}, 'GetResult' );
+						} );
 	};
 
 	this.ReDrawAtcl = function( TD, atcl )
@@ -1013,7 +1062,7 @@ var Forum = function( owner )
 		console.log( replyData );
 		var ParentId = 'Atcl_' + replyData[1].ParentID;
 		var Parent = $( '#' + ParentId );
-		var NewAtcl = this.ShowSingleAtcl( replyData );
+		var NewAtcl = this.ShowSingleAtcl( replyData[1] );
 		$( '.atcltop>.lineright>span', NewAtcl ).click( SetView );
 		$( '.reply', NewAtcl ).click( EnableReply );
 		QueryPop( $( '.atclleft .query', NewAtcl ), 'userpubk' );
@@ -1100,7 +1149,7 @@ var Forum = function( owner )
 					};
 		//console.log( Param );
 
-		frm.Owner.Post( Param, 'GetResult' );
+		frm.Owner.Post( Param );
 	};
 
 	this.FillZero = function( s )
