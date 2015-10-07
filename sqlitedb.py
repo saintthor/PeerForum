@@ -316,7 +316,7 @@ def GetTopicRowById( rootId ):
             
 def GetTopicRows( label, before, sortCol, limit ):
     ""
-    print 'GetTopicRows', label, before, sortCol, limit
+    print 'GetTopicRows', label, before, sortCol, limit #if the sortCol is LastTime, it means the last GetTime of the articles in topic.
     with SqliteDB() as cursor:
         if label:
             return cursor.execute(
@@ -432,14 +432,16 @@ def GetAtclByUser( uPubK, From, To, exist = () ):
 def GetAtclByUserToShow( uPubK, before, num ):
     "to show"
     with SqliteDB() as cursor:
-        if uPubK:
-            return cursor.execute( '''select id, items, content, labels, article.status, article.root from article left outer join topic
-                            on article.id = topic.root where AuthPubKey = ? and GetTime <= ? order by GetTime desc limit ?''',
-                            ( uPubK, before, num )).fetchall()
-        return cursor.execute( '''select id, items, content, labels, article.status, article.root from article join user on 
-                            article.AuthPubKey = user.PubKey left outer join topic on article.id = topic.root 
-                            where user.status > 0 and GetTime <= ? order by GetTime desc limit ?''',
-                            ( before, num )).fetchall()
+        if uPubK == 'all':
+            return cursor.execute( '''select id, items, content, labels, article.status, article.root, GetTime 
+                                from article join user on article.AuthPubKey = user.PubKey left outer join topic 
+                                on article.id = topic.root where user.status > 0 and GetTime <= ? 
+                                order by GetTime desc limit ?''',
+                                ( before, num )).fetchall()
+        return cursor.execute( '''select id, items, content, labels, article.status, article.root, GetTime from 
+                                article left outer join topic on article.id = topic.root where AuthPubKey = ? 
+                                and GetTime <= ? order by GetTime desc limit ?''',
+                                ( uPubK, before, num )).fetchall()
     
 def GetAllUsers():
     ""
@@ -524,7 +526,7 @@ def InitDB( path = '' ):
         c.execute( """create table topic (root varchar(256) unique,
                     title varchar(128) not null, num int(4), status int(2) default 0,
                     labels varchar(256), FirstAuthName  varchar(32), FirstTime int(13),
-                    LastAuthName  varchar(32), LastTime int(13));""" )
+                    LastAuthName  varchar(32), LastTime int(13));""" )  #LastTime is the last GetTime of the articles
         #标签                                             type = 0 for static label; 1 for node label
         c.execute( """create table label (name varchar(32), type int(2), TopicID varchar(256));""" )
 #        #运行时

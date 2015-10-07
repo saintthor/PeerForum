@@ -60,7 +60,7 @@ var PFItem = function( owner, name, title, objpg )
 		this.ObjPg.show( 300 );
 	};
 
-	this.Click = function( Map )
+	this.Click = function()
 	{
 		try
 		{
@@ -110,6 +110,7 @@ var PeerForum = function()
 
 		$( '.pfitem' ).click( function()
 		{
+			//alert( $( this ).attr( 'id' ));
 			$( this ).data( 'obj' ).Click();
 		} );
 
@@ -131,6 +132,7 @@ var PeerForum = function()
 
 	this.InitMsgPg = function(){};
 	this.InitTimeLinePg = function(){};
+
 	this.InitSetPg = function(){};
 
 	this.ShowInfo = function()
@@ -239,15 +241,8 @@ var PeerForum = function()
 	this.SetAllUsers = function( allUserData )
 	{
 		var UserArea = $( '#timeline>.content' );
-		UserArea.html( '<div id="alluseridx">所有关注用户</div>' );
-
-		$( '#alluseridx' ).click( function()
-		{
-			$( this ).siblings( 'div' ).removeClass( 'sel' );
-			$( this ).addClass( 'sel' );
-			$( '#timelinepg' ).html( '' );
-			pf.Post( { cmd: 'GetTimeLine', user: '', before: pf.Before } );
-		} );
+		//UserArea.html( '<div id="alluseridx">所有关注用户</div>' );
+		UserArea.html( '<div class="atcllabel" style="float:;" data-user="me">我</div><div class="atcllabel" style="float:;" data-user="all">所有关注用户</div><br><br>' );
 
 		allUserData.forEach( function( user )
 		{
@@ -270,9 +265,20 @@ var PeerForum = function()
 				user: $( this ).data( 'user' ), 
 				before: pf.Before 
 					} );
+			return false;
 		} );
 
+		$( '#timeline>.content>div:eq(1)' ).click();
 		console.log( pf.UserSet );
+	};
+
+	this.GetTimeLine = function()
+	{
+		pf.Post( { 
+			cmd: 'GetTimeLine', 
+			user: $( '#timeline>.content>div.sel' ).data( 'user' ), 
+			before: pf.Before 
+				} );
 	};
 
 	this.GetUserButtons = function( status )
@@ -364,7 +370,7 @@ var PeerForum = function()
 
 	this.AppendTimeLine = function( tls )
 	{
-		pf.Forum.ShowTimeLine( tls );
+		this.Before = pf.Forum.ShowTimeLine( tls );
 	};
 
 	this.UpdateLabelStr = function( labelData )
@@ -402,7 +408,7 @@ var PeerForum = function()
 			}
 		} );
 
-		this.ShowInfo();
+		pf.ShowInfo();
 		//console.log( pf.CurUser, pf.CurNode );
 	};
 
@@ -489,7 +495,7 @@ $( function()
 								</div>
 							</div>
 							<div id='msgpg' class='page'>msgpage</div>
-							<div id='timelinepg' class='page'>timelinepg</div>
+							<div id='timelinepg' class='page'>暂无时间线。</div>
 							<div id='setpg' class='page'>setpg</div>
 						</td>
 						<td id='rightarea' valign='top'>

@@ -170,7 +170,10 @@ class PeerForum( object ):
     @classmethod
     def cmdGetTimeLine( cls, param ):
         ""
-        return { 'TimeLine': Article.ShowByUser( param['user'], param['before'] ) }
+        UserPubKey = param['user']
+        if UserPubKey == 'me':
+            UserPubKey = cls.LocalUser.PubKeyStr
+        return { 'TimeLine': Article.ShowByUser( UserPubKey, param['before'] ) }
     
     @classmethod
     def cmdSetStatus( cls, param ):

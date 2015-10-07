@@ -124,6 +124,7 @@ class Article( object ):
     
     def Show( self, **addi ):
         "show to ui"
+        print 'Article.Show', addi
         ShowData = {
                 'atclId': self.id,
                 'content': self.content,
@@ -228,8 +229,8 @@ class Article( object ):
     def ShowByUser( cls, uPubK, before ):
         "timeline for ui"
         return [cls( Id = data[0], itemStr = data[1], content = data[2], 
-                    status = data[4], labelStr = data[3] or '' ).Show( rootId = data[5] )
-                    for data in GetAtclByUserToShow( uPubK, before, 30 )]
+                    status = data[4], labelStr = data[3] or '' ).Show( rootId = data[5], GetTime = data[6] )
+                    for data in GetAtclByUserToShow( uPubK, before, 10 )]
     
     @classmethod
     def GetByUser( cls, uPubK, From, To, exist ):

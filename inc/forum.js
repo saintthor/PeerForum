@@ -298,6 +298,24 @@ var Forum = function( owner )
 			}
 		} );
 
+		$( '#timelinepg' ).scroll( function()
+		{
+			frm.ChkPass();
+			var d = new Date();
+
+			if( d.getTime() - frm.AppendTime > 2000 )
+			{
+				var top = $( window ).scrollTop();
+				var bottom = top + $( window ).height();
+				console.log( $( '#timelinepg div.atclfoot:last' ).length );
+				if( $( '#timelinepg div.atclfoot:last' ).offset().top < bottom )
+				{
+					frm.Owner.GetTimeLine();
+					this.AppendTime = d.getTime();
+				}
+			}
+		} );
+
 		QueryPop( $( '#lastth>span.query' ) , 'lastupdate' );
 	};
 
@@ -379,7 +397,7 @@ var Forum = function( owner )
 			console.log( $( this ).text(), label );
 			if( $( this ).text() == label )
 			{
-				console.log( 'sssssssssssss' );
+				//console.log( 'sssssssssssss' );
 				$( this ).addClass( 'sel' );
 			}
 		} );
@@ -807,11 +825,17 @@ var Forum = function( owner )
 	};
 
 	this.ShowTimeLine = function( atcls )
-	{		
+	{
+		var FirstGetTime = 9999999999999;
+
 		atcls.forEach( function( a )
 		{
-			//console.log( p );
-			$( '#timelinepg' ).append( frm.ShowSingleAtcl( a ));
+			//console.log( $( '#timelinepg>div#Atcl_' + a.id ).length, a.atclId );
+			if( $( '#timelinepg>div#Atcl_' + a.atclId ).length == 0 )
+			{
+				$( '#timelinepg' ).append( frm.ShowSingleAtcl( a ));
+				FirstGetTime = a.GetTime;
+			}
 		} );
 
 		QueryPop( $( '#timelinepg .atclleft .query' ), 'userpubk' );
@@ -824,6 +848,8 @@ var Forum = function( owner )
 		this.SetClickManage( $( '#timelinepg .manage' ));
 		this.Owner.SetUserAttr( $( '#timelinepg' ));
 		this.ChkPass();
+
+		return FirstGetTime;
 	};
 
 	this.ChkPass = function()
