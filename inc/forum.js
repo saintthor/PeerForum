@@ -248,6 +248,7 @@ var Forum = function( owner )
 	this.ListLabel = '';
 	this.SortCol = 'LastTime';
 	this.TopicObj = { 'TreeRoots': {}, 'AutoPasser': {} };
+	this.AtclObj = {};
 
 	this.Init = function()
 	{
@@ -539,7 +540,7 @@ var Forum = function( owner )
 						 $( '#atclarea' ).data( 'root' );
 			_( atclData.LabelStr.split( '|' )).each( function( lbstr, i )
 			{
-				console.log( lbstr, i );
+				//console.log( lbstr, i );
 				if( lbstr )
 				{
 					_( lbstr.split( ',' )).each( function( label )
@@ -701,6 +702,9 @@ var Forum = function( owner )
 
 		var Roots = [treeData[0]];
 
+		_( this.AtclObj ).extend( Tree );
+		//console.log( this.AtclObj );
+
 		_( Tree ).chain().pairs().sortBy( function( p )
 		{
 			return p[1].CreateTime;
@@ -830,6 +834,7 @@ var Forum = function( owner )
 
 		atcls.forEach( function( a )
 		{
+			frm.AtclObj[a.atclId] = a;
 			//console.log( $( '#timelinepg>div#Atcl_' + a.id ).length, a.atclId );
 			if( $( '#timelinepg>div#Atcl_' + a.atclId ).length == 0 )
 			{
@@ -970,10 +975,10 @@ var Forum = function( owner )
 		{
 			if( !atcl )
 			{
-				var RootId = $( this ).closest( '#atclarea' ).data( 'root' );
+				//var RootId = $( this ).closest( '#atclarea' ).data( 'root' );
 				var AtclId = $( this ).closest( '.atclfoot' ).data( 'atclid' );
-				console.log( RootId, AtclId );
-				atcl = frm.TopicObj[RootId][AtclId];
+				console.log( AtclId );
+				atcl = frm.AtclObj[AtclId];
 			}
 
 			frm.Manage( atcl, $( this ).attr( 'class' ));

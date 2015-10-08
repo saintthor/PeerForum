@@ -153,12 +153,12 @@ class PeerForum( object ):
             except:
                 print traceback.format_exc()
     
-    @classmethod
-    def cmdLike( cls, param ):
-        ""
-        Like = Article.New( cls.LocalUser, Type = 1, ParentID = param['atclId'], RootID = param['root'] )
-        Like.Save()
-        return { 'Like': Like.Show() }
+#    @classmethod
+#    def cmdLike( cls, param ):
+#        ""
+#        Like = Article.New( cls.LocalUser, Type = 1, ParentID = param['atclId'], RootID = param['root'] )
+#        Like.Save()
+#        return { 'Like': Like.Show() }
     
     @classmethod
     def cmdSetUserStatus( cls, param ):
@@ -173,15 +173,20 @@ class PeerForum( object ):
         UserPubKey = param['user']
         if UserPubKey == 'me':
             UserPubKey = cls.LocalUser.PubKeyStr
-        return { 'TimeLine': Article.ShowByUser( UserPubKey, param['before'] ) }
+        return { 'TimeLine': Article.ShowByUser( UserPubKey, int( param['before'] )) }
     
     @classmethod
     def cmdSetStatus( cls, param ):
         ""
         Atcl = Article.Get( param['atclId'] )
-        Atcl.SetStatus( param['status'] )
+        Atcl.SetStatus( int( param['status'] ))
         return { 'SetStatus': 'ok' }
     
+    @classmethod
+    def cmdSearch( cls, param ):
+        ""
+        return { 'TimeLine': Article.Search( param['kword'].decode( 'utf-8' ), int( param['before'] )) }
+        
     @classmethod
     def cmdReply( cls, param ):
         ""

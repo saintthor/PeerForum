@@ -82,6 +82,7 @@ var PeerForum = function()
 
 	this.MAXTIME = 9999999999999;
 	this.Before = this.MAXTIME;		//for timeline
+	this.SearchKWord = '';
 
 	this.Init = function()
 	{
@@ -108,15 +109,15 @@ var PeerForum = function()
 			pf[data[3]]();
 		} );
 
-		$( '.pfitem' ).click( function()
+		$( '.pfitem>.title' ).click( function()
 		{
 			//alert( $( this ).attr( 'id' ));
-			$( this ).data( 'obj' ).Click();
+			$( this ).parent().data( 'obj' ).Click();
 		} );
 
 		$( '.page' ).hide();
 		$( '.pfitem>.content' ).hide();
-		$( '#forum' ).click();
+		$( '#forum>.title' ).click();
 
 		this.ChkEnv();
 		//this.GetNode();
@@ -241,8 +242,28 @@ var PeerForum = function()
 	this.SetAllUsers = function( allUserData )
 	{
 		var UserArea = $( '#timeline>.content' );
+		var PrefContent = $( '<div class="content"><div class="atcllabel" style="float:;" data-user="me">我</div><div class="atcllabel" style="float:;" data-user="all">所有关注用户</div><input type="text" placeholder="按帖子 ID 或内容搜索。"/><button>搜索</button></div>' );
+
+		PrefContent.hide();
+		PrefContent.children( 'button' ).click( function()
+		{
+			var KWord = $( this ).siblings( 'input' ).val();
+			if( !KWord )
+			{
+				return;
+			}
+			$( '#timelinepg' ).html( '' );
+			$( '#timeline>.content div' ).removeClass( 'sel' );
+			pf.SearchKWord = KWord;
+
+			pf.Post( {
+				cmd: 'Search',
+				kword: KWord,
+				before: pf.MAXTIME,
+					} );
+		} );
 		//UserArea.html( '<div id="alluseridx">所有关注用户</div>' );
-		UserArea.html( '<div class="atcllabel" style="float:;" data-user="me">我</div><div class="atcllabel" style="float:;" data-user="all">所有关注用户</div><br><br>' );
+		UserArea.before( PrefContent );
 
 		allUserData.forEach( function( user )
 		{
@@ -255,15 +276,16 @@ var PeerForum = function()
 			}
 		} );
 
-		UserArea.children( '.atcllabel' ).click( function()
+		$( '#timeline>.content' ).children( '.atcllabel' ).click( function()
 		{
-			$( this ).siblings( 'div' ).removeClass( 'sel' );
+			$( '#timeline>.content div' ).removeClass( 'sel' );
 			$( this ).addClass( 'sel' );
 			$( '#timelinepg' ).html( '' );
+			pf.SearchKWord = '';
 			pf.Post( { 
 				cmd: 'GetTimeLine', 
 				user: $( this ).data( 'user' ), 
-				before: pf.Before 
+				before: pf.MAXTIME 
 					} );
 			return false;
 		} );
@@ -274,11 +296,22 @@ var PeerForum = function()
 
 	this.GetTimeLine = function()
 	{
-		pf.Post( { 
-			cmd: 'GetTimeLine', 
-			user: $( '#timeline>.content>div.sel' ).data( 'user' ), 
-			before: pf.Before 
-				} );
+		if( pf.SearchKWord )
+		{
+			pf.Post( { 
+				cmd: 'Search', 
+				kword: pf.SearchKWord,
+				before: pf.Before,
+					} );
+		}
+		else
+		{
+			pf.Post( { 
+				cmd: 'GetTimeLine', 
+				user: $( '#timeline>.content>div.sel' ).data( 'user' ), 
+				before: pf.Before 
+					} );
+		}
 	};
 
 	this.GetUserButtons = function( status )
@@ -301,7 +334,8 @@ var PeerForum = function()
 				$( this ).siblings( 'div' ).removeClass( 'sel' );
 				$( this ).addClass( 'sel' );
 				$( '#timelinepg' ).html( '' );
-				pf.Post( { cmd: 'GetTimeLine', user: userStatus[0], before: pf.Before } );
+				pf.SearchKWord = '';
+				pf.Post( { cmd: 'GetTimeLine', user: userStatus[0], before: pf.MAXTIME } );
 			} );
 
 			$( '#timeline>.content' ).append( UserLabel );

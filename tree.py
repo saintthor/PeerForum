@@ -10,11 +10,12 @@ from time import time
 from hashlib import md5, sha1
 from random import randint
 import traceback
+import re
 
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
                      GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels, GetTopicRowById, \
-                     GetTopicRows, SetAtclStatus, SetLabel, GetAtclByUserToShow
+                     GetTopicRows, SetAtclStatus, SetLabel, GetAtclByUserToShow, SearchAtcl
 from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser, TopicNumPerPage
 
 class Article( object ):
@@ -207,7 +208,22 @@ class Article( object ):
         ""
         self.RemoteLabels = info.get( 'NodeLabels', '' )
         self.RemoteEval = info.get( 'NodeEval', 1 )
-        
+    
+    @classmethod
+    def Search( cls, kWord, before ):
+        ""
+        if re.match( r'[0-9a-f]{20}', kWord ):
+            try:
+                data = GetOneArticle( 'id', 'items', 'content', 'status', 'root', 'GetTime', id = kWord )
+                return [cls( Id = data[0], itemStr = data[1], content = data[2], 
+                    status = data[3] ).Show( rootId = data[4], GetTime = data[5] )]
+            except:
+                pass
+            
+        return [cls( Id = data[0], itemStr = data[1], content = data[2], 
+                    status = data[3], labelStr = '' ).Show( rootId = data[4], GetTime = data[5] )
+                    for data in SearchAtcl( kWord, before, 10 )]
+    
     @classmethod
     def Receive( cls, atclData ):
         "get from other nodes"

@@ -247,8 +247,18 @@ def SaveArticle( **param ):
 
 def SetAtclStatus( atclId, status ):
     ""
+    print 'SetAtclStatus', repr(( atclId, status ))
     with SqliteDB() as cursor:
         cursor.execute( 'update article set status = ? where id = ?', ( status, atclId ))
+        if status == 1:
+            return
+        RemoteK = cursor.execute( 'select FromNode from article where id = ?', ( atclId, )).fetchone()[0]
+        print RemoteK
+        if RemoteK:
+            if status > 1:
+                cursor.execute( 'update node set level = min( 99, level + 1 ) where PubKey = ?', ( RemoteK, ))
+            elif status < 0:
+                cursor.execute( 'update node set level = max( -1, level - 1 ) where PubKey = ?', ( RemoteK, ))
         
 def UpdateArticles():
     "check destroy, del FromNode"
@@ -429,6 +439,14 @@ def GetAtclByUser( uPubK, From, To, exist = () ):
                 and CreateTime >= ? and CreateTime <= ? and id not in (%s)''' % ','.join( ['?'] * len( exist ))
         return cursor.execute( sql, ( uPubK, From, To ) + exist ).fetchall()
 
+def SearchAtcl( kWord, before, num ):
+    "to show"
+    with SqliteDB() as cursor:
+        return cursor.execute( '''select id, items, content, status, root, GetTime from article 
+                                where content like ? and GetTime <= ? order by GetTime desc limit ?''',
+                                ( '%' + kWord + '%', before, num )).fetchall()
+    
+
 def GetAtclByUserToShow( uPubK, before, num ):
     "to show"
     with SqliteDB() as cursor:
@@ -457,7 +475,7 @@ def RecordUser( pubK, nickName, status = 1 ):
             cursor.execute( 'insert into user (PubKey, NickName, status) values(?, ?, ?)', ( pubK, nickName, status ))
 
 def test():
-    print GetAllLabels()
+    print SearchAtcl( u'蜗居', 9999999999999, 50 )
     #print GetSelfNode( False )
     #DelTopicLabels( '1fb5381c3200bb03561cb9b79c40bed50eda8515', ( u'诗', u'经', u'体', ))
     return
