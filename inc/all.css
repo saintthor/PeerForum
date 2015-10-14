@@ -37,16 +37,17 @@ div.randomart { font-family: Courier; padding-left: 8px; color: #c2d; font-size:
 div.atcltop { font-size: 0.8em; border-bottom: solid #4a3 1px; height: 12px; padding-top: 1px; padding-bottom: 3px; }
 div#atclarea button { font-size: 0.9em; padding-top: 0px; padding-bottom: 0px; }
 div.atclbody { min-height: 85px;  padding-bottom: 20px; margin-top: 8px; }
+div.limitheight { max-height: 280px; overflow-y: auto; }
 div.atclfoot { font-size: 0.8em; height: 12px; border-top: solid #4a3 1px; }
 div.atclneck { padding-top: 0; margin-top: 0; }
 div.atclid { font-size: 0.7em; margin-bottom: 0; padding-bottom: 0; color: #999; padding-top: 0; margin-top: 0; }
 span.lineright { float: right; max-width: 150px; }
-span.labels { font-size: 0.8em; width: 200px; text-align: right; }
-span.labels>span>span { font-size: 1.2em; padding-left: 3px; padding-right: 2px; color: blue; }
-span.staticlabel { float: right; margin-left: 4px; background-color: #dfd; padding-left: 2px; padding-right: 2px; }
-span.nodelabel { float: right; margin-left: 4px; background-color: #d0fad0; padding-left: 2px; padding-right: 2px; }
+div.labels { font-size: 0.8em; width: 200px;  }
+div.labels>span>span { cursor: pointer; font-size: 1.2em; padding-left: 3px; padding-right: 2px; color: blue; }
+span.staticlabel { margin-left: 4px; background-color: #dfd; padding-left: 2px; padding-right: 2px; }
+span.nodelabel { margin-left: 4px; background-color: #d0fad0; padding-left: 2px; padding-right: 2px; }
 div.addlabel { display: none; }
-span.labels input[type="text"] { width: 85px; }
+div.labels input[type="text"] { width: 85px; }
 .lineright>span { margin-left: 5px; cursor: pointer; }
 span.linemiddle { margin-left: 15px; margin-right: 15px; }
 span.bigger, span.smaller { cursor: pointer; margin-left: 4px; margin-right: 4px; }

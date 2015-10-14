@@ -377,7 +377,7 @@ function UBBObj( BtnArea, TextArea )
             },
         },
         
-        pl: {
+        atcl: {
             Num: 2, FirstLabel: '[pl=78037]', Content: '《论坛总帮助》', NotIn: ['title', 'goto', 'url'], note: '帖子链接',
             Express: function( Content, LabelHead )
             {

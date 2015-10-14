@@ -67,9 +67,9 @@ var Input = function( tr, parentId, protoId, submitFunc )
 
 		QueryPop( this.TR.children( 'td' ).children( '.query' ), 'autoedit' );
 		this.UBB = new UBBObj( this.TR.children( 'td.ubbbtns' ), $( 'textarea', this.TR ));
-		//this.TR.children( 'td.ubbbtns' ).append( '<span class="query" title="">？</span>' )
-		//QueryPop( this.TR.children( 'td.ubbbtns' ).children( '.query' ), 'ubb' );
-		this.TR.children( 'td.ubbbtns' ).append( '<div class="ubbnote">通过 UBB 标签为帖子提供一些格式及动态效果。标签功能依照 guideep 的标准实现，详细使用说明可参看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。</div>' );
+		this.TR.children( 'td.ubbbtns' ).append( '<br><br><br><br><br><br><br><br><br><span class="query" title="">？</span>' )
+		QueryPop( this.TR.children( 'td.ubbbtns' ).children( '.query' ), 'ubb' );
+		//this.TR.children( 'td.ubbbtns' ).append( '<div class="ubbnote">通过 UBB 标签为帖子提供一些格式及动态效果。标签功能依照 guideep 的标准实现，详细使用说明可参看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。</div>' );
 
 		$( 'button.preview', this.TR ).click( function()
 		{
@@ -136,19 +136,23 @@ function QueryPop( dom, k )
 {
 	dom.mouseover( function()
 	{
+		if( $( this ).children( '.pop' ).length > 0 )
+		{
+			return;
+		}
 		var html = {
 			'views': '三种视图，是在一个话题里排列帖子的三种不同方式。<br>流视图是像一般的论坛那样，将话题里的所有帖子按时间排列显示，不表达帖子间的回复关系。<br>链视图与星视图分别选取话题中与当前帖子相关的上级或下级帖子，用于在庞大的帖子树里，快速呈现自己关心的部分。<br>一个帖子的链视图是此帖的所有上级帖子的集合，是从这个帖子向上追溯到根帖的回复路径。当前帖子在最下，根帖在最上。<br>一个帖子的星视图是此帖的所有下级帖子的集合，当前帖子在最上，下面是直接回复它的帖子，再下面是回复那些回复帖的帖子，逐层排列。',
 			'manage': '在飘上，没有管理员。每一位用户都是自己节点的管理员，有权决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的倒计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可被邻节点读取，未裁处和已阻断的帖子不可被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点及用户的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。',
 			'userpubk': '飘没有用户系统，不同的用户可能有相同的用户名，因此，需要以用户公钥来区分用户。用鼠标指向用户名可见用户公钥，公钥很长，不好认，从公钥生成一个 RandomArt，就是下面这个字符组成的小图，就容易识别了。用户公钥（RandomArt）相同就是同一个人，用户名是可以改的。',
-			'autoedit': '选中自动排版，会在提交时去掉内容中每一段前后的空格，并在段与段之间插入一个空行。<br/>如果帖子里含有程序代码之类对格式要求严格的内容，不应选中自动排版。',
+			'autoedit': '选中自动排版，会在提交时去掉内容中每一段前后的空格，并在段与段之间插入一个空行。<br/>如果帖子里含有程序代码之类对格式要求严格的内容，不应选中自动排版。<br>由于帖子发布之后不能修改，应经过预览再提交。发出来后如果不满意，可以阻断之，重新发一个。',
 			'lastupdate': '这一栏显示的时间不是话题里最新一个帖子的发布时间，而是当前节点最后一次收到帖子的时间。接收的时序与帖子发布的时序无关。<br>如果最新帖子是在本地发布的，为了安全，最新时间显示为发布时间之后几分钟里的某个时间。',
-			//'ubb': 'UBB 标签用于在帖子中实现一些格式和动态效果。这些标签依照 guideep 的标准实现，详细使用说明请看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。',
-			'label': '飘上的话题依照标签划分门类或圈子。标签分为固有标签与节点标签两种。<br>固有标签是作者创建话题时设定的，发布之后不可更改。而每个节点的用户有权对话题增加一些标签，或者屏蔽一些固有标签，新增的就是节点标签。<br>节点标签只在当前节点上有效。如果邻节点按照标签来读取话题，（未屏蔽的）固有标签与节点标签同样有效。但邻节点取得话题之后，前一节点对固有标签的屏蔽不再生效，话题的固有标签仍然完整。',
-		}[k];
+			'ubb': '通过 UBB 标签为帖子提供一些格式及动态效果。标签功能依照 guideep 的标准实现，详细使用说明可参看<a href="http://www.guideep.com/read?guide=5715999101812736#ubbwidget" target="_blank">《guideep 教程编辑指南》中有关 UBB 的部分</a>。',
+			'label': '飘上的话题依照标签划分门类或圈子。标签分为固有标签与节点标签两种。<br>固有标签是作者创建话题时设定的，发布之后不可更改。而每个节点的用户有权对话题增加一些标签，或者屏蔽一些固有标签，新增的就是节点标签。<br>节点标签只在当前节点上有效。如果邻节点按照标签来读取话题，（未屏蔽的）固有标签与节点标签同样生效。但邻节点取得话题之后，前一节点对固有标签的屏蔽不再生效，话题的固有标签仍然完整。',
+					}[k];
 
 		var PopDiv = $( '<div class="pop">' + html + '</div>' );
-		$( this ).append( PopDiv );
 		PopDiv.css( 'top', $( this ).offset().top + parseInt( $( this ).css( 'height' )) + 'px' );
+		$( this ).append( PopDiv );
 
 		var WndRight = $( window ).width();
 		//console.log( WndRight, PopDiv.offset().left, parseInt( PopDiv.css( 'width' )));
@@ -157,14 +161,6 @@ function QueryPop( dom, k )
 			//console.log( WndRight - parseInt( PopDiv.css( 'width' )) + 'px' );
 			PopDiv.css( 'left', WndRight - parseInt( PopDiv.css( 'width' )) - 40 + 'px' );
 		}
-		PopDiv.children( 'a' ).click( function()
-		{
-			console.log( 'a clicked.' );
-		} );
-		PopDiv.click( function()
-		{
-			console.log( 'pop clicked.' );
-		} );
 	} );
 
 	dom.mouseleave( function()
@@ -456,6 +452,7 @@ var Forum = function( owner )
 	{
 		_( labelData ).chain().pairs().each( function( p )
 		{
+			frm.AtclObj[p[0]].Labels = p[1];
 			frm.TopicObj[p[0]].Labels = p[1];
 		} );
 	};
@@ -463,6 +460,11 @@ var Forum = function( owner )
 	var DelLabelFunc = function()
 	{
 		var LabelSpan = $( this ).parent();
+		if( LabelSpan.siblings( 'span' ).length < 1 )
+		{
+			alert( 'can not remove the last label.' );
+			return;
+		}
 		var RootId = $( this ).closest( '.tree' ).data( 'root' ) ||
 					 $( this ).closest( '.atclright' ).data( 'root' ) ||
 					 $( '#atclarea' ).data( 'root' );
@@ -491,7 +493,7 @@ var Forum = function( owner )
 			<span class="time"></span><span class="linemiddle"> \
 			<span class="bigger" title="放大帖子正文">大</span><span class="smaller" title="缩小帖子正文">小</span> \
 			</span></div><div class="atclid"></div> \
-			<span class="labels lineright"></span><div class="atclbody"></div> \
+			<div class="labels"></div><div class="atclbody"></div> \
 			<div class="atclfoot"><span class="manage"></span><span class="lineright"> \
 			<!--button class="edit">编辑</button--><button class="reply">回复</button></span></div> \
 			</td></tr></tbody></table><div></div></div>' );
@@ -849,6 +851,7 @@ var Forum = function( owner )
 		$( '#timelinepg .atcltop>.linemiddle>span' ).click( SetSize );
 		$( '#timelinepg .atcltop>.lineright>span' ).click( SetView );
 		$( '#timelinepg .reply' ).click( EnableReply );
+		$( '#timelinepg .atclbody' ).addClass( 'limitheight' );
 
 		this.SetClickManage( $( '#timelinepg .manage' ));
 		this.Owner.SetUserAttr( $( '#timelinepg' ));
@@ -875,7 +878,7 @@ var Forum = function( owner )
 
 	this.SetClickTreeTitle = function( root, TR )
 	{
-		console.log( 'SetClickTreeTitle' );
+		//console.log( 'SetClickTreeTitle' );
 		var AtclId = TR.data( 'atclid' );
 		$( '.title', TR ).click( function()
 		{
@@ -885,7 +888,7 @@ var Forum = function( owner )
 
 	this.SetClickTreeLastTime = function( root, TR )
 	{
-		console.log( 'SetClickTreeLastTime' );
+		//console.log( 'SetClickTreeLastTime' );
 		var AtclId = TR.data( 'atclid' );
 		$( 'td:eq(4)', TR ).click( function()
 		{
