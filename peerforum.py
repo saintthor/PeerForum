@@ -32,32 +32,30 @@ class PeerForum( object ):
     LocalUser = None
     
     @classmethod
+    def Init( cls ):
+        ""
+        cls.LocalNode = PFPMessage.LocalNode = SelfNode()
+        cls.LocalUser = SelfUser()
+    
+    @classmethod
     def cmdChkEnv( cls, *args ):
         ""
         result = {}
-        try:
-            cls.LocalNode = PFPMessage.LocalNode = SelfNode()
-            result['CurNode'] = cls.LocalNode.Issue()
-            cls.LocalUser = SelfUser()
-            result['CurUser'] = cls.LocalUser.Issue()
-        except NoAvailableNodeErr:
-            result.setdefault( 'error', [] ).append( 'no availabel self node.' )
+#        try:
+#            cls.LocalNode = PFPMessage.LocalNode = SelfNode()
+#            result['CurNode'] = cls.LocalNode.Issue()
+#            cls.LocalUser = SelfUser()
+#            result['CurUser'] = cls.LocalUser.Issue()
+#        except NoAvailableNodeErr:
+#            result.setdefault( 'error', [] ).append( 'no availabel self node.' )
             
+        result['CurNode'] = cls.LocalNode.Issue()
+        result['CurUser'] = cls.LocalUser.Issue()
         result['AllLabels'] = GetAllLabels()
         result['AllUsers'] = GetAllUsers()
         
         return result
-    
-    @staticmethod
-    def GetNode():
-        ""
-        return {}
-    
-    @staticmethod
-    def GetAllUser():
-        ""
-        return {}
-    
+        
     @classmethod
     def SendToAddr( cls, msgType, addr, bp = 'HTTP', **kwds ):
         "no neighbor data for addr. for QryPubKeyMsg"
@@ -234,7 +232,7 @@ class PeerForum( object ):
         ""
         #print 'cmdGetTpcList', condi['label']
         SortCol = condi['sortby']
-        Before = condi['before']
+        Before = int( condi['before'] )
         Label = condi['label'].decode( 'utf-8' )
         
         return { 'PageTopics': Topic.ListPage( Label, Before, SortCol ) }
@@ -334,7 +332,7 @@ if __name__ == '__main__':
     PFPMessage.Init()
     SelfUser.Init()
     NeighborNode.Init()
-    #PeerForum.cmdChkEnv()
+    PeerForum.Init()
     #test()
     debug( True )
     run( host = '0.0.0.0', port = 8000, reloader = True )   #set reloader to False to avoid initializing twice.

@@ -326,9 +326,12 @@ def GetTopicRowById( rootId ):
             
 def GetTopicRows( label, before, sortCol, limit ):
     ""
-    print 'GetTopicRows', label, before, sortCol, limit #if the sortCol is LastTime, it means the last GetTime of the articles in topic.
+    print 'GetTopicRows', label, repr( before ), sortCol, limit #if the sortCol is LastTime, it means the last GetTime of the articles in topic.
     with SqliteDB() as cursor:
         if label:
+            now = int( time() * 1000 )
+            if before > now:
+                cursor.execute( 'insert into labellog (name, ShowTime) values( ?, ? );', ( label, now ))
             return cursor.execute(
                 '''select root, title, labels, status, num, FirstAuthName, FirstTime, LastAuthName, LastTime
                     from topic join label on topic.root = label.TopicID where label.name = ? and %s <= ?
@@ -343,7 +346,9 @@ def GetTopicRows( label, before, sortCol, limit ):
 def GetAllLabels():
     ""
     with SqliteDB() as cursor:
-        return [c[0] for c in cursor.execute( 'select distinct name from label' ).fetchall()]
+        d = { LabelName: 0 for LabelName in [c[0] for c in cursor.execute( 'select distinct name from label' ).fetchall()] }
+        d.update( dict( cursor.execute( 'select name, count(*) from labellog group by name' ).fetchall()))
+        return d
     
 def GetTreeAtcls( *rootIds ):
     ""
@@ -410,6 +415,9 @@ def SetLabel( rootId, labelName, act ):
             LabelStr += ( ',' if '|' in LabelStr else '|' ) + labelName
             cursor.execute( 'update topic set labels = ? where root = ?', ( LabelStr, rootId ))
         elif labelName in ( StaticLabels + ThisLabels ):
+            if len( StaticLabels ) + len( ThisLabels ) < 2:
+                print 'labels too few to be deleted.'
+                return LabelStr
             cursor.execute( 'delete from label where name = ? and TopicID = ?', ( labelName, rootId ))
             if labelName in StaticLabels:
                 StaticLabels.remove( labelName )
@@ -466,6 +474,11 @@ def GetAllUsers():
     with SqliteDB() as cursor:
         return cursor.execute( 'select PubKey, NickName, status from user' ).fetchall()
 
+#def GetPreferLabels():
+#    ""
+#    with SqliteDB() as cursor:
+#        return cursor.execute( 'select name, level from preferlabel order by level desc' ).fetchall()
+
 def RecordUser( pubK, nickName, status = 1 ):
     "follow or block"
     print 'RecordUser', pubK, nickName, repr( status )
@@ -511,10 +524,10 @@ def InitDB( path = '' ):
         return
         
     with SqliteDB( path ) as c:
-        #飘论坛的用户
+        #关注或屏蔽的用户
         c.execute( "create table user (NickName varchar(32), PubKey varchar(1024) unique, status int(2) default 0);" )
         #用户圈子       many to many
-        c.execute( "create table circle (UserPubKey varchar(1024), CircleName varchar(64));" )
+        #c.execute( "create table circle (UserPubKey varchar(1024), CircleName varchar(64));" )
         #自己的马甲
         c.execute( """create table self (NickName varchar(32), PubKey varchar(1024) unique,
                     PriKey varchar(4096), status int(2) default 0);""" )
@@ -533,13 +546,14 @@ def InitDB( path = '' ):
         c.execute( """create table address (type int(2), addr varchar(256), NodePubKey varchar(1024),
                     FailNum int(5) default 0, LastCommuTime int(13) default 0)""" )
         
-        #帖子         Type = 0 for normal, 1 for like
-                                                                    #id is not rowid
+        #帖子         Type = 0 for normal
+                                                                    #id is article id, not rowid
         c.execute( """create table article (content varchar(60080), id varchar(256) unique,
                     items varchar(8192), root varchar(256), status int(2) default 0,
                     AuthPubKey varchar(1024), Type int(2) default 0, CreateTime int(13),
                     DestroyTime int(13) default 9999999999999, GetTime int(13), FromNode varchar(1024),
-                    RemoteLabels varchar(256), RemoteEval int(2) default 1);""" )      #FromNode, RemoteLabels, RemoteEval should be deleted in hours.
+                    RemoteLabels varchar(256), RemoteEval int(2) default 1);""" )      #FromNode, RemoteLabels, RemoteEval should be deleted in hours for secrety.
+
         #话题         labels = staticLabel,staticLabel|nodeLabel,nodeLabel
         c.execute( """create table topic (root varchar(256) unique,
                     title varchar(128) not null, num int(4), status int(2) default 0,
@@ -547,6 +561,13 @@ def InitDB( path = '' ):
                     LastAuthName  varchar(32), LastTime int(13));""" )  #LastTime is the last GetTime of the articles
         #标签                                             type = 0 for static label; 1 for node label
         c.execute( """create table label (name varchar(32), type int(2), TopicID varchar(256));""" )
+        
+        #优先标签
+        #c.execute( """create table preferlabel (name varchar(32) unique, level int(2));""" )
+        
+        #标签显示记录
+        c.execute( """create table labellog (name varchar(32), ShowTime int(13));""" )
+        
 #        #运行时
 #        c.execute( """create table task (id integer primary key not null, time int(13),
 #                        message varchar(8192), target int(2), status int(2));""" )

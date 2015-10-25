@@ -79,6 +79,8 @@ var PeerForum = function()
 	var pf = this;
 	this.Info = { warning: [], error: [], info: [] };
 	this.UserSet = {};
+	this.Forum = new Forum( this );
+	this.Setting = new Manager( this );
 
 	this.MAXTIME = 9999999999999;
 	this.Before = this.MAXTIME;		//for timeline
@@ -127,7 +129,6 @@ var PeerForum = function()
 
 	this.InitForumPg = function()
 	{
-		this.Forum = new Forum( this );
 		this.Forum.GetNextPage();
 	}
 
@@ -178,7 +179,7 @@ var PeerForum = function()
 		return ( this.UserSet[authPubK] || [0, 0] )[1];
 	};
 
-	this.SetAtclLabels = function( atclLabels )
+	this.SetAtclLabels = function( labelObj )
 	{
 		//console.log( 'SetAtclLabels' );
 		var LabelArea = $( '#forum>.content' );
@@ -189,14 +190,17 @@ var PeerForum = function()
 			pf.Forum.LabelTopic( '' );
 		} );
 
-		atclLabels.forEach( function( lb )
+		_( labelObj ).chain().pairs().sortBy( function( p )
 		{
-			LabelArea.append( '<div class="atcllabel">' + lb + '</div>' );
+			return -p[1];
+		} ).forEach( function( p )
+		{
+			LabelArea.append( '<div class="atcllabel">' + p[0] + '</div>' );
 		} );
 
 		LabelArea.children( '.atcllabel' ).click( function()
 		{
-			pf.Forum.LabelTopic( $( this ).html());
+			pf.Forum.LabelTopic( $( this ));
 		} );
 	};
 
@@ -415,30 +419,28 @@ var PeerForum = function()
 	this.GetResult = function( rslt )
 	{
 		console.log( rslt );
-		_( {
-			 'CurNode': 'ChkLocalNode',
-			 'CurUser': 'ChkLocalUser',
-			 'AllLabels': 'SetAtclLabels',
-			 'AllUsers': 'SetAllUsers',
-			 //'Follows': 'SetFollowUsers',
-			 'NewTopic': 'ShowNewTopic',
-			 'PageTopics': 'AppendTopics',
-			 'AtclTree': 'ShowAtclPg',
-			 'UpdateLabel': 'UpdateLabelStr',
-			 'Reply': 'ShowReply',
-			 'ShowTree': 'ExpendTpcTree',
-			 'UserStatus': 'SetUserStatus',
-			 'TimeLine': 'AppendTimeLine',
-			} ).chain().pairs().each( function( p )
+		var FuncMap = {
+			 'CurNode': [pf.ChkLocalNode, pf],
+			 'CurUser': [pf.ChkLocalUser, pf],
+			 'AllLabels': [pf.SetAtclLabels, pf],
+			 'AllUsers': [pf.SetAllUsers, pf],
+			 'NewTopic': [pf.ShowNewTopic, pf],
+			 'PageTopics': [pf.AppendTopics, pf],
+			 'AtclTree': [pf.ShowAtclPg, pf],
+			 'UpdateLabel': [pf.UpdateLabelStr, pf],
+			 'Reply': [pf.ShowReply, pf],
+			 'ShowTree': [pf.ExpendTpcTree, pf],
+			 'UserStatus': [pf.SetUserStatus, pf],
+			 'TimeLine': [pf.AppendTimeLine, pf],
+					};
+
+		_( rslt ).chain().pairs().each( function( p )
 		{
 			//console.log( p );
-			if( p[0] in rslt )
+			if( p[0] in FuncMap )
 			{
-				var v = rslt[p[0]];
-				if( p[1] )
-				{
-					pf[p[1]]( v );
-				}
+				var FuncOwn = FuncMap[p[0]];
+				FuncOwn[0].bind( FuncOwn[1] )( p[1] );
 			}
 		} );
 
@@ -533,7 +535,7 @@ $( function()
 							<div id='setpg' class='page'>setpg</div>
 						</td>
 						<td id='rightarea' valign='top'>
-							<div id='logo'>PeerForum</div>
+							<div id='logo'><img src="inc/drift.png"/></div>
 							<div id='itembox'></div>
 						</td>
 					</tr>

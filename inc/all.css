@@ -7,7 +7,7 @@ table.main { width: 96%; }
 td#leftarea>div { overflow-y: auto; }
 td#rightarea { width: 240px; border: solid #4a3 1px; }
 td>div { padding: 5px; margin-top: 2px; }
-div#logo { height: 160px; }
+div#logo { height: 160px; padding-left: 50px; }
 div.title { cursor: pointer; }
 div.content { max-height: 180px; overflow-y: auto; border-left: solid #4a3 1px; }
 div#newtpcbtn { padding: 5px; margin-top: 0; background-color: #8f7; cursor: pointer; }
@@ -39,6 +39,8 @@ div#atclarea button { font-size: 0.9em; padding-top: 0px; padding-bottom: 0px; }
 div.atclbody { min-height: 85px;  padding-bottom: 20px; margin-top: 8px; }
 div.limitheight { max-height: 280px; overflow-y: auto; }
 div.atclfoot { font-size: 0.8em; height: 12px; border-top: solid #4a3 1px; }
+div.atclfoot button { font-size: 0.9em; padding-top: 0px; padding-bottom: 0px; }
+div.manageuser button { font-size: 0.8em; padding-top: 0px; padding-bottom: 0px; }
 div.atclneck { padding-top: 0; margin-top: 0; }
 div.atclid { font-size: 0.7em; margin-bottom: 0; padding-bottom: 0; color: #999; padding-top: 0; margin-top: 0; }
 span.lineright { float: right; max-width: 150px; }

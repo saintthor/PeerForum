@@ -142,7 +142,7 @@ function QueryPop( dom, k )
 		}
 		var html = {
 			'views': '三种视图，是在一个话题里排列帖子的三种不同方式。<br>流视图是像一般的论坛那样，将话题里的所有帖子按时间排列显示，不表达帖子间的回复关系。<br>链视图与星视图分别选取话题中与当前帖子相关的上级或下级帖子，用于在庞大的帖子树里，快速呈现自己关心的部分。<br>一个帖子的链视图是此帖的所有上级帖子的集合，是从这个帖子向上追溯到根帖的回复路径。当前帖子在最下，根帖在最上。<br>一个帖子的星视图是此帖的所有下级帖子的集合，当前帖子在最上，下面是直接回复它的帖子，再下面是回复那些回复帖的帖子，逐层排列。',
-			'manage': '在飘上，没有管理员。每一位用户都是自己节点的管理员，有权决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的倒计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可被邻节点读取，未裁处和已阻断的帖子不可被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点及用户的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。',
+			'manage': '在飘上，没有管理员。每一位用户都是自己节点的管理员，有权决定自己的节点上有哪些帖子可以被邻节点读取。<br>无论一个帖子是从邻节点读到还是在本节点发布的，它的初始状态都是“未裁处”，你可以对它执行阻断、放行、推荐三种裁处。<br>未裁处的帖子被完整显示时会开始一分钟的倒计时，计时结束后被自动放行。<br>已阻断、已通过、已推荐的帖子也可以重新裁处，但不能恢复到未裁处状态。<br>只有已放行或已推荐的帖子可被邻节点读取，未裁处和已阻断的帖子不可被读取。<br>邻节点也可以选择只取经过推荐的帖子，不取仅被放行的帖子。<br>每个节点对外提供的内容等若节点的名片。当邻节点推荐了一个从你这里读取的帖子，它对你的评级会上升；当它阻断来自你的帖子，它对你的评级会下降。评级指示了一个节点对另一个节点的认同程度，节点会优先从评级较高的邻节点获取内容。<br>飘的和谐与自由仰赖每一位用户的公正裁处。用户有责任阻断那些粗鄙、恶毒、蛮横、虚假、庸俗的帖子，放行及推荐那些理性、精辟、高雅、真诚、优美的帖子，将好的传给他人。<br>你为他人所做，也是他人为你所做的。',
 			'userpubk': '飘没有用户系统，不同的用户可能有相同的用户名，因此，需要以用户公钥来区分用户。用鼠标指向用户名可见用户公钥，公钥很长，不好认，从公钥生成一个 RandomArt，就是下面这个字符组成的小图，就容易识别了。用户公钥（RandomArt）相同就是同一个人，用户名是可以改的。',
 			'autoedit': '选中自动排版，会在提交时去掉内容中每一段前后的空格，并在段与段之间插入一个空行。<br/>如果帖子里含有程序代码之类对格式要求严格的内容，不应选中自动排版。<br>由于帖子发布之后不能修改，应经过预览再提交。发出来后如果不满意，可以阻断之，重新发一个。',
 			'lastupdate': '这一栏显示的时间不是话题里最新一个帖子的发布时间，而是当前节点最后一次收到帖子的时间。接收的时序与帖子发布的时序无关。<br>如果最新帖子是在本地发布的，为了安全，最新时间显示为发布时间之后几分钟里的某个时间。',
@@ -382,22 +382,14 @@ var Forum = function( owner )
 		} );
 	};
 
-	this.LabelTopic = function( label )
+	this.LabelTopic = function( labelDiv )
 	{
-		this.ListLabel = label;
+		this.ListLabel = labelDiv.text();
 		this.Before = this.MAXTIME;
 		$( '#tpclist>table>tbody>tr:gt(0)' ).remove();
 		var LabelBox = $( '#forum>.content' );
-		LabelBox.children( '.atcllabel' ).removeClass( 'sel' );
-		LabelBox.children( '.atcllabel' ).filter( function()
-		{
-			console.log( $( this ).text(), label );
-			if( $( this ).text() == label )
-			{
-				//console.log( 'sssssssssssss' );
-				$( this ).addClass( 'sel' );
-			}
-		} );
+		labelDiv.siblings().removeClass( 'sel' );
+		labelDiv.addClass( 'sel' );
 
 		frm.GetNextPage()
 	};
@@ -462,7 +454,7 @@ var Forum = function( owner )
 		var LabelSpan = $( this ).parent();
 		if( LabelSpan.siblings( 'span' ).length < 1 )
 		{
-			alert( 'can not remove the last label.' );
+			alert( '仅余一个标签，不能再删除。' );
 			return;
 		}
 		var RootId = $( this ).closest( '.tree' ).data( 'root' ) ||
@@ -803,7 +795,7 @@ var Forum = function( owner )
 			$( '#atclarea' ).append( frm.ShowSingleAtcl( a ));
 		} );
 
-		$( '#treearea' ).html( this.ShowTree( rootId, $( '<table><tbody></tbody></table>' )));
+		$( '#treearea' ).html( this.ShowTree( rootId, $( '<br><br><div>树形列表</div><table><tbody></tbody></table>' )));
 
 		//var ScrTop = $( '#shapestep' ).scrollTop();
 		//$( '#atclarea' ).animate( { scrollTop: 2000 }, 200 );
@@ -1181,7 +1173,7 @@ var Forum = function( owner )
 			'label': this.ListLabel,
 			'sortby': this.SortCol,
 					};
-		//console.log( Param );
+		console.log( Param );
 
 		frm.Owner.Post( Param );
 	};
