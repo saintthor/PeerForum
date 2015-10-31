@@ -189,6 +189,16 @@ def GetSelfNode( single = True ):
         
             return d
 
+def SetSelfNodeName( pubKey, name ):
+    ""
+    with SqliteDB() as cursor:
+        cursor.execute( 'update selfnode set name = ? where PubKey = ?', ( pubKey, name ));
+
+def SetSelfUserName( pubKey, name ):
+    ""
+    with SqliteDB() as cursor:
+        cursor.execute( 'update self set NickName = ? where PubKey = ?', ( pubKey, name ));
+        
 def GetAllNode( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:

@@ -4,7 +4,7 @@ Created on Sun Jun 21 22:02:40 2015
 
 @author: thor
 """
-from sqlitedb import CreateSelfUser, GetDefaultUser, GetSelfPubKeyStrs
+from sqlitedb import CreateSelfUser, GetDefaultUser, GetSelfPubKeyStrs, SetSelfUserName
 import rsa1 as rsa
 from base64 import encodestring, decodestring
 from const import SignHashFunc
@@ -66,6 +66,11 @@ class SelfUser( object ):
             'AuthPubKey': self.PubKeyStr,
             'NickName': self.NickName,
                 }
+    
+    def SetName( self, name ):
+        ""
+        self.NickName = name
+        SetSelfUserName( self.PubKeyStr, name )
                 
     @classmethod
     def Init( cls ):

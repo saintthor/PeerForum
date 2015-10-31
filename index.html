@@ -155,6 +155,21 @@ var PeerForum = function()
 
 	this.ChkLocalNode = function( lcNode )
 	{
+		new SetItem( 'CurNode', { static: { 节点公钥: lcNode[0] }, variable: { 节点名: lcNode[1] }}, function( tBody )
+		{
+			var NewName = $( ':text', tBody ).val();
+			if( !NewName )
+			{
+				alert( '节点名不能为空。' );
+				return;
+			}
+			pf.Post( {
+					cmd: 'SetSelfNodeName',
+					PubKey: lcNode[0],
+					Name: NewName,
+						} );			
+		} );
+
 		if( !lcNode[1] )
 		{
 			this.Info.warning.push( new PFMessage( 'SetNodeName', lcNode ));
@@ -165,6 +180,20 @@ var PeerForum = function()
 
 	this.ChkLocalUser = function( lcUser )
 	{
+		new SetItem( 'CurUser', { static: { 用户公钥: lcUser[0] }, variable: { 用户名: lcUser[1] }}, function( tBody )
+		{
+			var NewName = $( ':text', tBody ).val();
+			if( !NewName )
+			{
+				alert( '用户名不能为空。' );
+				return;
+			}
+			pf.Post( {
+					cmd: 'SetSelfUserName',
+					PubKey: lcUser[0],
+					Name: NewName,
+						} );			
+		} );
 		if( !lcUser[1] )
 		{
 			this.Info.error.push( new PFMessage( 'SetUserName', lcUser ));
@@ -532,7 +561,7 @@ $( function()
 							</div>
 							<div id='msgpg' class='page'>msgpage</div>
 							<div id='timelinepg' class='page'>暂无时间线。</div>
-							<div id='setpg' class='page'>setpg</div>
+							<div id='setpg' class='page'></div>
 						</td>
 						<td id='rightarea' valign='top'>
 							<div id='logo'><img src="inc/drift.png"/></div>

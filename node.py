@@ -14,7 +14,7 @@ import rsa1 as rsa
 from base64 import encodestring, decodestring
 
 from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
-                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes
+                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, SetSelfNodeName
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
 from crypto import CBCEncrypt, CBCDecrypt
@@ -228,6 +228,11 @@ class SelfNode( object ):
         key = rsa.decrypt( secK, self.PriKey )
         return CBCDecrypt( secMsg, key )
     
+    def SetName( self, name ):
+        ""
+        self.Name = name
+        SetSelfNodeName( self.PubKeyStr, name )
+        
     def Sign( self, msg ):
         ""
         #print '\nSign', self.PubKeyStr

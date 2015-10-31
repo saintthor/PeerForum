@@ -159,6 +159,18 @@ class PeerForum( object ):
 #        return { 'Like': Like.Show() }
     
     @classmethod
+    def cmdSetSelfNodeName( cls, param ):
+        ""
+        cls.LocalNode.SetName( param['Name'].decode( 'utf-8' ))
+        return { 'SetStatus': 'ok' }
+    
+    @classmethod
+    def cmdSetSelfUserName( cls, param ):
+        ""
+        cls.LocalUser.SetName( param['Name'].decode( 'utf-8' ))
+        return { 'SetStatus': 'ok' }
+    
+    @classmethod
     def cmdSetUserStatus( cls, param ):
         ""
         PubKey, Name, Status = param['PubKey'], param['Name'], int( param['Status'] )
