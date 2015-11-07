@@ -1,4 +1,4 @@
-var SetItem = function( name, data, setFunc )
+var SetItem = function( name, tbody, setFunc )
 {
 	var item = this;
 
@@ -10,21 +10,18 @@ var SetItem = function( name, data, setFunc )
 	this.Draw = function()
 	{
 		var Choice = $( '<div class="choice" id="' + NameMap[name][1] + '"><div class="title"><span class="trigger">◣</span>'
-					 + NameMap[name][0] + '</div><div class="content"><table><tbody></tbody></table>'
+					 + NameMap[name][0] + '</div><div class="content"><table></table>'
 					 + '<br><button>提交</button></div></div>' );
 
-		_( data.static ).chain().pairs().each( function( p )
-		{
-			$( 'tbody', Choice ).append( '<tr><th>' + p[0] + '</th><td>' + p[1] + '</td></tr>' );
-		} );
-		_( data.variable ).chain().pairs().each( function( p )
-		{
-			var TR = $( '<tr><th>' + p[0] + '</th><td><input type="text"/></td></tr>' );
-			$( ':text', TR ).val( p[1] );
-			$( 'tbody', Choice ).append( TR );
-		} );
+		$( 'tr.scalable>td', tbody ).append( '<span class="add">+</span>' );
 
+		$( 'table', Choice ).html( tbody );
 		$( '.content', Choice ).hide();
+
+		$( 'span.add', Choice ).click( function()
+		{
+			$( this ).before( '<input type="text"/><br>' );
+		} );
 
 		Choice.children( '.title' ).click( function()
 		{

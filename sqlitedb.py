@@ -175,29 +175,33 @@ def GetSelfNode( single = True ):
             if data is None:
                 raise NoAvailableNodeErr
                 
-            addrs = cursor.execute( "select type, addr from address where NodePubKey = ?", ( data[1], )).fetchall()
+            addrs = cursor.execute( "select addr from address where NodePubKey = ?", ( data[1], )).fetchall()
             
-            return data + ( addrs, )
+            return data + ( [a[0] for a in addrs], )
         else:
             d = {}
-            for data in cursor.execute( """select PubKey, name, ServerProtocol, discription, level, type, addr
+            for data in cursor.execute( """select PubKey, name, ServerProtocol, discription, level, addr
                                             from selfnode join address on selfnode.PubKey = address.NodePubKey 
                                             where level >= 0;""" ).fetchall():
-                PubKey, EachAddr = data[0], data[5:]
+                PubKey, EachAddr = data[0], data[5]
                 data = data[1:5] + ( [], )
                 d.setdefault( PubKey, data )[-1].append( EachAddr )
         
             return d
 
-def SetSelfNodeName( pubKey, name ):
+def EditSelfNode( pubKey, name, desc, addrs ):
     ""
     with SqliteDB() as cursor:
-        cursor.execute( 'update selfnode set name = ? where PubKey = ?', ( pubKey, name ));
+        cursor.execute( 'update selfnode set name = ?, discription = ? where PubKey = ?', ( name, desc, pubKey ));
+        cursor.execute( 'delete from address where NodePubKey = ?', ( pubKey, ));
+        for addr in addrs:
+            cursor.execute( 'insert into address (NodePubKey, addr) values(?, ?)', ( pubKey, addr ));
+        
 
 def SetSelfUserName( pubKey, name ):
     ""
     with SqliteDB() as cursor:
-        cursor.execute( 'update self set NickName = ? where PubKey = ?', ( pubKey, name ));
+        cursor.execute( 'update self set NickName = ? where PubKey = ?', ( name, pubKey ));
         
 def GetAllNode( *cols, **filterd ):
     ""

@@ -14,7 +14,7 @@ import rsa1 as rsa
 from base64 import encodestring, decodestring
 
 from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
-                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, SetSelfNodeName
+                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, EditSelfNode
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
 from crypto import CBCEncrypt, CBCDecrypt
@@ -221,17 +221,20 @@ class SelfNode( object ):
         self.Name, self.PubKeyStr, PriKeyStr, self.SvPrtcl, self.Desc, self.Level, self.Addrs = NodeData
         self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
         self.PriKey = rsa.PrivateKey.load_pkcs1( PriKeyStr )
-    
+        #print NodeData
+        
     def Decrypt( self, secMsg, secK ):
         ""
         #print '\nSelfNode.Decrypt', self.PubKey
         key = rsa.decrypt( secK, self.PriKey )
         return CBCDecrypt( secMsg, key )
     
-    def SetName( self, name ):
+    def Edit( self, name, desc, addrs ):
         ""
         self.Name = name
-        SetSelfNodeName( self.PubKeyStr, name )
+        self.Desc = desc
+        self.Addrs = filter( None, addrs )
+        EditSelfNode( self.PubKeyStr, name, desc, self.Addrs )
         
     def Sign( self, msg ):
         ""
@@ -248,9 +251,13 @@ class SelfNode( object ):
             "BaseProtocol": self.SvPrtcl,
             "Description": self.Desc,
                 }
+    
+    def GetPort( self ):
+        ""
+        return int( self.Addrs[0].split( ':' )[-1].split( '/' )[0] )
                 
     def Issue( self ):
         "show in local client"
-        return self.PubKeyStr, self.Name, self.Level
+        return self.PubKeyStr, self.Name, self.Desc, self.Addrs, self.Level
 
 

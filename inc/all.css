@@ -69,6 +69,7 @@ span.timer { margin-left: 5px; color: red; }
 span.vice { color: #666; font-size: 0.8em; }
 div.ubbnote { color: #666; font-size: 0.9em; float: left; }
 div.previewarea { border: solid #4a3 1px; display: none; }
+span.add { cursor: pointer; background-color: #f8f8f8; padding-left: 4px; padding-right: 4px; }
 
 div.common { border: solid #4a3 1px; padding-left: 15px; padding-right: 15px; padding-top: 10px; padding-bottom: 10px; }
 div.toggle { padding-left: 2px; padding-right: 2px; }

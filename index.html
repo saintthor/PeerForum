@@ -155,18 +155,79 @@ var PeerForum = function()
 
 	this.ChkLocalNode = function( lcNode )
 	{
-		new SetItem( 'CurNode', { static: { 节点公钥: lcNode[0] }, variable: { 节点名: lcNode[1] }}, function( tBody )
+		var TBody = $( '<tbody></tbody>' );
+		TBody.append( '<tr><th>节点公钥</th><td>' + lcNode[0] + '</td></tr>' );
+		TBody.append( '<tr><th>节点名</th><td><input type="text"/>不能为空</td></tr>' );
+		$( ':text:last', TBody ).val( lcNode[1] );
+		TBody.append( '<tr><th>节点描述</th><td><textarea>' + ( lcNode[2] || '' ) + '</textarea></td></tr>' );
+		var TR = $( '<tr class="scalable"><th>通信地址</th><td></td></tr>' );
+		var GetIPsBtn = $( '<button>获取本地 IP</button>' );
+		TR.children( 'td' ).append( GetIPsBtn ).append( '<span class="query" title="">？</span><div id="iplist"></div>' );
+
+		QueryPop( $( '.query', TR ), 'localip' );
+
+		lcNode[3].forEach( function( v )
 		{
-			var NewName = $( ':text', tBody ).val();
+			var Edit = $( '<input type="text"/>' );
+			Edit.val( v );
+			TR.children( 'td' ).append( Edit ).append( '<br>' );
+		} );
+
+		GetIPsBtn.click( function()
+		{
+		    var ip_dups = {};
+		    var RTCPeerConnection = window.RTCPeerConnection
+		        || window.mozRTCPeerConnection
+		        || window.webkitRTCPeerConnection;
+		    var mediaConstraints = { optional: [{ RtpDataChannels: true }] };
+		    var servers = { iceServers: [{ urls: "stun:stun.services.mozilla.com" }] };
+		    var pc = new RTCPeerConnection( servers, mediaConstraints );
+		    $( '#iplist' ).html( '' );
+		    pc.onicecandidate = function( ice )
+		    {
+		        if( ice.candidate )
+		        {
+		            console.log( ice.candidate.candidate );
+		            var ip_regex = /([0-9]{1,3}(\.[0-9]{1,3}){3})/
+		            var ip_addr = ip_regex.exec( ice.candidate.candidate )[1];
+		            if( ip_dups[ip_addr] === undefined )
+		            {
+		            	$( '#iplist' ).append( ip_addr ).append( '<br>' );
+		            }
+		            ip_dups[ip_addr] = true;
+		        }
+		    };
+		    pc.createDataChannel( "" );
+		    pc.createOffer( function( result )
+		    {
+		    	pc.setLocalDescription( result, function(){}, function(){} );
+
+		    }, function(){} );
+		} );
+
+		TBody.append( TR );
+
+		new SetItem( 'CurNode', TBody, function()
+		{
+			var NewName = $( ':text:first', TBody ).val();
 			if( !NewName )
 			{
 				alert( '节点名不能为空。' );
 				return;
 			}
+
+			var Addresses = []
+			$( ':text', TR ).each( function()
+			{
+				Addresses.push( $( this ).val());
+			} );
+
 			pf.Post( {
-					cmd: 'SetSelfNodeName',
+					cmd: 'EditSelfNode',
 					PubKey: lcNode[0],
 					Name: NewName,
+					Desc: $( 'textarea', TBody ).val(),
+					Addresses: JSON.stringify( Addresses ),
 						} );			
 		} );
 
@@ -180,9 +241,14 @@ var PeerForum = function()
 
 	this.ChkLocalUser = function( lcUser )
 	{
-		new SetItem( 'CurUser', { static: { 用户公钥: lcUser[0] }, variable: { 用户名: lcUser[1] }}, function( tBody )
+		var TBody = $( '<tbody></tbody>' );
+		TBody.append( '<tr><th>用户公钥</th><td>' + lcUser[0] + '</td></tr>' );
+		TBody.append( '<tr><th>用户名</th><td><input type="text"/>不能为空</td></tr>' );
+		$( ':text:last', TBody ).val( lcUser[1] );
+
+		new SetItem( 'CurUser', TBody, function()
 		{
-			var NewName = $( ':text', tBody ).val();
+			var NewName = $( ':text', TBody ).val();
 			if( !NewName )
 			{
 				alert( '用户名不能为空。' );
@@ -501,7 +567,7 @@ var PeerForum = function()
 	this.Post = function( params, dataFunc, errFunc )
 	{
 		console.log( 'Post', params );
-		$.post( '/', params, function( data )
+		$.post( '/web', params, function( data )
 		{
 			var Result = JSON.parse( data );
 			if( 'error' in Result )

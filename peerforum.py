@@ -21,7 +21,7 @@ from user import SelfUser
 from node import NeighborNode, SelfNode
 from tree import Article, Topic
 from protocol import PFPMessage, GetTimeLineMsg
-from const import LOG_FILE, CommunicateCycle, GetTimeLineInHours
+from const import LOG_FILE, CommunicateCycle, GetTimeLineInHours, LocalPort
 from sqlitedb import SqliteDB, InitDB, GetAtclIdByUser, GetAllLabels, RecordUser, GetAllUsers
 from exception import *
 
@@ -159,9 +159,10 @@ class PeerForum( object ):
 #        return { 'Like': Like.Show() }
     
     @classmethod
-    def cmdSetSelfNodeName( cls, param ):
+    def cmdEditSelfNode( cls, param ):
         ""
-        cls.LocalNode.SetName( param['Name'].decode( 'utf-8' ))
+        cls.LocalNode.Edit( param['Name'].decode( 'utf-8' ),
+                           param['Desc'].decode( 'utf-8' ), loads( param['Addresses'] ))
         return { 'SetStatus': 'ok' }
     
     @classmethod
@@ -281,7 +282,7 @@ class PeerForum( object ):
 
     #===================== http apis with bottle ===================================
     @staticmethod
-    @post( '/node' )
+    @post( '/' )
     def pfp():
         'pfp api'
         if request.method == 'GET':
@@ -299,8 +300,8 @@ class PeerForum( object ):
         return '\n'.join( AllMsgs )
         
     @staticmethod
-    @route( '/' )
-    @post( '/' )
+    @route( '/web' )
+    @post( '/web' )
     def local():
         'for local ui'
         #if re.match( r'^localhost(\:\d+)?$', request.environ.get( 'HTTP_HOST' )) is None:
@@ -347,4 +348,4 @@ if __name__ == '__main__':
     PeerForum.Init()
     #test()
     debug( True )
-    run( host = '0.0.0.0', port = 8000, reloader = True )   #set reloader to False to avoid initializing twice.
+    run( host = '0.0.0.0', port = LocalPort, reloader = True )   #set reloader to False to avoid initializing twice.
