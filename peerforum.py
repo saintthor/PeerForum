@@ -161,14 +161,14 @@ class PeerForum( object ):
     @classmethod
     def cmdEditSelfNode( cls, param ):
         ""
-        cls.LocalNode.Edit( param['Name'].decode( 'utf-8' ),
-                           param['Desc'].decode( 'utf-8' ), loads( param['Addresses'] ))
+        cls.LocalNode.Edit( param['Name'].decode( 'utf-8' )[:10],
+                           param['Desc'].decode( 'utf-8' )[:500], loads( param['Addresses'] ))
         return { 'SetStatus': 'ok' }
     
     @classmethod
     def cmdSetSelfUserName( cls, param ):
         ""
-        cls.LocalUser.SetName( param['Name'].decode( 'utf-8' ))
+        cls.LocalUser.SetName( param['Name'].decode( 'utf-8' )[:10] )
         return { 'SetStatus': 'ok' }
     
     @classmethod
