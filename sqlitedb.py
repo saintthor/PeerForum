@@ -106,10 +106,10 @@ def UpdateNodeOrNew( param, where ):
         print 'UpdateNodeOrNew', sql, vals
         cursor.execute( sql, vals )
         
-        for Type, Addr in Addrs:
-            sql = 'insert into address (type, addr, NodePubKey) values(?, ?, ?)'
-            print sql, Type, Addr, PubKeyStr
-            cursor.execute( sql, ( Type, Addr, PubKeyStr ))
+        for Addr in Addrs:
+            sql = 'insert into address (addr, NodePubKey) values(?, ?)'
+            print sql, Addr, PubKeyStr
+            cursor.execute( sql, ( Addr, PubKeyStr ))
     
 def GetNodeByPubKeyOrNew( d ):
     "or new"

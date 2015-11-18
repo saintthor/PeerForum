@@ -4,7 +4,9 @@ var SetItem = function( name, tbody, setFunc )
 
 	var NameMap = {
 			'CurNode': ['本地节点', 'localnode'],
+			'CurNeighbor': ['添加邻节点', 'neighbor'],
 			'CurUser': ['本地用户', 'localuser'],
+
 					};
 
 	this.Draw = function()
@@ -44,11 +46,3 @@ var SetItem = function( name, tbody, setFunc )
 
 };
 
-
-var Manager = function( owner )
-{
-	var manager = this;
-	this.Owner = owner;
-
-	
-}

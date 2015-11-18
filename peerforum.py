@@ -166,6 +166,12 @@ class PeerForum( object ):
         return { 'SetStatus': 'ok' }
     
     @classmethod
+    def cmdAddNeighbor( cls, param ):
+        ""
+        cls.SendToAddr( 0x10, param['Address'] )
+        return { 'AddNeighbor': 'ok' }
+
+    @classmethod
     def cmdSetSelfUserName( cls, param ):
         ""
         cls.LocalUser.SetName( param['Name'].decode( 'utf-8' )[:10] )

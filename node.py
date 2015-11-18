@@ -135,7 +135,7 @@ class NeighborNode( object ):
         return GetNodesExcept( its, nids, self.PubKey )
         
     def InitPubKey( self, pubK ):
-        "init pubkey if it is avoid."
+        "init pubkey if it is void."
         if not isinstance( self.PubKey, rsa.PublicKey ):
             self.PubKey = pubK
             self.Save()

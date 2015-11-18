@@ -80,7 +80,7 @@ var PeerForum = function()
 	//this.Info = { warning: [], error: [], info: [] };
 	this.UserSet = {};
 	this.Forum = new Forum( this );
-	this.Setting = new Manager( this );
+	//this.Setting = new Manager( this );
 
 	this.MAXTIME = 9999999999999;
 	this.Before = this.MAXTIME;		//for timeline
@@ -237,6 +237,27 @@ var PeerForum = function()
 		}*/
 
 		this.CurNode = lcNode;
+		this.ChkNeighbor();
+	};
+
+	this.ChkNeighbor = function( nbNodes )
+	{
+		var TBody = $( '<tbody><tr><th>通信地址</th><td><input type="text"/><br>必填。邻节点的通信地址应包含 ip 和端口，中间用“:”分隔，如：http://202.124.84.98:7000</td></tr></tbody>' );
+
+		new SetItem( 'CurNeighbor', TBody, function()
+		{
+			var Addr = $( ':text', TBody ).val();
+			if( !Addr.match( /^https?\:\/\//i ) )
+			{
+				alert( '通信地址应以 http:// 或 https:// 开头。' );
+				return;
+			}
+
+			pf.Post( {
+					cmd: 'AddNeighbor',
+					Address: Addr,
+						} );			
+		} );
 	};
 
 	this.ChkLocalUser = function( lcUser )
@@ -516,6 +537,7 @@ var PeerForum = function()
 		console.log( rslt );
 		var FuncMap = {
 			 'CurNode': [pf.ChkLocalNode, pf],
+			 'NeighborNode': [pf.ChkNeighbor, pf],
 			 'CurUser': [pf.ChkLocalUser, pf],
 			 'AllLabels': [pf.SetAtclLabels, pf],
 			 'AllUsers': [pf.SetAllUsers, pf],
