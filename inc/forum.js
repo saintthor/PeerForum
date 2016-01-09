@@ -385,7 +385,7 @@ var Forum = function( owner )
 
 	this.LabelTopic = function( labelDiv )
 	{
-		this.ListLabel = labelDiv.text();
+		this.ListLabel = labelDiv.hasClass( "atcllabel" ) ? labelDiv.text() : '';
 		this.Before = this.MAXTIME;
 		$( '#tpclist>table>tbody>tr:gt(0)' ).remove();
 		var LabelBox = $( '#forum>.content' );
@@ -903,6 +903,7 @@ var Forum = function( owner )
 
 				AppendAtcl.children( 'td' ).append( frm.ShowSingleAtcl( Atcl ));
 				QueryPop( $( '.atclleft .query', AppendAtcl ), 'userpubk' );
+				QueryPop( $( '.atcltop .query', AppendAtcl ), 'views' );
 				$( '.atcltop>.lineright>span', AppendAtcl ).click( SetView );
 				$( '.reply', AppendAtcl ).click( EnableReply );
 
@@ -1098,6 +1099,7 @@ var Forum = function( owner )
 		$( '.atcltop>.lineright>span', NewAtcl ).click( SetView );
 		$( '.reply', NewAtcl ).click( EnableReply );
 		QueryPop( $( '.atclleft .query', NewAtcl ), 'userpubk' );
+		QueryPop( $( '.atcltop .query', NewAtcl ), 'views' );
 		NewAtcl.hide();
 		Parent.after( NewAtcl );
 		NewAtcl.show( 400 );

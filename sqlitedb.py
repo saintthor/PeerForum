@@ -227,7 +227,12 @@ def GetNodeById( nodeId ):
     with SqliteDB() as cursor:
         cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         node = cursor.execute(( 'select %s from node where id = ?;' % ','.join( cols )), ( nodeId, )).fetchone()
-        return dict( zip( cols, node ))
+        d = dict( zip( cols, node ))
+        for pubK, Type, addr in cursor.execute( 'select NodePubKey, type, addr from address where NodePubKey = ?',
+                                               ( d['PubKey'], )).fetchall():
+            d.setdefault( 'Addrs', [] ).append( [Type, addr] )
+        if 'Addrs' in d:
+            return d
 
 def GetNodesExcept( kItems, ids, excpK ):
     ""

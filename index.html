@@ -122,9 +122,7 @@ var PeerForum = function()
 		$( '#forum>.title' ).click();
 
 		this.ChkEnv();
-		//this.GetNode();
-		//this.GetUser();
-		//setTimeout( this.Dida, 5000 );
+		setTimeout( this.Dida, 5000 );
 	};
 
 	this.InitForumPg = function()
@@ -303,7 +301,7 @@ var PeerForum = function()
 
 		$( '#alllabelidx' ).click( function()
 		{
-			pf.Forum.LabelTopic( '' );
+			pf.Forum.LabelTopic( $( this ));
 		} );
 
 		_( labelObj ).chain().pairs().sortBy( function( p )
@@ -532,6 +530,11 @@ var PeerForum = function()
 		this.Forum.SetLabelStr( labelData );
 	};
 
+	this.AddNeighbor = function()
+	{
+		$( '#forum>.title' ).click();
+	};
+
 	this.GetResult = function( rslt )
 	{
 		console.log( rslt );
@@ -548,7 +551,8 @@ var PeerForum = function()
 			 'Reply': [pf.ShowReply, pf],
 			 'ShowTree': [pf.ExpendTpcTree, pf],
 			 'UserStatus': [pf.SetUserStatus, pf],
-			 'TimeLine': [pf.AppendTimeLine, pf],
+			 'TimeLine': [pf.AppendTimeLine, pf],			 
+			 'AddNeighbor': [pf.AddNeighbor, pf],
 					};
 
 		_( rslt ).chain().pairs().each( function( p )
@@ -567,8 +571,8 @@ var PeerForum = function()
 
 	this.Dida = function()
 	{
-		this.Post( { cmd: 'Dida' } );
-		setTimeout( this.Dida, 5000 );
+		pf.Post( { cmd: 'Dida' } );
+		setTimeout( pf.Dida, 5000 );
 	};
 
 	this.ChkEnv = function()

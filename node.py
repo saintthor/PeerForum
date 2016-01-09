@@ -53,15 +53,6 @@ class NeighborNode( object ):
                 if point < 0:
                     return cls( **GetNodeById( node[0] ))
     
-#    @classmethod
-#    def GetSomeInfo( cls, excpStr = '' ):
-#        ""
-#        result = []
-#        its = [it for it in cls.transD.items() if it[0] != 'id']
-#        ProtocolKs = [it[0] for it in its]
-#        for NodeData in GetNodeByIds( *[it[1] for it in its] )
-#        return []
-    
     @classmethod
     def Get( cls, pubK, msgBody = None ):
         ""

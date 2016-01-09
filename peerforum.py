@@ -257,7 +257,7 @@ class PeerForum( object ):
         return { 'PageTopics': Topic.ListPage( Label, Before, SortCol ) }
         
     @classmethod
-    def cmdDida( cls, counter = [0] ):
+    def cmdDida( cls, param, counter = [0] ):
         ""
         print 'PeerForum.Dida', NeighborNode.taskQ.qsize()
         while True:
@@ -269,8 +269,17 @@ class PeerForum( object ):
                 break
             
         counter[0] = n = counter[0] + 1
-#        if n % CommunicateCycle == 0:
-#            cls.Communicate()
+        #add node trans logic here.
+        
+        try:
+            for _ in range( int( len( NeighborNode.AllNodes ) ** 0.5 )):
+                Remote = NeighborNode.Pick()
+                threading.Thread( target = cls.SendMessage, args = ( Remote, 0x20 )).start()
+                if n % 20 == 0:
+                    threading.Thread( target = cls.SendMessage, args = ( Remote, 0x12 )).start()
+        except:
+            pass
+        
         return {}
         
     @classmethod
