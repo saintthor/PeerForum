@@ -11,10 +11,11 @@ from hashlib import md5, sha1
 from random import randint
 import traceback
 import re
+import logging
 
 from user import SelfUser, OtherUser
 from sqlitedb import GetOneArticle, SaveArticle, SaveTopicLabels, SaveTopic, UpdateTopic, GetRootIds, \
-                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, DelTopicLabels, GetTopicRowById, \
+                     GetTreeAtcls, SetAtclsWithoutTopic, GetAtclByUser, GetTopicRowById, \
                      GetTopicRows, SetAtclStatus, SetLabel, GetAtclByUserToShow, SearchAtcl
 from const import MaxOfferRootNum, TitleLength, AutoNode, SeekSelfUser, TopicNumPerPage
 
@@ -72,6 +73,7 @@ class Article( object ):
                 'DestroyTime': self.ItemD.get( 'DestroyTime', 9999999999999 ),
                 'GetTime': int( time() * 1000 ),
                 'AuthPubKey': self.ItemD['AuthPubKey'],
+                'status': self.status,
                     } )
         
         if hasattr( self, 'RemoteLabels' ):
@@ -79,33 +81,21 @@ class Article( object ):
         if hasattr( self, 'RemoteEval' ):
             kwds['RemoteEval'] = self.RemoteEval
         else:
-            kwds['GetTime'] += randint( 100000, 300000 )   #the GetTime for local creating shouldn't be exact.
+            kwds['GetTime'] += randint( 100000, 300000 )   #the GetTime for local created shouldn't be exact.
             
-        SaveArticle( **kwds )
-        
-        if self.IsRoot():
-            Topic.New( self )
-        else:
-            Topic.AddAtcl( self )
-            UpdateTopic( self.ItemD['RootID'], **{
-                                    'LastAuthName': self.ItemD.get( 'NickName' ),
-                                    'LastTime': kwds['GetTime'],
-                                                } )
+        if SaveArticle( **kwds ):
+            if self.IsRoot():
+                Topic.New( self )
+            else:
+                Topic.AddAtcl( self )
+                UpdateTopic( self.ItemD['RootID'], **{
+                                        'LastAuthName': self.ItemD.get( 'NickName' ),
+                                        'LastTime': kwds['GetTime'],
+                                                    } )
 
-#    def SetNodeLabels( self, *labels ):
-#        ""
-#        labels = set( labels ) - self.NodeLabels
-#        self.NodeLabels += labels
-#        SaveTopicLabels( self.id, labels )
-#    
-#    def DelNodeLabels( self, *labels ):
-#        ""
-#        self.NodeLabels -= set( labels )
-#        DelTopicLabels( self.id, labels )
 
     def Check( self ):
         "do not check destroy time here"
-        print 'Article.Check', self.id
         try:
             assert self.ItemD.get( 'IDHashType', 'sha1' ).lower() == 'sha1'
             assert self.id == sha1( self.ItemStr ).hexdigest()
@@ -121,11 +111,10 @@ class Article( object ):
             assert author.Verify( content, self.ItemD['Sign'] )
             return True
         except:
-            print traceback.format_exc()
+            logging.error( traceback.format_exc())
     
     def Show( self, **addi ):
         "show to ui"
-        print 'Article.Show', addi
         ShowData = {
                 'atclId': self.id,
                 'content': self.content,
@@ -196,7 +185,6 @@ class Article( object ):
                 Parent = cls.Get( kwds[k] )
                 itemD['DestroyTime'] = Parent.ItemD.get( 'DestroyTime', 9999999999999 )     #only root has destroytime
         
-        print 'Article.New', life, itemD
         Atcl = cls( None, itemD = itemD, content = content )
         
         if Atcl.IsRoot():
@@ -234,7 +222,6 @@ class Article( object ):
     @classmethod
     def Get( cls, atclId ):
         ""
-        #print 'Article.Get', atclId
         if atclId in cls.LiveD:
             return cls.LiveD[atclId]
         aData = GetOneArticle( 'items', 'content', id = atclId )
@@ -251,10 +238,8 @@ class Article( object ):
     @classmethod
     def GetByUser( cls, uPubK, From, To, exist ):
         "timeline"
-        print 'Article.GetByUser'
         if SeekSelfUser or not SelfUser.IsSelf( uPubK ):    #set SeekSelfUser to False for high secrety
             for Id, items, content in GetAtclByUser( uPubK, From, To, exist ):
-                print Id, items, content
                 yield cls( Id = Id, itemStr = items, content = content )
         
     @classmethod
@@ -314,7 +299,6 @@ class Topic( object ):
     
     def __init__( self, root ):
         ""
-        #print root.ItemD
         assert root.ItemD.get( 'Type' ) == 0
         assert root.ItemD.get( 'Labels' ) > ''          #every tree must has labels
         self.Root = root
@@ -323,13 +307,11 @@ class Topic( object ):
     
     def Save( self, **kwds ):
         ""
-        print 'Topic.Save'
         try:
             SaveTopic( **kwds )
             SaveTopicLabels( self.Root.id, self.Root.GetLabels())
         except:
-            print traceback.format_exc()
-        print 'Topic.Save over'
+            logging.error( traceback.format_exc())
     
     def GetInfo( self ):
         ""
@@ -356,12 +338,10 @@ class Topic( object ):
         StructD = {}
         for atclId, atcl in NodeD.iteritems():
             ParentId = atcl.ItemD.get( 'ParentID', '' )
-            #print ParentId, '--', atclId
             StructD.setdefault( atclId, TreeStruct( atclId, ParentId ))
             StructD.setdefault( ParentId, TreeStruct( ParentId )).Add( atclId )
 
         self.StructD = StructD   #there may be multi articles in struct.root when editing the root. put roots in struct.children.
-        #print 'Topic.Instruct', StructD
         return self.StructD
     
     def GetUpperIds( self, leafId ):
@@ -369,32 +349,25 @@ class Topic( object ):
         if self.StructD is None:
             self.Instruct()
         while leafId:
-            #print 'Topic.GetUpperIds', leafId
             yield leafId
             leafId = self.StructD[leafId].Parent
         
         
     def ChkByLeaves( self, leaves ):
         "check remote leaves and return the more articles"
-        print 'Topic.ChkByLeaves', leaves
         self.Instruct()
         LocalLinked = set( TreeStruct.GetAll( self.StructD, '' ))
-        #print self.StructD
-        #print 'LocalLinked:', LocalLinked
         RemoteNodes = set()
         
         AskBack = bool( leaves - LocalLinked )      #remote is more than local
         leaves &= LocalLinked
-        #print AskBack, 'leaves:', leaves
         for leafId in leaves:
             for leaf in self.GetUpperIds( leafId ):
                 if leaf in RemoteNodes:
                     break
                 RemoteNodes.add( leaf )
                 
-        #print 'RemoteNodes:', RemoteNodes
         ReturnNodes = LocalLinked - RemoteNodes
-        #print 'ReturnNodes:', ReturnNodes
         
         return [self.AtclD[Id] for Id in ReturnNodes], AskBack
             
@@ -405,7 +378,6 @@ class Topic( object ):
     @classmethod
     def New( cls, atcl ):
         ""
-        print 'Topic.New'
         if atcl.id not in cls.LiveD:
             cls.LiveD[atcl.id] = cls( atcl )
             cls.LiveD[atcl.id].Save( root = atcl.id, title = atcl.content.split( '\n' )[0][:TitleLength],
@@ -417,7 +389,6 @@ class Topic( object ):
     def Filter( cls, condi ):
         ""
         RootIds = GetRootIds( **condi )
-        print 'Topic.Filter RootIds =', RootIds
         l = len( RootIds )
         for i in range( l - MaxOfferRootNum ):
             RootIds.pop( randint( 0, l - i - 1 ))
@@ -465,7 +436,6 @@ class Topic( object ):
     @classmethod
     def GetMulti( cls, *rootIds ):
         "a generator to get multi topic objs from rootIds"
-        print 'Topic.GetMulti rootIds =', rootIds
         rootSet = set( rootIds )
         cacheSet = cls.LiveD.viewkeys()
         
@@ -473,23 +443,23 @@ class Topic( object ):
             yield cls.LiveD[k]
             
         rootSet -= cacheSet
-            
-        TreeD = GetTreeAtcls( *rootSet )
-        for k, atclD in TreeD.iteritems():
-            if k not in atclD:
-                continue
-            Article.Cache( atclD )
-            topic = cls( Article.Get( k ))
-            for ak in atclD:
-                topic.AtclD.setdefault( ak, Article.Get( ak ))
-            topic.SetSnapShot()
-            cls.LiveD[k] = topic
-            yield topic
+        
+        if rootSet:
+            TreeD = GetTreeAtcls( *rootSet )
+            for k, atclD in TreeD.iteritems():
+                if k not in atclD:
+                    continue
+                Article.Cache( atclD )
+                topic = cls( Article.Get( k ))
+                for ak in atclD:
+                    topic.AtclD.setdefault( ak, Article.Get( ak ))
+                topic.SetSnapShot()
+                cls.LiveD[k] = topic
+                yield topic
             
     @classmethod
     def Compare( cls, treeInfo ):   #treeInfo = { TreeId:..., Length:..., SnapShot:... }
         ""
-        print 'Topic.Compare treeInfo =', treeInfo
         TreeId = treeInfo['TreeId']
         for topic in cls.GetMulti( TreeId ):
             if len( topic ) >= 0.5 * treeInfo['Length']:
@@ -500,14 +470,11 @@ class Topic( object ):
     @classmethod
     def GetReqAtcls( cls, treeReq, askBackFunc ):    #treeReq = { TreeId:..., Mode:..., Leaves:... }
         ""
-        print 'Topic.GetReqAtcls treeReq =', treeReq
         for topic in cls.GetMulti( treeReq['TreeId'] ):
             if treeReq['Mode'] == 'all':
-                print topic.AtclD
                 return topic.AtclD.values()
             if treeReq['Mode'] == 'leaf':
                 Atcls, AskBack = topic.ChkByLeaves( set( treeReq['Leaves'] ))
-                print 'AskBack =', AskBack
                 AskBack and askBackFunc( { 'TreeId': treeReq['TreeId'], 'Mode': 'leaf',
                                           'Leaves': list( TreeStruct.GetLeaves( topic.Instruct(), '' )) } )
                 return Atcls
@@ -521,18 +488,4 @@ class Topic( object ):
         SetAtclsWithoutTopic() 
 
 if __name__ == '__main__':
-    for topic in Topic.GetMulti( '9786b0cb0761e87e720733e45bc6c831785f0bac', '1fb5381c3200bb03561cb9b79c40bed50eda8515' ):
-        topic.Instruct()
-        print topic.StructD
-        LocalNodes = topic.StructD.viewkeys() - { '' }
-        LocalLinked = set( TreeStruct.GetAll( topic.StructD, '' ))
-        print '\nLocalNodes:', LocalNodes
-        print 'LocalLinked:', LocalLinked
-        print 'leaves:', list( TreeStruct.GetLeaves( topic.StructD, '' ))
-    
-#    a = Article.New( SelfUser(), 0, u'儿童怪问客从来，迂阔颟顸语近呆。醉指他乡风物好，淡真不必甚多才。',
-#                    0, Labels = u'诗', RootID = '9786b0cb0761e87e720733e45bc6c831785f0bac', ParentID = '9786b0cb0761e87e720733e45bc6c831785f0bac', )
-#    a.Save()
-#    j = a.Issue()
-#    print j
-    #print Article.Receive( j )
+    pass

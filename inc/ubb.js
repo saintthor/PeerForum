@@ -302,8 +302,8 @@ function UBBObj( BtnArea, TextArea )
             Express: function( Content, LabelHead )
             {
                 var m = LabelHead.match( /\[size=([\d\.]*?)\]/i );
-                //return '<span style="font-size:' + m[1] + '">' + Content + '</span>';
-                return '<font size=' + m[1] + '>' + Content + '</font>';
+                return '<span style="font-size:' + m[1] + 'em">' + Content + '</span>';
+                //return '<font size=' + m[1] + '>' + Content + '</font>';
             },
         },
         

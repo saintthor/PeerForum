@@ -1,13 +1,11 @@
 #! /usr/bin/env python
 #coding=utf-8
 
-import rsa1 as rsa
+import rsa
 
-#import threading
-import traceback
 from time import time
 from json import loads, dumps
-from base64 import encodestring, decodestring
+from base64 import decodestring
 
 from exception import *
 from const import MaxTimeDiff, MaxSearchAddrStep, GetTreeInHours
@@ -17,6 +15,7 @@ from tree import Topic, Article
 class PFPMessage( object ):
     ""
     ReplyCode = 0
+    BackCode = 0
     MsgMap = {}
     MustHas = { 'Time', 'PubKey' }
     LocalNode = None
@@ -64,27 +63,25 @@ class PFPMessage( object ):
                 pass
         
         self.body = bodyD
-#        for k, v in bodyD.items():
-#            setattr( self, k, v )
         
     def Receive( self, msgBody ):
         ""   
-        print
         VerifyStr = self.GetBody( msgBody )
         if VerifyStr:                                   #not QryPubKeyMsg
-            print self.__class__.__name__, '.Receive 1: ', VerifyStr
             Neighbor = NeighborNode.Get( self.body['PubKeyStr'], loads( VerifyStr ))
             Neighbor.Verify( VerifyStr, decodestring( msgBody['sign'] ))
             #self.RcvData( Neighbor, loads( VerifyStr ) )
         else:
-            print self.__class__.__name__, '.Receive 2: ', msgBody
             Neighbor = NeighborNode.Get( self.body['PubKeyStr'], msgBody )
         
         if not self.FlowControl():
             return Neighbor
             
         self.RcvData( Neighbor )
-        Neighbor.Buffer( self.Reply( Neighbor ))
+        if self.ReplyCode > 0:
+            Neighbor.Buffer( self.Reply( Neighbor ))
+        if self.BackCode > 0:
+            Neighbor.Buffer( self.Reply( Neighbor, self.BackCode ))
         
         return Neighbor
     
@@ -97,17 +94,13 @@ class PFPMessage( object ):
         ""
         pass
 
-    def Reply( self, rmtNode ):
+    def Reply( self, rmtNode, rplCode = None ):
         ""
-        print self.__class__.__name__, '.Reply', self.ReplyCode
-        if self.ReplyCode == 0:
-            return ()
-        RplMsg = PFPMessage( self.ReplyCode )
+        RplMsg = PFPMessage( rplCode or self.ReplyCode )
         RplMsg.SetRemoteNode( rmtNode )
         
         if RplMsg.InitBody( self ) != False:
             return RplMsg.Issue(),
-        print 'Reply nothing to reply.'
         return ()
     
     def Issue( self ):
@@ -122,11 +115,9 @@ class PFPMessage( object ):
     
     def EncryptBody( self ):
         "encrypt and sign"
-        print self.__class__.__name__, '.EncryptBody\n', self.body
         BodyStr = dumps( self.body )
         CryptMsgD = self.RemoteNode.Encrypt( BodyStr )
         CryptMsgD['sign'] = self.LocalNode.Sign( BodyStr )
-        #print CryptMsgD
         return dumps( CryptMsgD )
     
     def SetRemoteNode( self, rmtNode ):
@@ -134,8 +125,7 @@ class PFPMessage( object ):
         self.RemoteNode = rmtNode
     
     def PostTo( self, *nodes ):
-        "send to remote node without expecting response"
-        #print 'PFPMessage.PostTo len( nodes ) =', len( nodes )
+        "send to remote node with no response expected"
         for rmtNode in nodes:
             self.SetRemoteNode( rmtNode )
             MsgStr = chr( self.code ) + self.EncryptBody()
@@ -147,6 +137,7 @@ class PFPMessage( object ):
         ""
         diff = abs( time() * 1000 - v )
         if diff > MaxTimeDiff:
+            logging.error( '_Check_Time Error %s %s' % ( time() * 1000, v ))
             raise RemoteTimeErr
     
     @staticmethod
@@ -163,10 +154,10 @@ class PFPMessage( object ):
 
 class QryPubKeyMsg( PFPMessage ):
     """
-    query the pubkey of the node only addr known.
+    query the pubkey of the node that only known by addr.
     normal steps:
     A -----QryPubKeyMsg----> B      don't send more info because this message is not encrypted.
-    A <----NodeInfoMsg------ B      A gets B's info
+    A <----NodeInfoMsg------ B      A gets B's info includes PubKey
     A -----NodeInfoMsg-----> B      B gets A's info. they become neighbors.
     """
     code = 0x10
@@ -176,13 +167,6 @@ class QryPubKeyMsg( PFPMessage ):
         "for send messages"
         self.body = {}        
         
-#    def Reply( self, rmtNode ):
-#        ""
-#        RplMsg = PFPMessage( self.ReplyCode )
-#        RplMsg.InitBody( self )
-#        RplMsg.SetRemoteNode( rmtNode )
-#        return RplMsg.Issue(),
-    
     def EncryptBody( self ):
         "do not encrypt for this message."
         return dumps( self.body )    
@@ -200,22 +184,18 @@ class NodeInfoMsg( PFPMessage ):
     
     def InitBody( self, forMsg = None ):
         ""
-        print 'NodeInfoMsg.InitBody', forMsg
         if forMsg is None:                              #to refresh self info to neighbors.
             self.body = self.LocalNode.GetInfo()
             
         elif isinstance( forMsg, QryPubKeyMsg ):        #--QryPubKeyMsg->, go on.
             self.body = self.LocalNode.GetInfo()
             self.body['Step'] = 1
-            #print 'NodeInfoMsg.InitBody', self.body
             
         elif isinstance( forMsg, NodeInfoMsg ):
             if forMsg.body.get( 'Step', 0 ) == 0:       #--QryPubKeyMsg->, <-NodeInfoMsg--, --NodeInfoMsg->, Over.
-                print '\nquery task finished.\n'
                 return False
             self.body = self.LocalNode.GetInfo()        #--QryPubKeyMsg->, <-NodeInfoMsg--, go on.
             #self.body['Step'] = 0
-            #print '\nquery task goes on.\n'
             
         elif isinstance( forMsg, SearchAddrMsg ):       #--SearchAddrMsg->
             #assert forMsg.body["ObjPubKey"] == self.LocalNode.PubKeyStr
@@ -223,7 +203,6 @@ class NodeInfoMsg( PFPMessage ):
             
     def RcvData( self, remote ):
         ""
-        print 'NodeInfoMsg.RcvData'#, rcvBody
         def ChkInnerAddr( addr ):
             return True
         
@@ -251,7 +230,6 @@ class NodeAnswerMsg( PFPMessage ):
             
     def RcvData( self, remote ):
         ""
-        #print 'NodeAnswerMsg.RcvData: save neighbors here\n'
         for nbData in self.body['Nodes']:
             NeighborNode.NewNeighbor( nbData )
 
@@ -280,7 +258,6 @@ class SearchAddrMsg( PFPMessage ):
 
     def InitBody( self ):
         ""
-        print 'SearchAddrMsg.InitBody'
         self.body = {
                 "ObjPubKey": self.RemoteNode.PubKeyStr,
                 #"ObjPubKey": self.LocalNode.PubKeyStr,
@@ -290,7 +267,6 @@ class SearchAddrMsg( PFPMessage ):
     def Receive( self, msgBody ):
         "PubKey and Address belongs to the source. ForwardPubKey belongs to the forwarder."   
         VerifyStr = self.GetBody( msgBody )
-        print 'SearchAddrMsg.Receive: ', VerifyStr
         
         body = loads( VerifyStr )
         if 'ForwardPubKey' in self.body:
@@ -305,9 +281,7 @@ class SearchAddrMsg( PFPMessage ):
             return
                 
         if self.LocalNode.PubKeyStr == self.body["ObjPubKey"]:          #self is objnode
-            print 'self is obj.'
             MsgStrs = PFPMessage.Reply( self, SourceNode )
-            #print 'MsgStrs =', MsgStrs
             SourceNode.Buffer( MsgStrs )
             return SourceNode
         else:                                           #not found
@@ -322,10 +296,8 @@ class SearchAddrMsg( PFPMessage ):
             
             ObjNode = NeighborNode.SearchNode( self.body["ObjPubKey"] )
             if ObjNode is not None:
-                print 'find obj in neighbors.'
                 FwdMsg.PostTo( ObjNode )
             elif Step > 0:
-                print 'forward to neighbors here.'
                 objPKStr = FwdMsg.body["PubKey"]
                 FwdMsg.PostTo( *[rmt for rmt in NeighborNode.AllTargets() if rmt.PubKeyStr != objPKStr] )
     
@@ -343,16 +315,20 @@ class QryTreeMsg( PFPMessage ):
     """
     code = 0x20
     ReplyCode = 0x21
+    BackCode = 0x20
     
-    def InitBody( self ):
+    def InitBody( self, forMsg = None ):
         ""
-        print '\nQryTreeMsg.InitBody'
         t = int( time() * 1000 )
-        GetTreeInHours = 480
+        #GetTreeInHours = 480
+        Step = 1 if forMsg is None else ( forMsg.body.get( 'Step', 0 ) - 1 )
+        if Step < 0:
+            return False
         self.body = {
                 "From": t - GetTreeInHours * 3600 * 1000,
                 "To": t,
                 "Status": 1,
+                "Step": Step,
                     }
 
 class TreesInfoMsg( PFPMessage ):
@@ -362,11 +338,9 @@ class TreesInfoMsg( PFPMessage ):
     
     def InitBody( self, forMsg = None ):
         ""
-        print '\nTreesInfoMsg.InitBody'
         self.body = {
                 'Offer': [tpc.GetInfo() for tpc in Topic.Filter( forMsg.body )],
                     }
-                    
         if not self.body['Offer']:
             return False
 
@@ -377,7 +351,6 @@ class GetTreeMsg( PFPMessage ):
     
     def InitBody( self, forMsg = None ):
         ""
-        print '\nGetTreeMsg.InitBody', forMsg.body['Offer']
         if not forMsg.body.get( 'Offer' ):
             return False
             
@@ -392,7 +365,6 @@ class AtclDataMsg( PFPMessage ):
     def InitBody( self, forMsg = None ):
         ""        
         if isinstance( forMsg, GetTreeMsg ):
-            print '\nAtclDataMsg.InitBody for GetTreeMsg:', forMsg.body
             if not forMsg.body.get( 'Trees' ):
                 return False
             
@@ -407,7 +379,6 @@ class AtclDataMsg( PFPMessage ):
                 self.AskBack( AskBackTrees )
                 
         elif isinstance( forMsg, GetTimeLineMsg ):
-            print '\nAtclDataMsg.InitBody for GetTimeLineMsg:', forMsg.body
             self.body = {
                     'Articles': [atcl.Issue() for atcl in Article.GetByUser(
                                     *map( forMsg.body.get, ['UserPubKey', 'From', 'To', 'Exist'] )
@@ -419,8 +390,7 @@ class AtclDataMsg( PFPMessage ):
                 
                         
     def AskBack( self, trees ):
-        "send back a GetTreeMsg if remote leaves is more than local"
-        print 'AtclDataMsg.AskBack', trees
+        "send back a GetTreeMsg if remote leaves are more than local"
         BackMsg = GetTreeMsg()
         BackMsg.SetRemoteNode( self.RemoteNode )
         BackMsg.body = { 'Trees': trees }
@@ -428,11 +398,9 @@ class AtclDataMsg( PFPMessage ):
 
     def RcvData( self, remote ):
         ""
-        print '\nAtclDataMsg.RcvData', len( self.body['Articles'] )
         Atcls = [Article.Receive( atclData ) for atclData in self.body['Articles']]
         Atcls.sort( key = Article.SortType )
         
-        print [a.id for a in Atcls]
         pkStr = remote.PubKeyStr
         
         for atcl in Atcls:
@@ -447,7 +415,6 @@ class GetTimeLineMsg( PFPMessage ):
 
     def InitBody( self, **body ):
         ""
-        print '\nGetTimeLineMsg.InitBody', body
         self.body = body
             
     

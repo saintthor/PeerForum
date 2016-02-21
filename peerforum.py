@@ -8,11 +8,9 @@ import logging
 import traceback
 import threading
 from json import loads, dumps
-from base64 import decodestring
 from Queue import Empty
-import rsa1 as rsa
 
-from time import time, sleep
+from time import time
 from bottle import route, run, post, debug, request, static_file
 import urllib2
 from urllib import urlencode
@@ -21,7 +19,7 @@ from user import SelfUser
 from node import NeighborNode, SelfNode
 from tree import Article, Topic
 from protocol import PFPMessage, GetTimeLineMsg
-from const import LOG_FILE, CommunicateCycle, GetTimeLineInHours, LocalPort
+from const import LOG_FILE, GetTimeLineInHours, LocalPort, AutoNode
 from sqlitedb import SqliteDB, InitDB, GetAtclIdByUser, GetAllLabels, RecordUser, GetAllUsers
 from exception import *
 
@@ -59,20 +57,19 @@ class PeerForum( object ):
     @classmethod
     def SendToAddr( cls, msgType, addr, bp = 'HTTP', **kwds ):
         "no neighbor data for addr. for QryPubKeyMsg"
-        Remote = NeighborNode( Addrs = [[0, addr]], ServerProtocol = bp )
+        #logging.debug( 'SendToAddr addr = %s' % repr( addr ))
+        Remote = NeighborNode( Addrs = [( 0, addr )], ServerProtocol = bp )
         cls.SendMessage( Remote, msgType, **kwds )
         
     @classmethod
     def SendMessage( cls, Remote, *msgTypes, **kwds ):
         "send to certain remote node."
-        print 'PeerForum.SendMessage'
         Msgs = [PFPMessage( msgType ) for msgType in msgTypes]
         [Msg.SetRemoteNode( Remote ) for Msg in Msgs]
         [Msg.InitBody() for Msg in Msgs]
         Remote.Buffer( [Msg.Issue() for Msg in Msgs] )
         while Remote is not None:
             ReplyStr = cls.Send( *Remote.AllToSend() )
-            print '\nReplyStr =', ReplyStr
             if not ReplyStr:
                 break
             Remote = cls.Reply( ReplyStr.split( '\n' ))
@@ -80,12 +77,10 @@ class PeerForum( object ):
     @classmethod
     def SendMsgToRemote( cls, remote, msg ):
         ""
-        print 'PeerForum.SendMsgToRemote'
         msg.SetRemoteNode( remote )
         remote.Buffer(( msg.Issue(), ))
         while remote is not None:
             ReplyStr = cls.Send( *remote.AllToSend())
-            print '\nReplyStr =', ReplyStr
             if not ReplyStr:
                 break
             remote = cls.Reply( ReplyStr.split( '\n' ))        
@@ -93,47 +88,32 @@ class PeerForum( object ):
     @classmethod
     def Send( cls, addrs, msgs ):
         "send to remote node"
-        print 'PeerForum.Send', addrs
         data = urlencode( { 'pfp': '\n'.join( msgs ) } )
-        for Type, addr in addrs:
+        logging.debug( 'Send addrs: %s' % repr( addrs ))
+        for Type, addr in set( addrs ):
             try:
                 req = urllib2.Request( addr, data )
-                print 'PeerForum.Send to', addr, len( data )
                 response = urllib2.urlopen( req )
                 return response.read()
                 break
             except:
-                print traceback.format_exc()
                 pass
-        print 'PeerForum.Send all addrs failed.'
         return ''
     
     @classmethod
     def SendBuffer( cls, remote ):
         ""
-        print 'SendBuffer'
         threading.Thread( target = cls.Send, args = remote.AllToSend() ).start()
         
     @classmethod
     def SendToAll( cls, *msgTypes, **kwds ):
         ""
-        print 'SendToAll'
         for Remote in NeighborNode.AllTargets():       #may in thread
             try:
                 cls.SendMessage( Remote, *msgTypes, **kwds )
             except:
                 pass
-    
-#    @classmethod
-#    def SendMsgToAll( cls, msg ):
-#        ""
-#        print 'SendToAll'
-#        for Remote in NeighborNode.AllTargets():       #may in thread
-#            try:
-#                cls.SendMsgToRemote( Remote, msg )
-#            except:
-#                pass
-    
+        
     @classmethod
     def GetTimeLine( cls, userPubK, From = None, To = None ):
         ""
@@ -144,12 +124,11 @@ class PeerForum( object ):
         Msg = GetTimeLineMsg()
         Msg.InitBody( UserPubKey = userPubK, From = From, To = To, Exist = existKs )
         
-        print 'PeerForum.GetTimeLine'
         for Remote in NeighborNode.AllTargets():       #may in thread
             try:
                 cls.SendMsgToRemote( Remote, Msg )
             except:
-                print traceback.format_exc()
+                logging.error( traceback.format_exc())
     
 #    @classmethod
 #    def cmdLike( cls, param ):
@@ -180,7 +159,7 @@ class PeerForum( object ):
     @classmethod
     def cmdSetUserStatus( cls, param ):
         ""
-        PubKey, Name, Status = param['PubKey'], param['Name'], int( param['Status'] )
+        PubKey, Name, Status = param['PubKey'], param['Name'].decode( 'utf-8' ), int( param['Status'] )
         RecordUser( PubKey, Name, Status )
         return { 'UserStatus': [PubKey, Name, Status] }
     
@@ -237,7 +216,6 @@ class PeerForum( object ):
     @classmethod
     def cmdNewTopic( cls, topic ):
         ""
-        print topic['Labels'], topic['life']
         life = int( topic['life'] )
         Labels = topic['Labels'].decode( 'utf-8' )
         content = topic['content'].decode( 'utf-8' )
@@ -249,7 +227,6 @@ class PeerForum( object ):
     @classmethod
     def cmdGetTpcList( cls, condi ):
         ""
-        #print 'cmdGetTpcList', condi['label']
         SortCol = condi['sortby']
         Before = int( condi['before'] )
         Label = condi['label'].decode( 'utf-8' )
@@ -259,17 +236,14 @@ class PeerForum( object ):
     @classmethod
     def cmdDida( cls, param, counter = [0] ):
         ""
-        print 'PeerForum.Dida', NeighborNode.taskQ.qsize()
         while True:
             try:
                 task, param = NeighborNode.taskQ.get_nowait()
-                print '\nNeighborNode.task', task, param
                 getattr( cls, task )( param )
             except Empty:
                 break
             
         counter[0] = n = counter[0] + 1
-        #add node trans logic here.
         
         try:
             for _ in range( int( len( NeighborNode.AllNodes ) ** 0.5 )):
@@ -285,12 +259,10 @@ class PeerForum( object ):
     @classmethod
     def Reply( cls, msgLines ):
         "reply other nodes."
-        print '===== Reply ====='
-        #sleep( 1 )
         Neighbor = None
         for MsgStr in filter( None, msgLines ):
             ComingMsg = PFPMessage( ord( MsgStr[0] ))
-            print len( MsgStr ), ComingMsg.__class__.__name__
+            logging.info( '---------coming msg---%s---%s' % ( ComingMsg.__class__.__name__, MsgStr[:20] ))
             Neighbor = ComingMsg.Receive( loads( MsgStr[1:] ))      #create neighbor obj from MsgStr
             
         return Neighbor
@@ -303,15 +275,15 @@ class PeerForum( object ):
         if request.method == 'GET':
             return 'not permitted.'
         
-        #some message must be responses
-        Remote = PeerForum.Reply( filter( lambda ln: ln and ord( ln[0] ) not in ( 0x21, 0x23 ), request.POST['pfp'].split( '\n' )))
+        Remote = PeerForum.Reply( filter( None, request.POST['pfp'].split( '\n' )))
+        #Remote = PeerForum.Reply( filter( lambda ln: ln and ord( ln[0] ) not in ( 0x21, 0x23 ), request.POST['pfp'].split( '\n' )))
         # for testing ---------
         #PeerForum.cmdDida()
         #----------------------
         if Remote is None:
             return ''
         addrs, AllMsgs = Remote.AllToSend()
-        print 'pfp end', time()
+        logging.info( 'pfp return.' )
         return '\n'.join( AllMsgs )
         
     @staticmethod
@@ -325,20 +297,21 @@ class PeerForum( object ):
         if request.method == 'GET':
             return static_file( 'index.html', root='.' )
         try:
-            print 'cmd:', request.POST['cmd']
+            logging.info( 'cmd: %s' % request.POST['cmd'] )
+            if AutoNode and request.POST['cmd'] in ( 'NewTopic', 'Reply', 'AddLabel', 'DelLabel', 'SetUserStatus',
+                                                 'SetStatus', 'SetSelfUserName', 'AddNeighbor', 'EditSelfNode' ):
+                return { 'error': 'autonode does not allow this action.' }
             result = getattr( PeerForum, 'cmd' + request.POST['cmd'] )( request.POST )
-            #print result
             return dumps( result )
         except Exception, e:
-            print traceback.format_exc()
-            #logging.error( traceback.format_exc())
+            logging.error( traceback.format_exc())
             return { 'error': str( e ) }
         
     @staticmethod
     @route( '/inc:fname#.+#' )
     def static( fname ):
         'static files'
-        if request['REMOTE_ADDR'] != '127.0.0.1':
+        if not AutoNode and request['REMOTE_ADDR'] != '127.0.0.1':
             return 'not permitted.'
         return static_file( '/inc/%s' % fname, root='.' )
 
@@ -348,7 +321,7 @@ def test():
     #from tree import Topic
     #Topic.Patch()
     #PeerForum.SendToAddr( 0x10, 'http://127.0.0.1:8000/node' )
-    threading.Thread( target = PeerForum.SendToAll, args = ( 0x20, )).start()
+    #threading.Thread( target = PeerForum.SendToAll, args = ( 0x20, )).start()
     #raise
     return
     

@@ -5,7 +5,7 @@ Created on Sun Jun 21 22:02:40 2015
 @author: thor
 """
 from sqlitedb import CreateSelfUser, GetDefaultUser, GetSelfPubKeyStrs, SetSelfUserName
-import rsa1 as rsa
+import rsa
 from base64 import encodestring, decodestring
 from const import SignHashFunc
 
@@ -16,12 +16,10 @@ class OtherUser( object ):
         ""
         assert kType.lower() == 'rsa'
         self.Name = name
-        #print '\nOtherUser.__init__', pubK
         self.PubKey = rsa.PublicKey.load_pkcs1( pubK )
 
     def Verify( self, message, sign ):
         ""
-        #print '\nVerify', message, sign
         return rsa.verify( message, decodestring( sign ), self.PubKey )
 
 
@@ -32,7 +30,6 @@ class SelfUser( object ):
     @classmethod
     def New( cls, name = 'DefaultUser' ):
         "create a new self user."
-        print 'creating local user...it may take tens of seconds...'
         PubKey, PriKey = rsa.newkeys( 2048 )
         CreateSelfUser( NickName = name, PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
 
@@ -57,7 +54,6 @@ class SelfUser( object ):
         
     def Sign( self, msg ):
         ""
-        #print '\nSign', self.PubKeyStr
         return encodestring( rsa.sign( msg, self.PriKey, SignHashFunc ))
     
     def InitItem( self ):
@@ -76,7 +72,6 @@ class SelfUser( object ):
     def Init( cls ):
         ""
         cls.AllPubKeyStrs = set( GetSelfPubKeyStrs())
-        #print cls.AllPubKeyStrs
         
     @classmethod
     def IsSelf( cls, pubK ):

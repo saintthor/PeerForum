@@ -5,13 +5,15 @@ Created on Sun Jun 21 22:04:20 2015
 @author: thor
 """
 
-import logging
+#import logging
 
 #from threading import Thread
 from Queue import Queue, Empty
 from random import choice, randint
-import rsa1 as rsa
-from base64 import encodestring, decodestring
+import rsa
+import logging
+from base64 import encodestring#, decodestring
+#import inspect
 
 from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
                     GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, EditSelfNode
@@ -31,7 +33,8 @@ class NeighborNode( object ):
         'PFPVer': 'PFPVer',
         'NodeName': 'name',
         'Description': 'discription',
-        'Address': 'address',
+        #'Address': 'address',
+        'Address': 'addr',
         'NodeTypeVer': 'TechInfo',
         'BaseProtocol': 'ServerProtocol',            
             }
@@ -56,7 +59,6 @@ class NeighborNode( object ):
     @classmethod
     def Get( cls, pubK, msgBody = None ):
         ""
-        #print 'Neighbor.Get', pubK, msgBody, pubK in cls.LiveD
 #        if msgBody is None:
 #            return cls.LiveD.get( pubK, cls.SearchNode( pubK ))
         return cls.LiveD.setdefault( pubK, cls._New( msgBody ))
@@ -65,22 +67,20 @@ class NeighborNode( object ):
     def AllTargets( cls ):
         ""
         for pubK, addrs in GetTargetNodes():
-            print pubK, addrs
             yield cls( PubKey = pubK, Addrs = addrs )
         
     @classmethod
     def _New( cls, msgBody ):
         ""
-        #print 'Neighbor._New'
         condi = { cls.transD.get( k, k ): v for k, v in msgBody.items()
                     if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step', 'Address' ) }
         GetNodeByPubKeyOrNew( condi )
+        cls.Init()              #reset cls.AllNodes
         return cls( **condi )
     
     @classmethod
     def NewNeighbor( cls, neighbor ):
         "save new neighbor from other node"
-        print 'Neighbor.NewNeighbor'
         condi = { cls.transD.get( k, k ): v for k, v in neighbor.items() if k not in ( 'Time', 'PubKeyStr' ) }
         GetNodeByPubKeyOrNew( condi )
     
@@ -96,7 +96,7 @@ class NeighborNode( object ):
     
     def __init__( self, **kwds ):
         ""
-        print kwds
+        self.Addrs = ()
         self.SendBuffer = []
         #self.tasks = set( [] )
         self.id = self.PubKey = None
@@ -108,7 +108,6 @@ class NeighborNode( object ):
     
     def Update( self, param ):
         ""
-        print 'Neighbor.Update', param
         for k, v in param.items():
             if k in ( 'PFPVer', 'NodeName', 'Description', 'Address', 'NodeTypeVer', 'BaseProtocol' ):
                 setattr( self, self.transD.get( k, k ), v )
@@ -117,7 +116,6 @@ class NeighborNode( object ):
     def GetSomeInfo( self ):
         ""
         its = [it for it in self.transD.items() if it[0] != 'id']
-        #ProtocolKs = [it[0] for it in its]
         nids = [an[0] for an in self.AllNodes]
         l = len( nids )
         for i in range( len( nids ) - GetNodeNum - 1 ):
@@ -138,7 +136,6 @@ class NeighborNode( object ):
             where = { 'id': self.id }
         else:
             where = {}
-        #print where, self.id
         param = { k: getattr( self, k ) for k in self.transD.values() if hasattr( self, k ) and k != 'id' }
         UpdateNodeOrNew( param, where )
     
@@ -148,7 +145,6 @@ class NeighborNode( object ):
             raise NodePubKeyInvalidErr
         k = ''.join( [choice( "1234567890)(*&^%$#@!`~qazxswedcvfrtgbnhyujm,kiolp;.[]{}:?><\"\\'/PLOKMIJNUHBYGVTFCRDXESZWAQ" )
                         for i in range( 32 )] )
-        #print '\nNeighborNode.Encrypt', k, self.PubKey
         return {
             "msg": encodestring( CBCEncrypt( s, k )),
             "key": encodestring( rsa.encrypt( k, self.PubKey )),
@@ -156,39 +152,16 @@ class NeighborNode( object ):
     
     def Verify( self, message, sign ):
         ""
-        #print '\nVerify', self.PubKeyStr
         return rsa.verify( message, sign, self.PubKey )
-                
-#    def Send( self ):
-#        "send to remote node"
-#        if not self.SendBuffer:
-#            print 'NeighborNode.Send empty SendBuffer. id is', id( self )
-#            return ''
-#        data = urlencode( { 'pfp': '\n'.join( self.SendBuffer ) } )
-#        self.SendBuffer = []
-#        print 'NeighborNode.Send', self.address, len( data )
-#        req = urllib2.Request( self.address, data )
-#        response = urllib2.urlopen( req )
-#        
-#        return response.read()
-    
-#    def SetTask( self, task ):
-#        ""
-#        self.tasks.add( task )
-    
-#    def ChkTask( self ):
-#        ""
-#        self.tasks.discard( { task for task in self.tasks if task.TimeOver() })
-        
+                        
     def Buffer( self, msgStrs ):
         "buffer the message. wait to send."
-        #print '\nNeighborNode.Buffer. id is', id( self ),
         self.SendBuffer.extend( msgStrs )
-        #print len( self.SendBuffer )
     
     def AllToSend( self ):
         "get the additional messages to the neighbor"
         Msgs = self.SendBuffer
+        logging.info( 'AllToSend: %s' % ' - '.join( [m[:20] for m in Msgs] ))
         self.SendBuffer = []
         return self.Addrs, Msgs
 
@@ -197,9 +170,8 @@ class SelfNode( object ):
     @classmethod
     def New( cls ):
         "create a new self node."
-        print 'creating local node...'
         PubKey, PriKey = rsa.newkeys( 1024 )
-        CreateSelfNode( PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
+        CreateSelfNode( PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1(), ServerProtocol = 'HTTP' )
         
     def __init__( self, condi = '' ):
         ""
@@ -212,11 +184,9 @@ class SelfNode( object ):
         self.Name, self.PubKeyStr, PriKeyStr, self.SvPrtcl, self.Desc, self.Level, self.Addrs = NodeData
         self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
         self.PriKey = rsa.PrivateKey.load_pkcs1( PriKeyStr )
-        #print NodeData
         
     def Decrypt( self, secMsg, secK ):
         ""
-        #print '\nSelfNode.Decrypt', self.PubKey
         key = rsa.decrypt( secK, self.PriKey )
         return CBCDecrypt( secMsg, key )
     
@@ -229,7 +199,6 @@ class SelfNode( object ):
         
     def Sign( self, msg ):
         ""
-        #print '\nSign', self.PubKeyStr
         return encodestring( rsa.sign( msg, self.PriKey, SignHashFunc ))
         
     def GetInfo( self ):

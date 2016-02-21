@@ -220,7 +220,7 @@ var Passer = function( bodyDiv, passFunc )
 		}
 		else
 		{
-			//this.PassFunc();
+			this.PassFunc();
 			dom.parent().remove();
 		}
 	};
@@ -904,9 +904,11 @@ var Forum = function( owner )
 				AppendAtcl.children( 'td' ).append( frm.ShowSingleAtcl( Atcl ));
 				QueryPop( $( '.atclleft .query', AppendAtcl ), 'userpubk' );
 				QueryPop( $( '.atcltop .query', AppendAtcl ), 'views' );
+				$( '.atcltop>.linemiddle>span', AppendAtcl ).click( SetSize );
 				$( '.atcltop>.lineright>span', AppendAtcl ).click( SetView );
 				$( '.reply', AppendAtcl ).click( EnableReply );
-
+				frm.SetClickManage( $( '.manage', AppendAtcl ));
+	
 				TR.after( AppendAtcl );
 				frm.ChkPass();
 				$( this ).html( '◤' );
@@ -968,11 +970,12 @@ var Forum = function( owner )
 
 	this.SetClickManage = function( dom, atcl )
 	{
+		//console.log( 'SetClickManage' );
 		$( 'button', dom ).click( function()
 		{
+			console.log( 'SetClickManage, click' );
 			if( !atcl )
 			{
-				//var RootId = $( this ).closest( '#atclarea' ).data( 'root' );
 				var AtclId = $( this ).closest( '.atclfoot' ).data( 'atclid' );
 				console.log( AtclId );
 				atcl = frm.AtclObj[AtclId];
@@ -1093,6 +1096,7 @@ var Forum = function( owner )
 		var Parent = $( '#' + ParentId );
 		var NewAtcl = this.ShowSingleAtcl( replyData[1] );
 		this.TopicObj[RootId][replyData[0]] = replyData[1];
+		this.AtclObj[replyData[0]] = replyData[1];
 		var ParentObj = this.TopicObj[RootId][replyData[1].ParentID];
 		ParentObj.Children = ParentObj.Children || [];
 		ParentObj.Children.push( replyData[1].atclId );
@@ -1100,6 +1104,7 @@ var Forum = function( owner )
 		$( '.reply', NewAtcl ).click( EnableReply );
 		QueryPop( $( '.atclleft .query', NewAtcl ), 'userpubk' );
 		QueryPop( $( '.atcltop .query', NewAtcl ), 'views' );
+		frm.SetClickManage( $( '.manage', NewAtcl ));
 		NewAtcl.hide();
 		Parent.after( NewAtcl );
 		NewAtcl.show( 400 );

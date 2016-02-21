@@ -8,12 +8,11 @@ Created on Sun Jun 14 17:20:40 2015
 import os
 import sqlite3
 import traceback
-import re
+import logging
 
-from rsa1 import PrivateKey, PublicKey
+from rsa import PrivateKey, PublicKey
 from time import time
 from json import loads
-from random import randint
 
 from const import DB_FILE, DelFromNodeHours
 from exception import *
@@ -28,7 +27,6 @@ class SqliteDB( object ):
     ""
     def __init__( self, path = '' ):
         ""
-        #print 'SqliteDB.__init__', path, DB_FILE
         self.path = path or DB_FILE
         
     def __enter__( self ):
@@ -39,9 +37,8 @@ class SqliteDB( object ):
     def __exit__( self, eType, eObj, tb ):
         ""
         if eType is not None:
-            print '======= SqliteDB catches ======\n', eType, eObj
-            print ''.join( traceback.format_tb( tb ))
-            print '==============================================='
+            logging.error( '======= SqliteDB catches ======\n%s  %s\n%s\n============================'
+                            % ( repr( eType ), repr( eObj ), ''.join( traceback.format_tb( tb ))))
         self.conn.commit()
         self.conn.close()
     
@@ -82,11 +79,13 @@ def _WhereStr( d ):
 
 def UpdateNodeOrNew( param, where ):
     "if neighbor node exist then update else create."
+    logging.debug( 'UpdateNodeOrNew param = %s' % repr( param ))
     param['LastTime'] = int( time() * 1000 )
-    print 'UpdateNodeOrNew', param
     PubKeyStr = param['PubKey'].save_pkcs1()
     if 'address' in param:
         Addrs = param.pop( 'address' )
+    elif 'addr' in param:
+        Addrs = param.pop( 'addr' )
     else:
         Addrs = ()
     with SqliteDB() as cursor:
@@ -103,17 +102,15 @@ def UpdateNodeOrNew( param, where ):
             else:
                 cols, vals = _UpdateStr( param )
                 sql = u'''update node set %s where id = %s;''' % ( cols, exist[0] )
-        print 'UpdateNodeOrNew', sql, vals
         cursor.execute( sql, vals )
         
         for Addr in Addrs:
             sql = 'insert into address (addr, NodePubKey) values(?, ?)'
-            print sql, Addr, PubKeyStr
             cursor.execute( sql, ( Addr, PubKeyStr ))
     
 def GetNodeByPubKeyOrNew( d ):
     "or new"
-    print 'GetNodeByPubKeyOrNew', d
+    logging.debug( 'GetNodeByPubKeyOrNew' )
     with SqliteDB() as cursor:
         cols = 'name', 'PubKey', 'discription', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         if not isinstance( d['PubKey'], basestring ):
@@ -123,7 +120,8 @@ def GetNodeByPubKeyOrNew( d ):
         if exist is not None:
             for i, col in enumerate( cols ):
                 d.setdefault( col, exist[i] )
-            d['Addrs'] = cursor.execute( "select type, addr from address where NodePubKey = ?", ( d['PubKey'], )).fetchall()
+            d['Addrs'] = map( tuple, cursor.execute( "select type, addr from address where NodePubKey = ?",
+                                                    ( d['PubKey'], )).fetchall())
         else:
             cols, vals = _InsertStr( d )
             sql = u'insert into node (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
@@ -131,18 +129,16 @@ def GetNodeByPubKeyOrNew( d ):
     
 def GetNodeInfoByPubKey( pubK, kItems ):
     "for search"
-    print 'GetNodeInfoByPubKey'
     with SqliteDB() as cursor:
         ProtocolKs, dataCols = zip( *kItems )
         exist = cursor.execute( 'select %s from node where PubKey = ?;' % ','.join( dataCols ), ( pubK, )).fetchone()
-        #exist = None
-        print '\nexist =', exist
         return dict( zip( dataCols, exist ))
 
 
 def CreateSelfNode( **kwds ):
     ""
-    kwds.pop( 'address' )
+    if 'address' in kwds:
+        kwds.pop( 'address' )
     with SqliteDB() as cursor:
         cols, vals = _InsertStr( kwds )
         sql = u'insert into selfnode (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
@@ -168,6 +164,7 @@ def GetDefaultUser():
 
 def GetSelfNode( single = True ):
     "get one or all"
+    logging.debug( 'GetSelfNode' )
     with SqliteDB() as cursor:
         if single:
             data = cursor.execute( """select name, PubKey, PriKey, ServerProtocol, discription, level
@@ -191,6 +188,7 @@ def GetSelfNode( single = True ):
 
 def EditSelfNode( pubKey, name, desc, addrs ):
     ""
+    logging.debug( 'EditSelfNode' )
     with SqliteDB() as cursor:
         cursor.execute( 'update selfnode set name = ?, discription = ? where PubKey = ?', ( name, desc, pubKey ));
         cursor.execute( 'delete from address where NodePubKey = ?', ( pubKey, ));
@@ -212,6 +210,7 @@ def GetAllNode( *cols, **filterd ):
 
 def GetTargetNodes():
     ""
+    logging.debug( 'GetTargetNodes' )
     d = {}
     with SqliteDB() as cursor:
         pubKs = [data[0] for data in cursor.execute( 'select PubKey from node where ServerProtocol = "HTTP"' ).fetchall()]
@@ -224,25 +223,27 @@ def GetTargetNodes():
 
 def GetNodeById( nodeId ):
     ""
+    logging.debug( 'GetNodeById' )
     with SqliteDB() as cursor:
-        cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
+        cols = 'name', 'PubKey', 'discription', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         node = cursor.execute(( 'select %s from node where id = ?;' % ','.join( cols )), ( nodeId, )).fetchone()
         d = dict( zip( cols, node ))
         for pubK, Type, addr in cursor.execute( 'select NodePubKey, type, addr from address where NodePubKey = ?',
                                                ( d['PubKey'], )).fetchall():
-            d.setdefault( 'Addrs', [] ).append( [Type, addr] )
+            d.setdefault( 'Addrs', [] ).append(( Type, addr ))
         if 'Addrs' in d:
             return d
 
 def GetNodesExcept( kItems, ids, excpK ):
     ""
+    logging.debug( 'GetNodesExcept' )
     IdsStr = ','.join( [str( Id ) for Id in ids] )
     exKStr = excpK.save_pkcs1() if excpK else excpK
     with SqliteDB() as cursor:
         #cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol'
         ProtocolKs, dataCols = zip( *kItems )
-        #print 'select %s from node where id in (%s);' % ( ','.join( cols ), IdsStr )
-        nodes = cursor.execute( 'select %s from node where id in (%s) and PubKey != ?;'
+        nodes = cursor.execute( '''select %s from address inner join node on address.NodePubKey = node.PubKey
+                                where id in (%s) and PubKey != ?;'''
                                 % ( ','.join( dataCols ), IdsStr ), ( exKStr, )).fetchall()
         return [dict( zip( ProtocolKs, nodeData )) for nodeData in nodes]
 
@@ -251,28 +252,29 @@ def GetOneArticle( *cols, **filterd ):
     with SqliteDB() as cursor:
         wcols, vals = _WhereStr( filterd )
         sql = 'select %s from article where %s' % ( ','.join( cols ), wcols )
-        #print 'GetOneArticle', sql
         return cursor.execute( sql, vals ).fetchone()
 
 def SaveArticle( **param ):
     ""
+    #logging.debug( 'SaveArticle: %s' % param['id'] )
     param.setdefault( 'DestroyTime', 9999999999999 )
-    print 'SaveArticle', param
     with SqliteDB() as cursor:
         cols, vals = _InsertStr( param )
         sql = u'insert into article (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
-        print sql
-        cursor.execute( sql, vals )
+        try:
+            cursor.execute( sql, vals )
+        except sqlite3.IntegrityError:
+            return False
+    return True
 
 def SetAtclStatus( atclId, status ):
     ""
-    print 'SetAtclStatus', repr(( atclId, status ))
     with SqliteDB() as cursor:
         cursor.execute( 'update article set status = ? where id = ?', ( status, atclId ))
+        cursor.execute( 'update topic set status = ? where root = ?', ( status, atclId ))
         if status == 1:
             return
         RemoteK = cursor.execute( 'select FromNode from article where id = ?', ( atclId, )).fetchone()[0]
-        print RemoteK
         if RemoteK:
             if status > 1:
                 cursor.execute( 'update node set level = min( 99, level + 1 ) where PubKey = ?', ( RemoteK, ))
@@ -289,18 +291,16 @@ def UpdateArticles():
     
 def SaveTopicLabels( topicId, labels, Type = 0 ):
     ""
-    print 'SaveTopicLabels'
     with SqliteDB() as cursor:
         for label in filter( None, labels ):
             cols, vals = _InsertStr( { 'name': label, 'TopicID': topicId, 'type': Type } )
             sql = u'insert into label (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
-            print sql
             cursor.execute( sql, vals )
             
 def DelTopicLabels( topicId, labels ):
     """
     NOTE:
-    use this api to delete both static labels and node labels in this node.
+    use this api to delete both static labels and node labels in the current node.
     when sending to other nodes, the deleted static labels will also be sent.
     because the static labels can not be changed after creation.
     """
@@ -310,7 +310,6 @@ def DelTopicLabels( topicId, labels ):
     
 def UpdateTopic( tpcId, **param ):
     ""
-    print 'UpdateTopic'
     with SqliteDB() as cursor:
         cols, vals = _UpdateStr( param )
         sql = 'update topic set num = num + 1, %s where root = ?' % cols
@@ -318,11 +317,9 @@ def UpdateTopic( tpcId, **param ):
 
 def SaveTopic( **param ):
     ""
-    print 'SaveTopic', param
     with SqliteDB() as cursor:
         cols, vals = _InsertStr( param )
         sql = u'insert into topic (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
-        print sql
         cursor.execute( sql, vals )
 
 def GetRootIds( **condi ):
@@ -345,7 +342,6 @@ def GetTopicRowById( rootId ):
             
 def GetTopicRows( label, before, sortCol, limit ):
     ""
-    print 'GetTopicRows', label, repr( before ), sortCol, limit #if the sortCol is LastTime, it means the last GetTime of the articles in topic.
     with SqliteDB() as cursor:
         if label:
             now = int( time() * 1000 )
@@ -371,22 +367,18 @@ def GetAllLabels():
     
 def GetTreeAtcls( *rootIds ):
     ""
-    print 'GetTreeAtcls', rootIds
     d = {}
     with SqliteDB() as cursor:
-        print 'select root, id, items, content, status, RemoteLabels, RemoteEval from article where root in (%s)' % ','.join( ['?'] * len( rootIds ))
         for root, Id, itemStr, content, status, RLabels, REval in cursor.execute(
                     'select root, id, items, content, status, RemoteLabels, RemoteEval from article where root in (%s)' % ','.join( ['?'] * len( rootIds )),
                     tuple( rootIds )
                         ).fetchall():
-            #print '-----', root, Id
             d.setdefault( root, {} )[Id] = [itemStr, content, status, RLabels, REval, '']
     
         for root, labels in cursor.execute(
                     'select root, labels from topic where root in (%s)' % ','.join( ['?'] * len( rootIds )),
                     tuple( rootIds )
                         ).fetchall():
-            print root, labels
             d[root][root][-1] = labels
         
     return d
@@ -405,7 +397,6 @@ def SetAtclsWithoutTopic():
             firstLine = content.split( '\n' )[0] if root == Id and content else ''
             d.setdefault( root, {} )[Id] = itemD['CreateTime'], itemD['NickName'], firstLine, labels
             
-        print 'GetAtclsWithoutTopic d0 =', d
         for root, atclD in d.items():
             atclItems = atclD.values()
             first = min( atclItems, key = lambda x: x[0] )[:2]
@@ -424,7 +415,6 @@ def SetLabel( rootId, labelName, act ):
     "add or remove one label at one time"
     with SqliteDB() as cursor:
         LabelStr = cursor.execute( 'select labels from topic where root = ?', ( rootId, )).fetchone()[0]
-        print 'SetLabel', LabelStr
         StaticLStr, ThisLStr = ( LabelStr + '|' ).split( '|' )[:2]
         StaticLabels = StaticLStr.split( ',' )
         ThisLabels = ThisLStr.split( ',' )
@@ -435,7 +425,6 @@ def SetLabel( rootId, labelName, act ):
             cursor.execute( 'update topic set labels = ? where root = ?', ( LabelStr, rootId ))
         elif labelName in ( StaticLabels + ThisLabels ):
             if len( StaticLabels ) + len( ThisLabels ) < 2:
-                print 'labels too few to be deleted.'
                 return LabelStr
             cursor.execute( 'delete from label where name = ? and TopicID = ?', ( labelName, rootId ))
             if labelName in StaticLabels:
@@ -455,7 +444,6 @@ def GetAtclIdByUser( uPubK, From, To ):
     with SqliteDB() as cursor:
         atcls = cursor.execute( 'select id from article where AuthPubKey = ? and CreateTime >= ? and CreateTime <= ?',
                                ( uPubK, From, To )).fetchall()
-        print 'GetAtclIdByUser', uPubK, From, To
         return [a[0] for a in atcls]
     
 def GetAtclByUser( uPubK, From, To, exist = () ):
@@ -500,30 +488,13 @@ def GetAllUsers():
 
 def RecordUser( pubK, nickName, status = 1 ):
     "follow or block"
-    print 'RecordUser', pubK, nickName, repr( status )
     with SqliteDB() as cursor:
         cursor.execute( 'delete from user where PubKey = ?', ( pubK, ))
         if status != 0:
             cursor.execute( 'insert into user (PubKey, NickName, status) values(?, ?, ?)', ( pubK, nickName, status ))
 
 def test():
-    print SearchAtcl( u'蜗居', 9999999999999, 50 )
-    #print GetSelfNode( False )
-    #DelTopicLabels( '1fb5381c3200bb03561cb9b79c40bed50eda8515', ( u'诗', u'经', u'体', ))
     return
-    transD = {
-        'id': 'id',
-        'PubKey': 'PubKey',
-        'PFPVer': 'PFPVer',
-        'NodeName': 'name',
-        'Description': 'discription',
-        'Address': 'address',
-        'NodeTypeVer': 'TechInfo',
-        'BaseProtocol': 'ServerProtocol',            
-            }
-    its = [it for it in transD.items() if it[0] != 'id']
-    print GetNodesExcept( its, [1, 2], '' )
-    #UpdateNodeOrNew( { 'name': 'NNNNNNNNNN', 'PFPVer': '0.1' }, { 'id': 4 } )
 
 def FileExist( fpath ):
     "check if the db file exist."
@@ -587,14 +558,6 @@ def InitDB( path = '' ):
         #标签显示记录
         c.execute( """create table labellog (name varchar(32), ShowTime int(13));""" )
         
-#        #运行时
-#        c.execute( """create table task (id integer primary key not null, time int(13),
-#                        message varchar(8192), target int(2), status int(2));""" )
-#        
-#        t = int( time())
-#        c.execute( """insert into task (time, message, target, status) values(%d, 'NewUser', 0, 0);""" % t )
-#        c.execute( """insert into task (time, message, target, status) values(%d, 'NewNode', 0, 0);""" % t )
-#        
     print 'db initialized.'
 
 if __name__ == '__main__':
