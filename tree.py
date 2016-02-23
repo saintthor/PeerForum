@@ -330,18 +330,17 @@ class Topic( object ):
 #        "get the leaf nodes in the tree."
 #        return self.AtclD.viewkeys() - { atcl.ItemD.get( 'ParentID', '' ) for atcl in self.AtclD.itervalues() }
     
-    def Instruct( self ):
+    def Instruct( self, force = False ):
         "build tree structure"
-        if self.StructD is not None:
-            return self.StructD
-        NodeD = self.AtclD
-        StructD = {}
-        for atclId, atcl in NodeD.iteritems():
-            ParentId = atcl.ItemD.get( 'ParentID', '' )
-            StructD.setdefault( atclId, TreeStruct( atclId, ParentId ))
-            StructD.setdefault( ParentId, TreeStruct( ParentId )).Add( atclId )
-
-        self.StructD = StructD   #there may be multi articles in struct.root when editing the root. put roots in struct.children.
+        if force or self.StructD is None:
+            NodeD = self.AtclD
+            StructD = {}
+            for atclId, atcl in NodeD.iteritems():
+                ParentId = atcl.ItemD.get( 'ParentID', '' )
+                StructD.setdefault( atclId, TreeStruct( atclId, ParentId ))
+                StructD.setdefault( ParentId, TreeStruct( ParentId )).Add( atclId )
+    
+            self.StructD = StructD   #there may be multi articles in struct.root when editing the root. put roots in struct.children.
         return self.StructD
     
     def GetUpperIds( self, leafId ):
@@ -432,6 +431,8 @@ class Topic( object ):
         topic = cls.LiveD.get( atcl.ItemD['RootID'] )
         if topic is not None:
             topic.AtclD[atcl.id] = atcl
+            topic.SetSnapShot()
+            topic.Instruct( True )
             
     @classmethod
     def GetMulti( cls, *rootIds ):
@@ -462,6 +463,8 @@ class Topic( object ):
         ""
         TreeId = treeInfo['TreeId']
         for topic in cls.GetMulti( TreeId ):
+            if treeInfo['SnapShot'] == topic.SnapShot:
+                return
             if len( topic ) >= 0.5 * treeInfo['Length']:
                 return { 'TreeId': TreeId, 'Mode': 'leaf', 'Leaves': list( TreeStruct.GetLeaves( topic.Instruct(), '' )) }
         else:

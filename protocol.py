@@ -6,6 +6,7 @@ import rsa
 from time import time
 from json import loads, dumps
 from base64 import decodestring
+import logging
 
 from exception import *
 from const import MaxTimeDiff, MaxSearchAddrStep, GetTreeInHours
@@ -369,10 +370,10 @@ class AtclDataMsg( PFPMessage ):
                 return False
             
             AskBackTrees = []       #for check leaf mode, if the remote leaves are more than local, askback
+            Atcls = reduce( list.__add__, [Topic.GetReqAtcls( TreeReq, AskBackTrees.append )
+                                            for TreeReq in forMsg.body['Trees']] )
             self.body = {
-                    'Articles': [atcl.Issue() for atcl in reduce( list.__add__,
-                                         [Topic.GetReqAtcls( TreeReq, AskBackTrees.append ) for TreeReq in forMsg.body['Trees']]
-                                                                 ) if atcl.IsPassed()],
+                    'Articles': [atcl.Issue() for atcl in Atcls if atcl.IsPassed()],
                         }
                         
             if AskBackTrees:

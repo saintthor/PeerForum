@@ -264,6 +264,7 @@ def SaveArticle( **param ):
         try:
             cursor.execute( sql, vals )
         except sqlite3.IntegrityError:
+            logging.warning( 'SaveArticle IntegrityError' )
             return False
     return True
 
