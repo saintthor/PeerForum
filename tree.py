@@ -304,6 +304,7 @@ class Topic( object ):
         self.Root = root
         self.AtclD = { root.id: root }
         self.StructD = None
+        self.SetSnapShot()
     
     def Save( self, **kwds ):
         ""
@@ -380,7 +381,7 @@ class Topic( object ):
         if atcl.id not in cls.LiveD:
             cls.LiveD[atcl.id] = cls( atcl )
             cls.LiveD[atcl.id].Save( root = atcl.id, title = atcl.content.split( '\n' )[0][:TitleLength],
-                        num = 1, status = 0, labels = atcl.ItemD.get( 'Labels', '' ),
+                        num = 1, status = int( AutoNode ), labels = atcl.ItemD.get( 'Labels', '' ),
                         FirstAuthName = atcl.ItemD.get( 'NickName', '' ), LastAuthName = atcl.ItemD.get( 'NickName', '' ),
                         FirstTime = atcl.ItemD.get( 'CreateTime' ), LastTime = atcl.ItemD.get( 'CreateTime' ), )
     

@@ -354,7 +354,7 @@ class GetTreeMsg( PFPMessage ):
         ""
         if not forMsg.body.get( 'Offer' ):
             return False
-            
+
         self.body = {
                 'Trees': filter( None, [Topic.Compare( TreeInfo ) for TreeInfo in forMsg.body['Offer']] ),
                     }

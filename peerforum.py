@@ -140,8 +140,10 @@ class PeerForum( object ):
     @classmethod
     def cmdEditSelfNode( cls, param ):
         ""
+        PortStr = ':%d' % LocalPort
+        addrs = [(( addr + PortStr ) if PortStr not in addr else addr ) for addr in loads( param['Addresses'] )]
         cls.LocalNode.Edit( param['Name'].decode( 'utf-8' )[:10],
-                           param['Desc'].decode( 'utf-8' )[:500], loads( param['Addresses'] ))
+                           param['Desc'].decode( 'utf-8' )[:500], addrs )
         return { 'SetStatus': 'ok' }
     
     @classmethod
@@ -244,13 +246,17 @@ class PeerForum( object ):
                 break
             
         counter[0] = n = counter[0] + 1
-        
+
         try:
             for _ in range( int( len( NeighborNode.AllNodes ) ** 0.5 )):
                 Remote = NeighborNode.Pick()
-                threading.Thread( target = cls.SendMessage, args = ( Remote, 0x20 )).start()
-                if n % 20 == 0:
-                    threading.Thread( target = cls.SendMessage, args = ( Remote, 0x12 )).start()
+                for cyc, mod, code in (
+                            ( 1, 0, 0x20 ),         #QryTreeMsg
+                            ( 6, 0, 0x11 ),        #NodeInfoMsg
+                            ( 6, 5, 0x12 ),        #GetNodeMsg
+                                    ):
+                    if n % cyc == mod:
+                        threading.Thread( target = cls.SendMessage, args = ( Remote, code )).start()
         except:
             pass
         

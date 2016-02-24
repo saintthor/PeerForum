@@ -123,6 +123,9 @@ def GetNodeByPubKeyOrNew( d ):
             d['Addrs'] = map( tuple, cursor.execute( "select type, addr from address where NodePubKey = ?",
                                                     ( d['PubKey'], )).fetchall())
         else:
+            if 'addr' in d:
+                addr = d.pop( 'addr' )
+                print 'addr', addr
             cols, vals = _InsertStr( d )
             sql = u'insert into node (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
             cursor.execute( sql, vals )
@@ -223,7 +226,7 @@ def GetTargetNodes():
 
 def GetNodeById( nodeId ):
     ""
-    logging.debug( 'GetNodeById' )
+    logging.debug( 'GetNodeById: %s' % nodeId )
     with SqliteDB() as cursor:
         cols = 'name', 'PubKey', 'discription', 'TechInfo', 'PFPVer', 'ServerProtocol', 'level'
         node = cursor.execute(( 'select %s from node where id = ?;' % ','.join( cols )), ( nodeId, )).fetchone()
@@ -535,7 +538,7 @@ def InitDB( path = '' ):
                     
         #物理地址 for selfnode and neighbor. type = 0-public, 1-inner
         c.execute( """create table address (type int(2), addr varchar(256), NodePubKey varchar(1024),
-                    FailNum int(5) default 0, LastCommuTime int(13) default 0)""" )
+                    FailNum int(5) default 0, LastCommuTime int(13) default 0, unique(addr, NodePubKey))""" )
         
         #帖子         Type = 0 for normal
                                                                     #id is article id, not rowid
