@@ -15,8 +15,8 @@ import logging
 from base64 import encodestring#, decodestring
 #import inspect
 
-from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, \
-                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, EditSelfNode
+from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, SetNeighborAddrs,\
+                    GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, EditSelfNode, CountNodeFail
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
 from crypto import CBCEncrypt, CBCDecrypt
@@ -36,7 +36,9 @@ class NeighborNode( object ):
         #'Address': 'address',
         'Address': 'addr',
         'NodeTypeVer': 'TechInfo',
-        'BaseProtocol': 'ServerProtocol',            
+        'BaseProtocol': 'ServerProtocol',
+        'LastTime': 'LastTime',
+        'FailNum': 'FailNum',
             }
         
     @classmethod
@@ -81,8 +83,11 @@ class NeighborNode( object ):
     @classmethod
     def NewNeighbor( cls, neighbor ):
         "save new neighbor from other node"
-        condi = { cls.transD.get( k, k ): v for k, v in neighbor.items() if k not in ( 'Time', 'PubKeyStr' ) }
+        condi = { cls.transD.get( k, k ): v for k, v in neighbor.items()
+                    if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step', 'Address', 'Addresses' ) }
         GetNodeByPubKeyOrNew( condi )
+        SetNeighborAddrs( neighbor['PubKey'], neighbor['Addresses'] )
+        cls.Init()
     
     @classmethod
     def SearchNode( cls, pubK ):
@@ -113,9 +118,19 @@ class NeighborNode( object ):
                 setattr( self, self.transD.get( k, k ), v )
         self.Save()
     
+    def RecordFail( self ):
+        "count fail num when communicate fails"
+        CountNodeFail( self.id )
+    
+    def Succeed( self, lastTime ):
+        "receive something from neighbor"
+        self.LastTime = lastTime
+        self.FailNum = 0
+        self.Save()
+    
     def GetSomeInfo( self ):
         ""
-        its = [it for it in self.transD.items() if it[0] != 'id']
+        its = [it for it in self.transD.items() if it[0] not in ( 'id', 'LastTime', 'FailNum', 'Address' )]
         nids = [an[0] for an in self.AllNodes]
         l = len( nids )
         for i in range( len( nids ) - GetNodeNum - 1 ):

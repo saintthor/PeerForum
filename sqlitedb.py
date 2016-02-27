@@ -76,7 +76,16 @@ def _WhereStr( d ):
     return ' and '.join( [( c + '=?' ) for c in cols] ), tuple( map( statement, vals ))
     #return u' and '.join( [statement( *it ) for it in d.items()] )
     
-
+def SetNeighborAddrs( pubKStr, addrs ):
+    ""
+    print 'SetNeighborAddrs',  pubKStr, addrs
+    with SqliteDB() as cursor:
+        for addr in addrs:
+            try:
+                cursor.execute( 'insert into address (NodePubKey, addr) values(?, ?)', ( pubKStr, addr ));
+            except:
+                pass
+    
 def UpdateNodeOrNew( param, where ):
     "if neighbor node exist then update else create."
     logging.debug( 'UpdateNodeOrNew param = %s' % repr( param ))
@@ -208,7 +217,7 @@ def GetAllNode( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:
         wcols, vals = _WhereStr( filterd )
-        sql = u'''select %s from node where level > 0 and %s''' % ( ','.join( cols ), wcols )
+        sql = u'''select %s from node where level > 0 and FailNum < 20 and %s''' % ( ','.join( cols ), wcols )
         return cursor.execute( sql, vals ).fetchall()
 
 def GetTargetNodes():
@@ -223,6 +232,11 @@ def GetTargetNodes():
             d.setdefault( pubK, [] ).append( [Type, addr] )
             
     return d.items()
+    
+def CountNodeFail( nodeId ):
+    ""
+    with SqliteDB() as cursor:
+        cursor.execute( 'update node set FailNum = min( 99, FailNum + 1 ) where id = ?', ( nodeId, ))    
 
 def GetNodeById( nodeId ):
     ""
@@ -245,10 +259,20 @@ def GetNodesExcept( kItems, ids, excpK ):
     with SqliteDB() as cursor:
         #cols = 'name', 'PubKey', 'discription', 'address', 'TechInfo', 'PFPVer', 'ServerProtocol'
         ProtocolKs, dataCols = zip( *kItems )
+        dataCols += 'addr',
         nodes = cursor.execute( '''select %s from address inner join node on address.NodePubKey = node.PubKey
                                 where id in (%s) and PubKey != ?;'''
                                 % ( ','.join( dataCols ), IdsStr ), ( exKStr, )).fetchall()
-        return [dict( zip( ProtocolKs, nodeData )) for nodeData in nodes]
+        #NodeList = [dict( zip( ProtocolKs, nodeData[:-1] )) for nodeData in nodes]
+        d = {}
+        for nodeData in nodes:
+            nodeD = dict( zip( ProtocolKs, nodeData[:-1] ))
+            nodeRcd = d.setdefault( nodeD['PubKey'], nodeD )
+            nodeRcd.setdefault( 'Addresses', [] ).append( nodeData[-1] )
+            
+        print 'GetNodesExcept', d
+        return d.values()
+        #return [dict( zip( ProtocolKs, nodeData )) for nodeData in nodes]
 
 def GetOneArticle( *cols, **filterd ):
     ""
@@ -283,7 +307,7 @@ def SetAtclStatus( atclId, status ):
             if status > 1:
                 cursor.execute( 'update node set level = min( 99, level + 1 ) where PubKey = ?', ( RemoteK, ))
             elif status < 0:
-                cursor.execute( 'update node set level = max( -1, level - 1 ) where PubKey = ?', ( RemoteK, ))
+                cursor.execute( 'update node set level = max( 3, level - 1 ) where PubKey = ?', ( RemoteK, ))
         
 def UpdateArticles():
     "check destroy, del FromNode"
@@ -291,7 +315,7 @@ def UpdateArticles():
     with SqliteDB() as cursor:
         cursor.execute( 'update article set status = -2 where DestroyTime < ?', ( t, ))
         cursor.execute( 'update article set FromNode = '', RemoteLabels = '', RemoteEval = 1 where GetTime < ?',
-                        (( t - DelFromNodeHours * 3600000 ),))
+                        (( t - DelFromNodeHours * 3600000 ), ))
     
 def SaveTopicLabels( topicId, labels, Type = 0 ):
     ""
@@ -530,7 +554,7 @@ def InitDB( path = '' ):
         c.execute( """create table node (id integer primary key asc, name varchar(32) default '', 
                     PubKey varchar(1024) unique, discription varchar(2048) default '',
                     TechInfo varchar(64) default '', PFPVer varchar(16) default '', ServerProtocol varchar(16) default '',
-                    LastTime int(14) default 0, level int(2) default 10);""" )
+                    LastTime int(14) default 0, level int(2) default 20, FailNum int(2) default 0);""" )
         #自身节点
         c.execute( """create table selfnode (name varchar(32), PubKey varchar(1024) unique,
                     discription varchar(2048), PriKey varchar(4096),

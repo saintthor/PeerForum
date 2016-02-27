@@ -71,6 +71,7 @@ class PeerForum( object ):
         while Remote is not None:
             ReplyStr = cls.Send( *Remote.AllToSend() )
             if not ReplyStr:
+                Remote.RecordFail()
                 break
             Remote = cls.Reply( ReplyStr.split( '\n' ))
     
@@ -95,7 +96,6 @@ class PeerForum( object ):
                 req = urllib2.Request( addr, data )
                 response = urllib2.urlopen( req )
                 return response.read()
-                break
             except:
                 pass
         return ''
@@ -252,8 +252,8 @@ class PeerForum( object ):
                 Remote = NeighborNode.Pick()
                 for cyc, mod, code in (
                             ( 1, 0, 0x20 ),         #QryTreeMsg
-                            ( 6, 0, 0x11 ),        #NodeInfoMsg
-                            ( 6, 5, 0x12 ),        #GetNodeMsg
+                            ( 20, 0, 0x11 ),        #NodeInfoMsg
+                            ( 20, 5, 0x12 ),        #GetNodeMsg
                                     ):
                     if n % cyc == mod:
                         threading.Thread( target = cls.SendMessage, args = ( Remote, code )).start()

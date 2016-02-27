@@ -75,6 +75,7 @@ class PFPMessage( object ):
         else:
             Neighbor = NeighborNode.Get( self.body['PubKeyStr'], msgBody )
         
+        Neighbor.Succeed( self.body['Time'] )
         if not self.FlowControl():
             return Neighbor
             
