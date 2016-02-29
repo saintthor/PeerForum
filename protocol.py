@@ -7,6 +7,7 @@ from time import time
 from json import loads, dumps
 from base64 import decodestring
 import logging
+from random import randint
 
 from exception import *
 from const import MaxTimeDiff, MaxSearchAddrStep, GetTreeInHours
@@ -321,11 +322,15 @@ class QryTreeMsg( PFPMessage ):
     
     def InitBody( self, forMsg = None ):
         ""
-        t = int( time() * 1000 )
         #GetTreeInHours = 480
         Step = 1 if forMsg is None else ( forMsg.body.get( 'Step', 0 ) - 1 )
         if Step < 0:
             return False
+            
+        n, m = divmod( randint( 0, 191 ), 64 )
+        x = ( 0, m % 8 + 1, m + 9 )[n]
+        t = int( time() * 1000 ) - x * GetTreeInHours * 3600 * 1000
+        
         self.body = {
                 "From": t - GetTreeInHours * 3600 * 1000,
                 "To": t,

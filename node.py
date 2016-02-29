@@ -15,7 +15,7 @@ import logging
 from base64 import encodestring#, decodestring
 #import inspect
 
-from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, SetNeighborAddrs,\
+from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrNew, UpdateNodeOrNew, SetNodeAddrs,\
                     GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, EditSelfNode, CountNodeFail
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
@@ -86,7 +86,7 @@ class NeighborNode( object ):
         condi = { cls.transD.get( k, k ): v for k, v in neighbor.items()
                     if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step', 'Address', 'Addresses' ) }
         GetNodeByPubKeyOrNew( condi )
-        SetNeighborAddrs( neighbor['PubKey'], neighbor['Addresses'] )
+        SetNodeAddrs( neighbor['PubKey'], neighbor['Addresses'] )
         cls.Init()
     
     @classmethod

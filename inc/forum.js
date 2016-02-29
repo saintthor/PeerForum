@@ -613,7 +613,7 @@ var Forum = function( owner )
 		QueryPop( dom.children( '.query' ), 'manage' );
 
 		[
-			['.commend', '推荐这个帖子，以使其他节点优先读取。'],
+			['.commend', '推荐这个帖子，使其他节点优先读取。'],
 			['.uncommend', '取消推荐，将帖子置为放行状态。'],
 			['.block', '阻断这个帖子，禁止其他节点读取。' ],
 			['.pass', '放行这个帖子，以使其他节点能够读取。'],
@@ -942,6 +942,7 @@ var Forum = function( owner )
 			{
 				var SetStatus = $( '<div class="setstatus"></div>' );
 				frm.SetManageBtns( SetStatus, Atcl.status );
+				SetStatus.children( '.query' ).remove();
 				SetStatus.append( '<span class="remove" title="取消">×</span>' );
 				SetStatus.children( '.remove' ).click( function()
 				{
@@ -1090,7 +1091,7 @@ var Forum = function( owner )
 
 	this.ReplyOK = function( replyData )
 	{
-		console.log( replyData );
+		//console.log( replyData );
 		var RootId = replyData[1].RootID;
 		var ParentId = 'Atcl_' + replyData[1].ParentID;
 		var Parent = $( '#' + ParentId );
@@ -1107,7 +1108,10 @@ var Forum = function( owner )
 		frm.SetClickManage( $( '.manage', NewAtcl ));
 		NewAtcl.hide();
 		Parent.after( NewAtcl );
-		NewAtcl.show( 400 );
+		NewAtcl.show( 400, function()
+		{
+			frm.ChkPass();
+		} );
 		$( '.input', Parent ).hide( 300 );
 		$( '#treearea' ).html( this.ShowTree( RootId, $( '<br><br><div>树形列表</div><table><tbody></tbody></table>' )));
 	}

@@ -76,14 +76,28 @@ def _WhereStr( d ):
     return ' and '.join( [( c + '=?' ) for c in cols] ), tuple( map( statement, vals ))
     #return u' and '.join( [statement( *it ) for it in d.items()] )
     
-def SetNeighborAddrs( pubKStr, addrs ):
+def SetNodeAddrs( pubKStr, addrs ):
     ""
-    print 'SetNeighborAddrs',  pubKStr, addrs
     with SqliteDB() as cursor:
-        for addr in addrs:
+        exist = cursor.execute( 'select addr from address where NodePubKey = ?;', ( pubKStr, )).fetchall()
+        
+    addrs0 = { data[0] for data in exist }
+    addrs = set( addrs )
+    logging.debug( 'SetNodeAddrs %s - %s' % ( repr( addrs0 ), repr( addrs )))
+    
+    with SqliteDB() as cursor:
+        for addr in ( addrs - addrs0 ):
             try:
                 cursor.execute( 'insert into address (NodePubKey, addr) values(?, ?)', ( pubKStr, addr ));
-            except:
+            except sqlite3.IntegrityError:
+                pass
+            
+    with SqliteDB() as cursor:
+        for addr in ( addrs0 - addrs ):
+            try:
+                cursor.execute( 'delete from address where NodePubKey = ? and addr = ?', ( pubKStr, addr ));
+            except Exception, e:
+                logging.warning( e )
                 pass
     
 def UpdateNodeOrNew( param, where ):
@@ -112,10 +126,15 @@ def UpdateNodeOrNew( param, where ):
                 cols, vals = _UpdateStr( param )
                 sql = u'''update node set %s where id = %s;''' % ( cols, exist[0] )
         cursor.execute( sql, vals )
-        
-        for Addr in Addrs:
-            sql = 'insert into address (addr, NodePubKey) values(?, ?)'
-            cursor.execute( sql, ( Addr, PubKeyStr ))
+    
+    if Addrs:
+        SetNodeAddrs( PubKeyStr, Addrs )
+#        for Addr in Addrs:
+#            try:
+#                sql = 'insert into address (addr, NodePubKey) values(?, ?)'
+#                cursor.execute( sql, ( Addr, PubKeyStr ))
+#            except sqlite3.IntegrityError:
+#                pass
     
 def GetNodeByPubKeyOrNew( d ):
     "or new"
@@ -203,9 +222,12 @@ def EditSelfNode( pubKey, name, desc, addrs ):
     logging.debug( 'EditSelfNode' )
     with SqliteDB() as cursor:
         cursor.execute( 'update selfnode set name = ?, discription = ? where PubKey = ?', ( name, desc, pubKey ));
-        cursor.execute( 'delete from address where NodePubKey = ?', ( pubKey, ));
-        for addr in addrs:
-            cursor.execute( 'insert into address (NodePubKey, addr) values(?, ?)', ( pubKey, addr ));
+    
+    SetNodeAddrs( pubKey, addrs )
+        
+#        cursor.execute( 'delete from address where NodePubKey = ?', ( pubKey, ));
+#        for addr in addrs:
+#            cursor.execute( 'insert into address (NodePubKey, addr) values(?, ?)', ( pubKey, addr ));
         
 
 def SetSelfUserName( pubKey, name ):
@@ -270,7 +292,6 @@ def GetNodesExcept( kItems, ids, excpK ):
             nodeRcd = d.setdefault( nodeD['PubKey'], nodeD )
             nodeRcd.setdefault( 'Addresses', [] ).append( nodeData[-1] )
             
-        print 'GetNodesExcept', d
         return d.values()
         #return [dict( zip( ProtocolKs, nodeData )) for nodeData in nodes]
 

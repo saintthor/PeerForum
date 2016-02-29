@@ -305,7 +305,7 @@ class PeerForum( object ):
         try:
             logging.info( 'cmd: %s' % request.POST['cmd'] )
             if AutoNode and request.POST['cmd'] in ( 'NewTopic', 'Reply', 'AddLabel', 'DelLabel', 'SetUserStatus',
-                                                 'SetStatus', 'SetSelfUserName', 'AddNeighbor', 'EditSelfNode' ):
+                                                 'SetStatus', 'SetSelfUserName', 'AddNeighbor' ):
                 return { 'error': 'autonode does not allow this action.' }
             result = getattr( PeerForum, 'cmd' + request.POST['cmd'] )( request.POST )
             return dumps( result )
