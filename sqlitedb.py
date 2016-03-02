@@ -238,7 +238,8 @@ def GetAllNode( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:
         wcols, vals = _WhereStr( filterd )
-        sql = u'''select %s from node where level > 0 and FailNum < 20 and %s''' % ( ','.join( cols ), wcols )
+        #sql = u'''select %s from node where level > 0 and FailNum < 20 and %s''' % ( ','.join( cols ), wcols )
+        sql = u'''select %s from node where level > 0 and %s''' % ( ','.join( cols ), wcols )
         return cursor.execute( sql, vals ).fetchall()
 
 def GetTargetNodes():

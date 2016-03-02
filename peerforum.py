@@ -56,6 +56,7 @@ class PeerForum( object ):
     @classmethod
     def SendMessage( cls, Remote, *msgTypes, **kwds ):
         "send to certain remote node."
+        logging.info( 'SendMessage' )
         Msgs = [PFPMessage( msgType ) for msgType in msgTypes]
         [Msg.SetRemoteNode( Remote ) for Msg in Msgs]
         [Msg.InitBody() for Msg in Msgs]
@@ -83,7 +84,7 @@ class PeerForum( object ):
         "send to remote node"
         addrs, msgs = neighbor.AllToSend()
         data = urlencode( { 'pfp': '\n'.join( msgs ) } )
-        #logging.debug( 'Send addrs: %s' % repr( addrs ))
+        logging.debug( 'Send addrs: %s' % repr( addrs ))
         for Type, addr in set( addrs ):
             try:
                 req = urllib2.Request( addr, data )

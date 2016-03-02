@@ -99,7 +99,7 @@ var Input = function( tr, parentId, protoId, submitFunc )
 
 			if( input.IsRoot )
 			{
-				var AtclLabels = $( ':text', input.TR ).val()
+				var AtclLabels = $( ':text', input.TR ).val().replace( /，/g, ',' );
 
 				//console.log( AtclLabels );
 				if( !AtclLabels )
@@ -388,7 +388,6 @@ var Forum = function( owner )
 		this.ListLabel = labelDiv.hasClass( "atcllabel" ) ? labelDiv.text() : '';
 		this.Before = this.MAXTIME;
 		$( '#tpclist>table>tbody>tr:gt(0)' ).remove();
-		var LabelBox = $( '#forum>.content' );
 		labelDiv.siblings().removeClass( 'sel' );
 		labelDiv.addClass( 'sel' );
 
@@ -399,7 +398,7 @@ var Forum = function( owner )
 	{
 		$( 'span.tpclabel', dom ).click( function()
 		{
-			frm.LabelTopic( $( this ).html());
+			frm.LabelTopic( frm.Owner.LabelSet[$( this ).html()] );
 		} );
 	};
 
@@ -426,7 +425,7 @@ var Forum = function( owner )
 		{
 			atclbody.html( frm.ShowContent( atcl.content ));
 			var UBB = new UBBObj();
-			UBB.Show( atclbody );
+			UBB.Show( atclbody, frm.Owner.Search );
 		}
 		else
 		{
@@ -436,7 +435,7 @@ var Forum = function( owner )
 			{
 				$( this ).parent().html( frm.ShowContent( atcl.content ));
 				var UBB = new UBBObj();
-				UBB.Show( atclbody );
+				UBB.Show( atclbody, frm.Owner.Search );
 			} );
 		}
 	};
@@ -1067,7 +1066,7 @@ var Forum = function( owner )
 				1: ['prfunread', '未裁处'],
 				2: ['prfpassed', '已通过'],
 				3: ['prfcommended', '已推荐'],
-						}[Parent.status + 1];
+						}[Parent.status + 1] || ['prfunread', '未裁处'];
 		Prefix.addClass( PrfInfo[0] );
 		Prefix.attr( 'title', PrfInfo[1] );
 

@@ -378,11 +378,11 @@ function UBBObj( BtnArea, TextArea )
         },
         
         atcl: {
-            Num: 2, FirstLabel: '[pl=78037]', Content: '《论坛总帮助》', NotIn: ['title', 'goto', 'url'], note: '帖子链接',
+            Num: 2, FirstLabel: '[atcl=ffffffffffffffff]', Content: '这里', NotIn: ['title', 'goto', 'url'], note: '帖子链接',
             Express: function( Content, LabelHead )
             {
-                var m = LabelHead.match( /^\[pl=(\d*?)\]/i );
-                return '<a class="green" href="post?v=2&p=' + m[1] + '">' + Content + '</a>';
+                var m = LabelHead.match( /^\[atcl=(.*?)\]/i );
+                return '<a class="atcllink" data-atclid="' + m[1] + '");">' + Content + '</a>';
             },
         },
         
@@ -732,7 +732,7 @@ function UBBObj( BtnArea, TextArea )
         $( '#forumpg' ).animate( { scrollTop: Anch.offset().top - 50 }, 600 );
     };
     
-    this.Show = function( Dom )
+    this.Show = function( Dom, SearchFunc )
     {
         var Tree = new LabelTree( LabelType, Dom.html());
         Dom.html( Tree.Show());
@@ -759,6 +759,12 @@ function UBBObj( BtnArea, TextArea )
         {
             var Anch = $( this ).data( 'anchor' );
             ubb.GotoTarget( Dom, Anch );
+        } );
+        
+        $( 'a.atcllink', Dom ).click( function()            //对跳转目标上级 dom 的处理
+        {
+            var AtclId = $( this ).data( 'atclid' );
+            SearchFunc( AtclId );
         } );
         
         /*$( 'a.goto', Dom ).click( function()

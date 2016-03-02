@@ -79,6 +79,7 @@ var PeerForum = function()
 	var pf = this;
 	//this.Info = { warning: [], error: [], info: [] };
 	this.UserSet = {};
+	this.LabelSet = {};
 	this.Forum = new Forum( this );
 	//this.Setting = new Manager( this );
 
@@ -309,7 +310,8 @@ var PeerForum = function()
 			return -p[1];
 		} ).forEach( function( p )
 		{
-			LabelArea.append( '<div class="atcllabel">' + p[0] + '</div>' );
+			pf.LabelSet[p[0]] = $( '<div class="atcllabel">' + p[0] + '</div>' );
+			LabelArea.append( pf.LabelSet[p[0]] );
 		} );
 
 		LabelArea.children( '.atcllabel' ).click( function()
@@ -374,11 +376,7 @@ var PeerForum = function()
 			$( '#timeline>.content div' ).removeClass( 'sel' );
 			pf.SearchKWord = KWord;
 
-			pf.Post( {
-				cmd: 'Search',
-				kword: KWord,
-				before: pf.MAXTIME,
-					} );
+			pf.Search( KWord );
 		} );
 		//UserArea.html( '<div id="alluseridx">所有关注用户</div>' );
 		UserArea.before( PrefContent );
@@ -411,6 +409,21 @@ var PeerForum = function()
 		$( '#timeline>.content>div:eq(1)' ).click();
 		console.log( pf.UserSet );
 	};
+
+	this.Search = function( kw )
+	{
+		var TLPage = $( '#timelinepg' );
+		TLPage.html( '' );
+		TLPage.show( 300 );
+		TLPage.siblings( '.page' ).hide( 200 );
+		$( '#timeline>.title' ).click();
+
+		pf.Post( {
+			cmd: 'Search',
+			kword: kw,
+			before: pf.MAXTIME,
+				} );
+	}
 
 	this.GetTimeLine = function()
 	{
@@ -535,6 +548,15 @@ var PeerForum = function()
 		//$( '#forum>.title' ).click();
 	};
 
+	this.ChkGotNew = function( got )
+	{
+		//got = 1;
+		if( got && $( '#tpclist>.notice' ).length === 0 )
+		{
+			$( '#tpclist>table' ).before( '<div class="notice" onclick="javascript:location.reload()">有更新</div>' );
+		}
+	}
+
 	this.GetResult = function( rslt )
 	{
 		console.log( rslt );
@@ -553,6 +575,7 @@ var PeerForum = function()
 			 'UserStatus': [pf.SetUserStatus, pf],
 			 'TimeLine': [pf.AppendTimeLine, pf],			 
 			 'AddNeighbor': [pf.AddNeighbor, pf],
+			 'GotNewAtcl': [pf.ChkGotNew, pf],
 					};
 
 		_( rslt ).chain().pairs().each( function( p )
