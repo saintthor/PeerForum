@@ -120,13 +120,17 @@ class NeighborNode( object ):
     
     def RecordFail( self ):
         "count fail num when communicate fails"
-        CountNodeFail( self.id )
+        CountNodeFail( self.PubKeyStr )
     
     def Succeed( self, lastTime ):
         "receive something from neighbor"
         self.LastTime = lastTime
         self.FailNum = 0
         self.Save()
+    
+    def RecSeccAddr( self, addr ):
+        ""
+        pass
     
     def GetSomeInfo( self ):
         ""

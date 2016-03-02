@@ -14,7 +14,7 @@ from rsa import PrivateKey, PublicKey
 from time import time
 from json import loads
 
-from const import DB_FILE, DelFromNodeHours
+from const import DB_FILE, DelFromNodeHours, DelLabelLogHours
 from exception import *
 
 def ChangePath( newPath ):
@@ -83,7 +83,6 @@ def SetNodeAddrs( pubKStr, addrs ):
         
     addrs0 = { data[0] for data in exist }
     addrs = set( addrs )
-    logging.debug( 'SetNodeAddrs %s - %s' % ( repr( addrs0 ), repr( addrs )))
     
     with SqliteDB() as cursor:
         for addr in ( addrs - addrs0 ):
@@ -102,7 +101,7 @@ def SetNodeAddrs( pubKStr, addrs ):
     
 def UpdateNodeOrNew( param, where ):
     "if neighbor node exist then update else create."
-    logging.debug( 'UpdateNodeOrNew param = %s' % repr( param ))
+    #logging.debug( 'UpdateNodeOrNew param = %s' % repr( param ))
     param['LastTime'] = int( time() * 1000 )
     PubKeyStr = param['PubKey'].save_pkcs1()
     if 'address' in param:
@@ -255,10 +254,10 @@ def GetTargetNodes():
             
     return d.items()
     
-def CountNodeFail( nodeId ):
+def CountNodeFail( pubK ):
     ""
     with SqliteDB() as cursor:
-        cursor.execute( 'update node set FailNum = min( 99, FailNum + 1 ) where id = ?', ( nodeId, ))    
+        cursor.execute( 'update node set FailNum = min( 99, FailNum + 1 ) where PubKey = ?', ( pubK, ))    
 
 def GetNodeById( nodeId ):
     ""
@@ -330,13 +329,15 @@ def SetAtclStatus( atclId, status ):
             elif status < 0:
                 cursor.execute( 'update node set level = max( 3, level - 1 ) where PubKey = ?', ( RemoteK, ))
         
-def UpdateArticles():
+def FixData():
     "check destroy, del FromNode"
+    logging.info( 'FixData' )
     t = int( time() * 1000 )
     with SqliteDB() as cursor:
         cursor.execute( 'update article set status = -2 where DestroyTime < ?', ( t, ))
-        cursor.execute( 'update article set FromNode = '', RemoteLabels = '', RemoteEval = 1 where GetTime < ?',
+        cursor.execute( '''update article set FromNode = '', RemoteLabels = '', RemoteEval = 1 where GetTime < ?''',
                         (( t - DelFromNodeHours * 3600000 ), ))
+        cursor.execute( 'delete from labellog where ShowTime < ?', (( t - DelLabelLogHours * 3600000 ), ))
     
 def SaveTopicLabels( topicId, labels, Type = 0 ):
     ""
