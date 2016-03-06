@@ -338,11 +338,13 @@ class PeerForum( object ):
 
 def InitLog():
     "limit log size"
-    with file( LOG_FILE, 'r' ) as f:
-        lines = f.readlines()[-LogLinesLimit:]
-    with file( LOG_FILE, 'w' ) as f:
-        f.write( ''.join( lines ))
-    logging.basicConfig( filename = LOG_FILE, level = logging.DEBUG )
+    try:
+        with file( LOG_FILE, 'r' ) as f:
+            lines = f.readlines()[-LogLinesLimit:]
+        with file( LOG_FILE, 'w' ) as f:
+            f.write( ''.join( lines ))
+    finally:
+        logging.basicConfig( filename = LOG_FILE, level = logging.DEBUG )
     
     
 def test():

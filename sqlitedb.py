@@ -238,8 +238,10 @@ def GetAllNode( *cols, **filterd ):
     ""
     with SqliteDB() as cursor:
         wcols, vals = _WhereStr( filterd )
-        #sql = u'''select %s from node where level > 0 and FailNum < 20 and %s''' % ( ','.join( cols ), wcols )
-        sql = u'''select %s from node where level > 0 and %s''' % ( ','.join( cols ), wcols )
+        MissTime = int(( time() - 30 * 86400 ) * 1000 )
+        sql = u'''select %s from node where level > 0 and ( FailNum < 20 or LastTime > %s )
+                and %s''' % ( ','.join( cols ), MissTime, wcols )
+        #sql = u'''select %s from node where level > 0 and %s''' % ( ','.join( cols ), wcols )
         return cursor.execute( sql, vals ).fetchall()
 
 def GetTargetNodes():
@@ -339,6 +341,7 @@ def FixData():
         cursor.execute( '''update article set FromNode = '', RemoteLabels = '', RemoteEval = 1 where GetTime < ?''',
                         (( t - DelFromNodeHours * 3600000 ), ))
         cursor.execute( 'delete from labellog where ShowTime < ?', (( t - DelLabelLogHours * 3600000 ), ))
+        #SearchAddrMsg for FailNum > 20 and LastTime < 5 days before
     
 def SaveTopicLabels( topicId, labels, Type = 0 ):
     ""

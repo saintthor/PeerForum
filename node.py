@@ -132,7 +132,8 @@ class NeighborNode( object ):
     
     def RecordFail( self ):
         "count fail num when communicate fails"
-        CountNodeFail( self.PubKeyStr )
+        if hasattr( self, 'PubKeyStr' ):
+            CountNodeFail( self.PubKeyStr )
     
     def Succeed( self, lastTime ):
         "receive something from neighbor"

@@ -363,7 +363,7 @@ function UBBObj( BtnArea, TextArea )
         },
         
         url: {
-            Num: 2, FirstLabel: '[url=www.djdq.org]', Content: '大江东去科幻论坛', NotIn: ['title', 'goto', 'pl'], note: '链接',
+            Num: 2, FirstLabel: '[url=www.google.com]', Content: 'Google一下，你就知道得太多了。', NotIn: ['title', 'goto', 'pl'], note: '链接',
             Express: function( Content, LabelHead )
             {
                 var m = LabelHead.match( /^\[url=(.*?)\]/i );
@@ -372,7 +372,6 @@ function UBBObj( BtnArea, TextArea )
                 {
                     Address = 'http://' + Address;
                 }
-                //return Address;
                 return '<a href="' + Address + '" target="_blank">' + Content + '</a>';
             },
         },
