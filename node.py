@@ -10,6 +10,7 @@ Created on Sun Jun 21 22:04:20 2015
 #from threading import Thread
 from Queue import Queue, Empty
 from random import choice, randint
+import md5
 import rsa
 import logging
 from base64 import encodestring#, decodestring
@@ -19,8 +20,19 @@ from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrN
                     GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, EditSelfNode, CountNodeFail
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
-from crypto import CBCEncrypt, CBCDecrypt
 
+
+def GetRealK( k, l, kStr = '' ):
+    ""
+    lk = len( k )
+    if not kStr:
+        kStr = ''.join( map( chr, k ))
+    m = map( ord, md5.md5( kStr ).digest())
+    lm = len( m )
+    for i in range( l - lk ):
+        k.append( k[2 - lk] ^ k[9 - lk] ^ k[20 - lk] ^ m[i % lm] )
+    return k
+    
 
 class NeighborNode( object ):
     ""
@@ -162,12 +174,25 @@ class NeighborNode( object ):
         ""
         if not hasattr( self, 'PubKey' ):
             raise NodePubKeyInvalidErr
-        k = ''.join( [choice( "1234567890)(*&^%$#@!`~qazxswedcvfrtgbnhyujm,kiolp;.[]{}:?><\"\\'/PLOKMIJNUHBYGVTFCRDXESZWAQ" )
-                        for i in range( 32 )] )
+        k = [randint( 0, 255 ) for _ in range( randint( 25, 32 ))]
+        kStr = ''.join( map( chr, k ))
+        RealK = GetRealK( k, len( s ), kStr )
+        encrypted = ''.join( map( chr, map( int.__xor__, RealK, map( ord, s ))))
         return {
-            "msg": encodestring( CBCEncrypt( s, k )),
-            "key": encodestring( rsa.encrypt( k, self.PubKey )),
+            "msg": encodestring( encrypted ),
+            "key": encodestring( rsa.encrypt( kStr, self.PubKey )),
                 }
+    
+#    def Encrypt0( self, s ):
+#        ""
+#        if not hasattr( self, 'PubKey' ):
+#            raise NodePubKeyInvalidErr
+#        k = ''.join( [choice( "1234567890)(*&^%$#@!`~qazxswedcvfrtgbnhyujm,kiolp;.[]{}:?><\"\\'/PLOKMIJNUHBYGVTFCRDXESZWAQ" )
+#                        for i in range( 32 )] )
+#        return {
+#            "msg": encodestring( CBCEncrypt( s, k )),
+#            "key": encodestring( rsa.encrypt( k, self.PubKey )),
+#                }
     
     def Verify( self, message, sign ):
         ""
@@ -206,8 +231,15 @@ class SelfNode( object ):
         
     def Decrypt( self, secMsg, secK ):
         ""
-        key = rsa.decrypt( secK, self.PriKey )
-        return CBCDecrypt( secMsg, key )
+        kStr = rsa.decrypt( secK, self.PriKey )
+        k = map( ord, kStr )
+        RealK = GetRealK( k, len( secMsg ), kStr )
+        return ''.join( map( chr, map( int.__xor__, RealK, map( ord, secMsg ))))
+        
+#    def Decrypt0( self, secMsg, secK ):
+#        ""
+#        key = rsa.decrypt( secK, self.PriKey )
+#        return CBCDecrypt( secMsg, key )
     
     def Edit( self, name, desc, addrs ):
         ""
@@ -238,5 +270,3 @@ class SelfNode( object ):
     def Issue( self ):
         "show in local client"
         return self.PubKeyStr, self.Name, self.Desc, self.Addrs, self.Level
-
-
