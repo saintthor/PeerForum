@@ -7,8 +7,8 @@ Created on Wed Jun  3 23:04:45 2015
 
 AutoNode = False
 LocalPort = 8000
-DB_FILE = './peerforum.db'
-LOG_FILE = './peerforum.log'
+DB_FILE = 'peerforum.db'
+LOG_FILE = 'peerforum.log'
 LogLinesLimit = 20000
 TechInfo = 'python peer 0.1'
 PFPVersion = "PFP V0.1"
