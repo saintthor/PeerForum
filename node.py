@@ -75,7 +75,9 @@ class NeighborNode( object ):
         ""
 #        if msgBody is None:
 #            return cls.LiveD.get( pubK, cls.SearchNode( pubK ))
-        return cls.LiveD.setdefault( pubK, cls._New( msgBody ))
+        if pubK not in cls.LiveD:
+            cls.LiveD[pubK] = cls._New( msgBody )
+        return cls.LiveD[pubK]
         
     @classmethod
     def AllTargets( cls ):
@@ -129,6 +131,7 @@ class NeighborNode( object ):
             if k in ( 'PFPVer', 'NodeName', 'Description', 'Address', 'NodeTypeVer', 'BaseProtocol' ):
                 setattr( self, self.transD.get( k, k ), v )
         self.Save()
+        self.Init()
     
     def RecordFail( self ):
         "count fail num when communicate fails"
@@ -170,7 +173,7 @@ class NeighborNode( object ):
             where = {}
         param = { k: getattr( self, k ) for k in self.transD.values() if hasattr( self, k ) and k != 'id' }
         UpdateNodeOrNew( param, where )
-    
+            
     def Encrypt( self, s ):
         ""
         if not hasattr( self, 'PubKey' ):
