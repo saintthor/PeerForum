@@ -343,6 +343,8 @@ def InitLog():
             lines = f.readlines()[-LogLinesLimit:]
         with file( LOG_FILE, 'w' ) as f:
             f.write( ''.join( lines ))
+    except:
+        pass
     finally:
         logging.basicConfig( filename = LOG_FILE, level = logging.DEBUG )
     
