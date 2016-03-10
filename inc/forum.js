@@ -777,6 +777,8 @@ var Forum = function( owner )
 
 	this.ShowAtcls = function( rootId, mode, atclId )
 	{
+		this.Owner.ChkPageActive( 'forumpg', 'forum' );
+		
 		$( '#listpg' ).hide( 200 );
 		$( '#atclpg' ).show( 300 );
 		$( '#atclpg' ).after( $( '#listpg' ));

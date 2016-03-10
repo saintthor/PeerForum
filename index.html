@@ -410,20 +410,26 @@ var PeerForum = function()
 		console.log( pf.UserSet );
 	};
 
+	this.ChkPageActive = function( pageId, labelId )
+	{
+		var Page = $( '#' + pageId );
+		Page.show( 300 );
+		Page.siblings( '.page' ).hide( 200 );
+		$( '#' + labelId + '>.title' ).click();
+		return Page;
+	};
+
 	this.Search = function( kw )
 	{
-		var TLPage = $( '#timelinepg' );
+		var TLPage = pf.ChkPageActive( 'timelinepg', 'timeline' );
 		TLPage.html( '' );
-		TLPage.show( 300 );
-		TLPage.siblings( '.page' ).hide( 200 );
-		$( '#timeline>.title' ).click();
 
 		pf.Post( {
 			cmd: 'Search',
 			kword: kw,
 			before: pf.MAXTIME,
 				} );
-	}
+	};
 
 	this.GetTimeLine = function()
 	{
