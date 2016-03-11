@@ -178,6 +178,9 @@ class NeighborNode( object ):
         ""
         if not hasattr( self, 'PubKey' ):
             raise NodePubKeyInvalidErr
+        FillStr = ''.join( [choice( "1234567890)(*&^%$#@!`~qazxswedcvfrtgbnhyujm,kiolp;.[]:?><\"\\'/PLOKMIJNUHBYGVTFCRDXESZWAQ" )
+                            for _ in range( randint( 0, 8 ))] )
+        s = FillStr + s
         k = [randint( 0, 255 ) for _ in range( randint( 25, 32 ))]
         kStr = ''.join( map( chr, k ))
         RealK = GetRealK( k, len( s ), kStr )
@@ -238,7 +241,8 @@ class SelfNode( object ):
         kStr = rsa.decrypt( secK, self.PriKey )
         k = map( ord, kStr )
         RealK = GetRealK( k, len( secMsg ), kStr )
-        return ''.join( map( chr, map( int.__xor__, RealK, map( ord, secMsg ))))
+        msg = ''.join( map( chr, map( int.__xor__, RealK, map( ord, secMsg ))))
+        return msg[msg.find( '{' ):]
         
 #    def Decrypt0( self, secMsg, secK ):
 #        ""
