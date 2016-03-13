@@ -338,8 +338,14 @@ class Topic( object ):
             StructD = {}
             for atclId, atcl in NodeD.iteritems():
                 ParentId = atcl.ItemD.get( 'ParentID', '' )
-                StructD.setdefault( atclId, TreeStruct( atclId, ParentId ))
-                StructD.setdefault( ParentId, TreeStruct( ParentId )).Add( atclId )
+                if atclId not in StructD:
+                    StructD[atclId] = TreeStruct( atclId, ParentId )
+                if ParentId not in StructD:
+                    StructD[ParentId] = TreeStruct( ParentId )
+                StructD[ParentId].Add( atclId )
+                
+#                StructD.setdefault( atclId, TreeStruct( atclId, ParentId ))
+#                StructD.setdefault( ParentId, TreeStruct( ParentId )).Add( atclId )
     
             self.StructD = StructD   #there may be multi articles in struct.root when editing the root. put roots in struct.children.
         return self.StructD

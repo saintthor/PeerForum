@@ -56,7 +56,8 @@ class NeighborNode( object ):
     @classmethod
     def Init( cls ):
         ""
-        cls.AllNodes = GetAllNode( 'id', 'level', ServerProtocol = 'HTTP' )
+        NodesInfo = GetAllNode( 'id', 'level', 'FailNum', ServerProtocol = 'HTTP' )
+        cls.AllNodes = [( ni[0], max( ni[1] - ni[2] / 10, 1 ))for ni in NodesInfo]
     
     @classmethod
     def Pick( cls ):
