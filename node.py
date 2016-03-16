@@ -20,19 +20,7 @@ from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrN
                     GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, EditSelfNode, CountNodeFail
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
-
-
-def GetRealK( k, l, kStr = '' ):
-    ""
-    lk = len( k )
-    if not kStr:
-        kStr = ''.join( map( chr, k ))
-    m = map( ord, md5.md5( kStr ).digest())
-    lm = len( m )
-    for i in range( l - lk ):
-        k.append( k[2 - lk] ^ k[9 - lk] ^ k[20 - lk] ^ m[i % lm] )
-    return k
-    
+from crypto import GetRealK
 
 class NeighborNode( object ):
     ""

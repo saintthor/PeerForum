@@ -364,4 +364,4 @@ if __name__ == '__main__':
     PeerForum.Init()
     #test()
     debug( True )
-    run( host = '0.0.0.0', port = LocalPort, reloader = True )   #set reloader to False to avoid initializing twice.
+    run( host = '0.0.0.0', port = LocalPort, reloader = False )   #set reloader to False to avoid initializing twice.

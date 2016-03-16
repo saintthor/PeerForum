@@ -8,7 +8,9 @@ from sqlitedb import CreateSelfUser, GetDefaultUser, GetSelfPubKeyStrs, SetSelfU
 import rsa
 from base64 import encodestring, decodestring
 from const import SignHashFunc
-
+from crypto import EncryptPriKey, DecryptPriKey
+from exception import *
+from getpass import getpass
 
 class OtherUser( object ):
     ""
@@ -30,8 +32,9 @@ class SelfUser( object ):
     @classmethod
     def New( cls, name = 'DefaultUser' ):
         "create a new self user."
+        PassWord = raw_input( 'enter a password to secure you private key of current user (null for not secured):' )
         PubKey, PriKey = rsa.newkeys( 2048 )
-        CreateSelfUser( NickName = name, PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1() )
+        CreateSelfUser( NickName = name, PubKey = PubKey.save_pkcs1(), PriKey = EncryptPriKey( PassWord, PriKey.save_pkcs1() ))
 
     def __init__( self, condi = '' ):
         ""
@@ -42,11 +45,17 @@ class SelfUser( object ):
             
         self.NickName, self.PubKeyStr, PriKeyStr = UserData
         self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
-        self.PriKey = rsa.PrivateKey.load_pkcs1( PriKeyStr )
-#        try:
-#            self.NickName = NickName.encode( 'ascii' )
-#        except:
-#            self.NickName = NickName.encode( 'utf8' )
+        
+        PassWord = ''
+        for i in range( 5, 0, -1 ):
+            try:
+                self.PriKey = rsa.PrivateKey.load_pkcs1( DecryptPriKey( PassWord, PriKeyStr ))
+                break
+            except:
+                PassWord = getpass( 'you have %d chances to input you password for current user to login:' % i )
+        else:
+            print 'password is not correct.'
+            raise UserAuthorityErr
         
     def Issue( self ):
         ""

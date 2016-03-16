@@ -21,6 +21,7 @@ class NodePubKeyInvalidErr( PeerForumErr ): pass
    
 class VerifyFailedErr( PeerForumErr ): pass
     
+class UserAuthorityErr( PeerForumErr ): pass
     
     
     
