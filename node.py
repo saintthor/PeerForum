@@ -225,7 +225,6 @@ class SelfNode( object ):
         self.Name, self.PubKeyStr, PriKeyStr, self.SvPrtcl, self.Desc, self.Level, self.Addrs = NodeData
         self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
         self.PriKey = rsa.PrivateKey.load_pkcs1( DecryptPriKey( None, PriKeyStr ))
-        print self.PriKey, self.PubKeyStr
         
     def Decrypt( self, secMsg, secK ):
         ""
