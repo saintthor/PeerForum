@@ -32,7 +32,7 @@ class SelfUser( object ):
     @classmethod
     def New( cls, name = 'DefaultUser' ):
         "create a new self user."
-        PassWord = raw_input( 'enter a password to secure you private key of current user (null for not secured):' )
+        PassWord = raw_input( 'enter a password to secure you private keys (null for not secured):' )
         PubKey, PriKey = rsa.newkeys( 2048 )
         CreateSelfUser( NickName = name, PubKey = PubKey.save_pkcs1(), PriKey = EncryptPriKey( PassWord, PriKey.save_pkcs1() ))
 
@@ -52,7 +52,7 @@ class SelfUser( object ):
                 self.PriKey = rsa.PrivateKey.load_pkcs1( DecryptPriKey( PassWord, PriKeyStr ))
                 break
             except:
-                PassWord = getpass( 'you have %d chances to input you password for current user to login:' % i )
+                PassWord = getpass( 'you may try %d times to input you password to login:' % i )
         else:
             print 'password is not correct.'
             raise UserAuthorityErr

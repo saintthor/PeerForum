@@ -87,6 +87,7 @@ def SetNodeAddrs( pubKStr, addrs ):
     with SqliteDB() as cursor:
         for addr in ( addrs - addrs0 ):
             try:
+                cursor.execute( 'delete from address where addr = ?', ( addr, ));
                 cursor.execute( 'insert into address (NodePubKey, addr) values(?, ?)', ( pubKStr, addr ));
             except sqlite3.IntegrityError:
                 pass

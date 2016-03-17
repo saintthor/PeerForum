@@ -33,8 +33,8 @@ class PeerForum( object ):
     @classmethod
     def Init( cls ):
         ""
+        cls.LocalUser = SelfUser()        
         cls.LocalNode = PFPMessage.LocalNode = SelfNode()
-        cls.LocalUser = SelfUser()
     
     @classmethod
     def cmdChkEnv( cls, *args ):

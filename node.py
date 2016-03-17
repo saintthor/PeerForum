@@ -10,7 +10,7 @@ Created on Sun Jun 21 22:04:20 2015
 #from threading import Thread
 from Queue import Queue, Empty
 from random import choice, randint
-import md5
+#import md5
 import rsa
 import logging
 from base64 import encodestring#, decodestring
@@ -20,7 +20,7 @@ from sqlitedb import CreateSelfNode, GetAllNode, GetNodeById, GetNodeByPubKeyOrN
                     GetNodesExcept, GetNodeInfoByPubKey, GetSelfNode, GetTargetNodes, EditSelfNode, CountNodeFail
 from exception import *
 from const import TechInfo, PFPVersion, SignHashFunc, GetNodeNum
-from crypto import GetRealK
+from crypto import GetRealK, EncryptPriKey, DecryptPriKey
 
 class NeighborNode( object ):
     ""
@@ -211,7 +211,8 @@ class SelfNode( object ):
     def New( cls ):
         "create a new self node."
         PubKey, PriKey = rsa.newkeys( 1024 )
-        CreateSelfNode( PubKey = PubKey.save_pkcs1(), PriKey = PriKey.save_pkcs1(), ServerProtocol = 'HTTP' )
+        CreateSelfNode( PubKey = PubKey.save_pkcs1(), PriKey = EncryptPriKey( None, PriKey.save_pkcs1()),
+                       ServerProtocol = 'HTTP' )
         
     def __init__( self, condi = '' ):
         ""
@@ -223,7 +224,8 @@ class SelfNode( object ):
             
         self.Name, self.PubKeyStr, PriKeyStr, self.SvPrtcl, self.Desc, self.Level, self.Addrs = NodeData
         self.PubKey = rsa.PublicKey.load_pkcs1( self.PubKeyStr )
-        self.PriKey = rsa.PrivateKey.load_pkcs1( PriKeyStr )
+        self.PriKey = rsa.PrivateKey.load_pkcs1( DecryptPriKey( None, PriKeyStr ))
+        print self.PriKey, self.PubKeyStr
         
     def Decrypt( self, secMsg, secK ):
         ""

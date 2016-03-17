@@ -18,13 +18,22 @@ def GetRealK( k, l, kStr = '' ):
         k.append( k[2 - lk] ^ k[9 - lk] ^ k[20 - lk] ^ m[i % lm] )
     return k
     
+__PassWord = ''
+    
 def _Xor( k, s ):
     ""
+    global __PassWord
+    if k is None:
+        k = __PassWord
+    else:
+        __PassWord = k
+        
     if k == '':
         return s
-    while len( k ) <= 22:
-        k = k + k
-
+    lk = len( k )
+    if lk <= 22:
+        k = k * ( 21 / lk + 1 )
+        
     RealK = GetRealK( map( ord, k ), len( s ), k )
     return ''.join( map( chr, map( int.__xor__, RealK, map( ord, s ))))
     

@@ -176,7 +176,7 @@ var Passer = function( bodyDiv, passFunc )
 	this.BodyDiv = bodyDiv;
 	this.PassFunc = passFunc;
 
-	this.Second = 60;
+	this.Second = 30;
 	this.HeadShowed = false;
 	this.FootShowed = false;
 

@@ -413,6 +413,10 @@ var PeerForum = function()
 	this.ChkPageActive = function( pageId, labelId )
 	{
 		var Page = $( '#' + pageId );
+		if( Page.is( ":visible" ))
+		{
+			return Page;
+		}
 		Page.show( 300 );
 		Page.siblings( '.page' ).hide( 200 );
 		$( '#' + labelId + '>.title' ).click();
