@@ -304,6 +304,7 @@ class Topic( object ):
         self.Root = root
         self.AtclD = { root.id: root }
         self.StructD = None
+        self.Fallens = []
         self.SetSnapShot()
     
     def Save( self, **kwds ):
@@ -340,13 +341,22 @@ class Topic( object ):
                 ParentId = atcl.ItemD.get( 'ParentID', '' )
                 if atclId not in StructD:
                     StructD[atclId] = TreeStruct( atclId, ParentId )
-                if ParentId not in StructD:
-                    StructD[ParentId] = TreeStruct( ParentId )
-                StructD[ParentId].Add( atclId )
-                
-#                StructD.setdefault( atclId, TreeStruct( atclId, ParentId ))
-#                StructD.setdefault( ParentId, TreeStruct( ParentId )).Add( atclId )
+                while ParentId not in StructD:
+                    Parent = NodeD.get( ParentId )
+                    GrandId = Parent.ItemD.get( 'ParentID', '' ) if Parent else None
+                    StructD[ParentId] = TreeStruct( ParentId, GrandId )
+                    StructD[ParentId].Add( atclId )
+                    if GrandId is None:
+                        break
+                    atclId, ParentId = ParentId, GrandId
+                else:
+                    StructD[ParentId].Add( atclId )
     
+            self.Fallens = []
+            SubRoots = { atclId for atclId, node in StructD.items() if node.Parent is None } - { '', self.Root.id }
+            for sr in SubRoots:
+                self.Fallens.extend( TreeStruct.GetAll( StructD, sr ))
+                
             self.StructD = StructD   #there may be multi articles in struct.root when editing the root. put roots in struct.children.
         return self.StructD
     
@@ -359,7 +369,7 @@ class Topic( object ):
             leafId = self.StructD[leafId].Parent
         
         
-    def ChkByLeaves( self, leaves ):
+    def ChkByLeaves( self, leaves, rmtFallens ):
         "check remote leaves and return the more articles"
         self.Instruct()
         LocalLinked = set( TreeStruct.GetAll( self.StructD, '' ))
@@ -373,10 +383,10 @@ class Topic( object ):
                     break
                 RemoteNodes.add( leaf )
                 
-        ReturnNodes = LocalLinked - RemoteNodes
+        ReturnNodes = LocalLinked - RemoteNodes - rmtFallens
         
         return [self.AtclD[Id] for Id in ReturnNodes], AskBack
-            
+        
     def __len__( self ):
         ""
         return len( self.AtclD )
@@ -473,7 +483,13 @@ class Topic( object ):
             if treeInfo['SnapShot'] == topic.SnapShot:
                 return
             if len( topic ) >= 0.5 * treeInfo['Length']:
-                return { 'TreeId': TreeId, 'Mode': 'leaf', 'Leaves': list( TreeStruct.GetLeaves( topic.Instruct(), '' )) }
+                StructD = topic.Instruct()
+                return {
+                    'TreeId': TreeId,
+                    'Mode': 'leaf',
+                    'Leaves': list( TreeStruct.GetLeaves( StructD, '' )),
+                    'Fallens': topic.Fallens,
+                        }
         else:
             return { 'TreeId': TreeId, 'Mode': 'all' }
     
@@ -484,9 +500,13 @@ class Topic( object ):
             if treeReq['Mode'] == 'all':
                 return topic.AtclD.values()
             if treeReq['Mode'] == 'leaf':
-                Atcls, AskBack = topic.ChkByLeaves( set( treeReq['Leaves'] ))
-                AskBack and askBackFunc( { 'TreeId': treeReq['TreeId'], 'Mode': 'leaf',
-                                          'Leaves': list( TreeStruct.GetLeaves( topic.Instruct(), '' )) } )
+                Atcls, AskBack = topic.ChkByLeaves( set( treeReq['Leaves'] ), set( treeReq.get( 'Fallens', [] )))
+                AskBack and askBackFunc( {
+                                    'TreeId': treeReq['TreeId'],
+                                    'Mode': 'leaf',
+                                    'Leaves': list( TreeStruct.GetLeaves( topic.Instruct(), ''  )),
+                                    'Fallens': topic.Fallens,
+                                        } )
                 return Atcls
             if treeReq['Mode'] in ( "higher", "lower", "relative" ):
                 pass
@@ -498,4 +518,5 @@ class Topic( object ):
         SetAtclsWithoutTopic() 
 
 if __name__ == '__main__':
-    pass
+    for topic in Topic.GetMulti( '52fbe82c1e110266da298dc3ae0ad2345bca12fe' ):
+        print topic.Instruct( force = True )

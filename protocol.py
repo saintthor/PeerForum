@@ -364,6 +364,8 @@ class GetTreeMsg( PFPMessage ):
         self.body = {
                 'Trees': filter( None, [Topic.Compare( TreeInfo ) for TreeInfo in forMsg.body['Offer']] ),
                     }
+        if not self.body['Trees']:
+            return False
 
 class AtclDataMsg( PFPMessage ):
     ""
@@ -394,7 +396,6 @@ class AtclDataMsg( PFPMessage ):
                         
         if not self.body['Articles']:
             return False
-                
                         
     def AskBack( self, trees ):
         "send back a GetTreeMsg if remote leaves are more than local"

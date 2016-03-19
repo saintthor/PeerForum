@@ -201,7 +201,7 @@ class NeighborNode( object ):
     def AllToSend( self ):
         "get the additional messages to the neighbor"
         Msgs = self.SendBuffer
-        logging.info( 'AllToSend: %s' % ' - '.join( [m[:20] for m in Msgs] ))
+        #logging.info( 'AllToSend: %s' % ' - '.join( [m[:20] for m in Msgs] ))
         self.SendBuffer = []
         return self.Addrs, Msgs
 

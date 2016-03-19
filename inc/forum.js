@@ -717,7 +717,7 @@ var Forum = function( owner )
 			}
 			else
 			{
-				Roots.push( ParentId );
+				Roots.push( p[0] );
 			}
 		} );
 
