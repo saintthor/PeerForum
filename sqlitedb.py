@@ -152,11 +152,11 @@ def GetNodeByPubKeyOrNew( d ):
                                                     ( d['PubKey'], )).fetchall())
         else:
             if 'addr' in d:
-                addr = d.pop( 'addr' )
-                print 'addr', addr
+                d.pop( 'addr' )
             cols, vals = _InsertStr( d )
             sql = u'insert into node (%s) values(%s)' % ( cols, ','.join( ['?'] * len( vals )))
             cursor.execute( sql, vals )
+    return exist is None
     
 def GetNodeInfoByPubKey( pubK, kItems ):
     "for search"
@@ -613,7 +613,7 @@ def InitDB( path = '' ):
         #标签显示记录
         c.execute( """create table labellog (name varchar(32), ShowTime int(13));""" )
         
-    print 'db initialized.'
+    #print 'db initialized.'
 
 if __name__ == '__main__':
     test()

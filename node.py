@@ -60,12 +60,21 @@ class NeighborNode( object ):
                     return cls( **GetNodeById( node[0] ))
     
     @classmethod
-    def Get( cls, pubK, msgBody = None ):
+    def Get( cls, pubK, msgBody ):
         ""
 #        if msgBody is None:
 #            return cls.LiveD.get( pubK, cls.SearchNode( pubK ))
         if pubK not in cls.LiveD:
-            cls.LiveD[pubK] = cls._New( msgBody )
+            #logging.debug( 'Get -- %s' % repr( msgBody ))
+            condi = { cls.transD.get( k, k ): v for k, v in msgBody.items()
+                        if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step', 'Address', 'Addresses' ) }
+            if GetNodeByPubKeyOrNew( condi ):
+                cls.Init()
+            if 'Address' in msgBody:
+                condi['Addrs'] = [( None, addr ) for addr in msgBody['Address']]
+                SetNodeAddrs( condi['PubKey'], msgBody['Address'] )
+            #logging.debug( 'Get -- %s' % repr( condi ))
+            cls.LiveD[pubK] = cls( **condi )
         return cls.LiveD[pubK]
         
     @classmethod
@@ -74,23 +83,23 @@ class NeighborNode( object ):
         for pubK, addrs in GetTargetNodes():
             yield cls( PubKey = pubK, Addrs = addrs )
         
-    @classmethod
-    def _New( cls, msgBody ):
-        ""
-        condi = { cls.transD.get( k, k ): v for k, v in msgBody.items()
-                    if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step', 'Address' ) }
-        GetNodeByPubKeyOrNew( condi )
-        cls.Init()              #reset cls.AllNodes
-        return cls( **condi )
+#    @classmethod
+#    def _New( cls, msgBody ):
+#        ""
+#        condi = { cls.transD.get( k, k ): v for k, v in msgBody.items()
+#                    if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step', 'Address' ) }
+#        GetNodeByPubKeyOrNew( condi )
+#        cls.Init()              #reset cls.AllNodes
+#        return cls( **condi )
     
     @classmethod
     def NewNeighbor( cls, neighbor ):
         "save new neighbor from other node"
         condi = { cls.transD.get( k, k ): v for k, v in neighbor.items()
                     if k not in ( 'Time', 'PubKeyStr', 'ForwardPubKey', 'ObjPubKey', 'Step', 'Address', 'Addresses' ) }
-        GetNodeByPubKeyOrNew( condi )
+        if GetNodeByPubKeyOrNew( condi ):
+            cls.Init()
         SetNodeAddrs( neighbor['PubKey'], neighbor['Addresses'] )
-        cls.Init()
     
     @classmethod
     def SearchNode( cls, pubK ):

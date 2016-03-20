@@ -62,29 +62,20 @@ class PeerForum( object ):
         [Msg.InitBody() for Msg in Msgs]
         Remote.Buffer( [Msg.Issue() for Msg in Msgs] )
         while Remote is not None:
+            #logging.debug( 'SendMessage: RemoteBuff = %s' % len( Remote.SendBuffer ))
             ReplyStr = cls.Send( Remote )
+            #logging.debug( 'SendMessage: ReplyStr = %s' % ReplyStr )
             if not ReplyStr:
                 Remote.RecordFail()
                 break
             Remote = cls.Reply( ReplyStr.split( '\n' ))
-    
-#    @classmethod
-#    def SendMsgToRemote( cls, remote, msg ):
-#        ""
-#        msg.SetRemoteNode( remote )
-#        remote.Buffer(( msg.Issue(), ))
-#        while remote is not None:
-#            ReplyStr = cls.Send( remote )
-#            if not ReplyStr:
-#                break
-#            remote = cls.Reply( ReplyStr.split( '\n' ))        
-    
+        
     @classmethod
     def Send( cls, neighbor ):
         "send to remote node"
         addrs, msgs = neighbor.AllToSend()
         data = urlencode( { 'pfp': '\n'.join( msgs ) } )
-        logging.debug( 'Send addrs: %s' % repr( addrs ))
+        logging.debug( 'Send %d msgs to addrs: %s' % ( len( msgs ), repr( addrs )))
         for Type, addr in set( addrs ):
             try:
                 req = urllib2.Request( addr, data )
@@ -92,6 +83,7 @@ class PeerForum( object ):
                 neighbor.RecSeccAddr( addr )
                 return response.read()
             except:
+                #logging.error( traceback.format_exc())
                 pass
         return ''
     
@@ -264,8 +256,8 @@ class PeerForum( object ):
                 Remote = NeighborNode.Pick()
                 for cyc, mod, code in (
                             ( 1, 0, 0x20 ),         #QryTreeMsg
-                            ( 20, 0, 0x11 ),        #NodeInfoMsg
-                            ( 20, 5, 0x12 ),        #GetNodeMsg
+                            ( 200, 0, 0x11 ),       #NodeInfoMsg
+                            ( 200, 5, 0x12 ),       #GetNodeMsg
                                     ):
                     if n % cyc == mod:
                         threading.Thread( target = cls.SendMessage, args = ( Remote, code )).start()
@@ -280,7 +272,7 @@ class PeerForum( object ):
         Neighbor = None
         for MsgStr in filter( None, msgLines ):
             ComingMsg = PFPMessage( ord( MsgStr[0] ))
-            logging.info( '---------coming msg---%s---%s' % ( ComingMsg.__class__.__name__, MsgStr[:20] ))
+            logging.info( '----coming msg---%s---%s' % ( ComingMsg.__class__.__name__, MsgStr[:20] ))
             Neighbor = ComingMsg.Receive( loads( MsgStr[1:] ))      #create neighbor obj from MsgStr
             if isinstance( ComingMsg, AtclDataMsg ):
                 cls.GotNewAtcl = True

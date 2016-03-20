@@ -348,6 +348,7 @@ class TreesInfoMsg( PFPMessage ):
         self.body = {
                 'Offer': [tpc.GetInfo() for tpc in Topic.Filter( forMsg.body )],
                     }
+        #logging.debug( 'TreesInfoMsg: %s' % repr( self.body['Offer'] ))
         if not self.body['Offer']:
             return False
 
@@ -364,6 +365,7 @@ class GetTreeMsg( PFPMessage ):
         self.body = {
                 'Trees': filter( None, [Topic.Compare( TreeInfo ) for TreeInfo in forMsg.body['Offer']] ),
                     }
+        #logging.debug( 'GetTreeMsg: %s' % repr( self.body['Trees'] ))
         if not self.body['Trees']:
             return False
 
@@ -394,6 +396,7 @@ class AtclDataMsg( PFPMessage ):
                                                                 )],
                         }
                         
+        #logging.debug( 'AtclDataMsg: %s' % repr( self.body['Articles'] ))
         if not self.body['Articles']:
             return False
                         
