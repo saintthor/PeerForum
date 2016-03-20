@@ -384,8 +384,8 @@ class AtclDataMsg( PFPMessage ):
                     'Articles': [atcl.Issue() for atcl in Atcls if atcl.IsPassed()],
                         }
                         
-            if AskBackTrees:
-                self.AskBack( AskBackTrees )
+#            if AskBackTrees:       do not ask back to avoid request storm
+#                self.AskBack( AskBackTrees )
                 
         elif isinstance( forMsg, GetTimeLineMsg ):
             self.body = {
@@ -397,12 +397,12 @@ class AtclDataMsg( PFPMessage ):
         if not self.body['Articles']:
             return False
                         
-    def AskBack( self, trees ):
-        "send back a GetTreeMsg if remote leaves are more than local"
-        BackMsg = GetTreeMsg()
-        BackMsg.SetRemoteNode( self.RemoteNode )
-        BackMsg.body = { 'Trees': trees }
-        BackMsg.RemoteNode.Buffer(( BackMsg.Issue(), ))
+#    def AskBack( self, trees ):
+#        "send back a GetTreeMsg if remote leaves are more than local"
+#        BackMsg = GetTreeMsg()
+#        BackMsg.SetRemoteNode( self.RemoteNode )
+#        BackMsg.body = { 'Trees': trees }
+#        BackMsg.RemoteNode.Buffer(( BackMsg.Issue(), ))
 
     def RcvData( self, remote ):
         ""

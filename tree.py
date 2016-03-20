@@ -501,12 +501,12 @@ class Topic( object ):
                 return topic.AtclD.values()
             if treeReq['Mode'] == 'leaf':
                 Atcls, AskBack = topic.ChkByLeaves( set( treeReq['Leaves'] ), set( treeReq.get( 'Fallens', [] )))
-                AskBack and askBackFunc( {
-                                    'TreeId': treeReq['TreeId'],
-                                    'Mode': 'leaf',
-                                    'Leaves': list( TreeStruct.GetLeaves( topic.Instruct(), ''  )),
-                                    'Fallens': topic.Fallens,
-                                        } )
+#                AskBack and askBackFunc( {     do not ask back to avoid request storm
+#                                    'TreeId': treeReq['TreeId'],
+#                                    'Mode': 'leaf',
+#                                    'Leaves': list( TreeStruct.GetLeaves( topic.Instruct(), ''  )),
+#                                    'Fallens': topic.Fallens,
+#                                        } )
                 return Atcls
             if treeReq['Mode'] in ( "higher", "lower", "relative" ):
                 pass
