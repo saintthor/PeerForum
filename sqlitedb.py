@@ -286,7 +286,7 @@ def GetNodesExcept( kItems, ids, excpK ):
         ProtocolKs, dataCols = zip( *kItems )
         dataCols += 'addr',
         nodes = cursor.execute( '''select %s from address inner join node on address.NodePubKey = node.PubKey
-                                where id in (%s) and PubKey != ?;'''
+                                where node.LastTime > 1458706453000 and id in (%s) and PubKey != ?;'''
                                 % ( ','.join( dataCols ), IdsStr ), ( exKStr, )).fetchall()
         #NodeList = [dict( zip( ProtocolKs, nodeData[:-1] )) for nodeData in nodes]
         d = {}
